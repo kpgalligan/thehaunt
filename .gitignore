@@ -1,0 +1,19 @@
+# Godot
+.godot/
+*.translation
+
+# Godot export config (can contain signing credentials)
+export_presets.cfg
+
+# .NET
+bin/
+obj/
+.mono/
+
+# OS
+.DS_Store
+
+# IDE
+.idea/
+.vscode/
+*.user
