@@ -23,7 +23,8 @@ public partial class TestMap : MapRoot
     private const int Water = 4;
     private const int Stone = 5;
     private const int Debris = 6; // storm blockade; config identical to Water/Stone
-    private const int TileCount = 7;
+    private const int Wall = 7;   // farmhouse facade masonry, per TownMap
+    private const int TileCount = 8;
 
     // FarmSoil atlas tile indices (atlas coords (i, 0)).
     private const int SoilDry = 0;
@@ -38,6 +39,7 @@ public partial class TestMap : MapRoot
         new("3a6ea5"), // water
         new("7a7a7a"), // stone
         new("5a4a2e"), // debris
+        new("9a9a8a"), // wall masonry
     };
 
     private static readonly Color[] SoilColors =
@@ -47,11 +49,17 @@ public partial class TestMap : MapRoot
     };
 
     // (28,19) was (28,15) — moved off the road strip when the east road landed.
+    // (5,12) was (5,5) — moved out of the farmhouse footprint when the house landed.
     private static readonly Vector2I[] StoneCoords =
     {
-        new(5, 5), new(15, 20), new(30, 10), new(25, 22), new(10, 18), new(33, 25),
+        new(5, 12), new(15, 20), new(30, 10), new(25, 22), new(10, 18), new(33, 25),
         new(18, 6), new(28, 19), new(6, 24), new(35, 7), new(22, 3), new(13, 13),
     };
+
+    // Farmhouse facade block (footprint x4-9, y4-7); the HouseDoor node fills
+    // the gap at the door cell.
+    private const int HouseDoorX = 6;
+    private const int HouseDoorY = 7;
 
     // Storm blockade cells: debris until intro.road_cleared, toggled in ApplyState.
     private static readonly Vector2I[] RoadBlockCells =
@@ -256,6 +264,12 @@ public partial class TestMap : MapRoot
         for (int px = 3; px <= 12; px++)
             img.SetPixel(Debris * TileSize + px, 15 - px / 2, log.Lightened(0.1f));
 
+        // Wall gets mortar lines so the facade reads as masonry, not pavement
+        // (same treatment as TownMap's town-hall facade).
+        var mortar = TileColors[Wall].Darkened(0.25f);
+        for (int py = 3; py < TileSize; py += 5)
+            img.FillRect(new Rect2I(Wall * TileSize, py, TileSize, 1), mortar);
+
         return ImageTexture.CreateFromImage(img);
     }
 
@@ -290,6 +304,18 @@ public partial class TestMap : MapRoot
                     obstacles.SetCell(new Vector2I(x, y), 0, new Vector2I(Water, 0));
             }
         }
+        // Farmhouse facade block; the HouseDoor node fills the gap at the door
+        // cell. Wall tiles refuse tilling via the obstacle check in IsTillable.
+        for (int y = 4; y <= 7; y++)
+        {
+            for (int x = 4; x <= 9; x++)
+            {
+                if (x == HouseDoorX && y == HouseDoorY)
+                    continue;
+                obstacles.SetCell(new Vector2I(x, y), 0, new Vector2I(Wall, 0));
+            }
+        }
+
         foreach (var coord in StoneCoords)
             obstacles.SetCell(coord, 0, new Vector2I(Stone, 0));
         _obstacles = obstacles;
@@ -426,19 +452,28 @@ public partial class TestMap : MapRoot
             // (spawn-clearance rule, asserted by test).
             Position = new Vector2(35 * TileSize + 8, 15 * TileSize + 8), // (568, 248)
         });
+        spawns.AddChild(new Marker2D
+        {
+            Name = "house_door",
+            // One tile south of the HouseDoor cell — arrival from the farmhouse.
+            Position = new Vector2(HouseDoorX * TileSize + 8, 8 * TileSize + 8), // (104, 136)
+        });
         AddChild(spawns);
     }
 
     private void BuildInteractables()
     {
         var interactables = new Node2D { Name = "Interactables" };
-        interactables.AddChild(new Bed
+        // The Bed moved indoors with the farmhouse (FarmHouseMap); its old
+        // tiles (8,8)/(8,9) are plain tillable grass now.
+        interactables.AddChild(new Door
         {
-            Name = "Bed",
-            Position = new Vector2(136, 152), // footprint tiles (8,8)-(8,9), position per spec
+            Name = "HouseDoor",
+            TargetMapId = MapIds.FarmHouse,
+            TargetSpawnId = "entry",
+            Position = new Vector2(HouseDoorX * TileSize + 8, HouseDoorY * TileSize + 8), // (104, 120)
         });
-        _reservedTiles.Add(new Vector2I(8, 8));
-        _reservedTiles.Add(new Vector2I(8, 9));
+        _reservedTiles.Add(new Vector2I(HouseDoorX, HouseDoorY));
         interactables.AddChild(new Sign
         {
             Name = "Sign",

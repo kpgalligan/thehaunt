@@ -17,38 +17,8 @@ public sealed class InventoryData
         i >= 0 && i < Slots.Count ? Slots[i] : null;
 
     // Returns the overflow NOT placed; tops up same-id stacks lowest-index-first,
-    // then fills empty slots.
-    public int Add(string itemId, int count)
-    {
-        if (count <= 0)
-        {
-            return 0;
-        }
-        int maxStack = MaxStackFor(itemId);
-        int remaining = count;
-        for (int i = 0; i < Slots.Count && remaining > 0; i++)
-        {
-            var stack = Slots[i];
-            if (stack is null || stack.ItemId != itemId || stack.Count >= maxStack)
-            {
-                continue;
-            }
-            int put = Math.Min(maxStack - stack.Count, remaining);
-            stack.Count += put;
-            remaining -= put;
-        }
-        for (int i = 0; i < Slots.Count && remaining > 0; i++)
-        {
-            if (Slots[i] is not null)
-            {
-                continue;
-            }
-            int put = Math.Min(maxStack, remaining);
-            Slots[i] = new ItemStackRecord { ItemId = itemId, Count = put };
-            remaining -= put;
-        }
-        return remaining;
-    }
+    // then fills empty slots. (The algebra lives in StackOps, shared with StorageData.)
+    public int Add(string itemId, int count) => StackOps.Add(Slots, itemId, count);
 
     // Returns the count actually removed, taking from lowest-index stacks first.
     public int Remove(string itemId, int count)
@@ -109,44 +79,9 @@ public sealed class InventoryData
         return true;
     }
 
-    public int CountOf(string itemId)
-    {
-        int total = 0;
-        foreach (var stack in Slots)
-        {
-            if (stack is not null && stack.ItemId == itemId)
-            {
-                total += stack.Count;
-            }
-        }
-        return total;
-    }
+    public int CountOf(string itemId) => StackOps.CountOf(Slots, itemId);
 
-    public bool HasRoomFor(string itemId, int count)
-    {
-        if (count <= 0)
-        {
-            return true;
-        }
-        int maxStack = MaxStackFor(itemId);
-        long room = 0;
-        foreach (var stack in Slots)
-        {
-            if (stack is null)
-            {
-                room += maxStack;
-            }
-            else if (stack.ItemId == itemId && stack.Count < maxStack)
-            {
-                room += maxStack - stack.Count;
-            }
-            if (room >= count)
-            {
-                return true;
-            }
-        }
-        return false;
-    }
+    public bool HasRoomFor(string itemId, int count) => StackOps.HasRoomFor(Slots, itemId, count);
 
     // Load repair. PADS Slots to Capacity but NEVER trims (raising Capacity later
     // must remain a constant change, not a migration); nulls degenerate entries;
@@ -171,9 +106,6 @@ public sealed class InventoryData
         // keeps extra slots (those are preserved but not selectable).
         SelectedSlot = Math.Clamp(SelectedSlot, 0, Math.Min(Capacity, Slots.Count) - 1);
     }
-
-    // Unknown ids get a conservative max stack of 1.
-    private static int MaxStackFor(string itemId) => ItemDefs.TryGet(itemId)?.MaxStack ?? 1;
 
     private static List<ItemStackRecord?> NewEmptySlots()
     {

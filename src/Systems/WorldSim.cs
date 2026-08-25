@@ -21,6 +21,9 @@ public partial class WorldSim : Node
 
     public event Action<long>? MoneyChanged;
 
+    /// <summary>Storage id whose slots mutated — fired once per mutating transfer.</summary>
+    public event Action<string>? StorageChanged;
+
     public event Action<OvernightReport>? OvernightCompleted;
 
     /// <summary>(flagId, dayStamped) — fired only on NEW sets, never on re-sets.</summary>
@@ -37,7 +40,23 @@ public partial class WorldSim : Node
     /// <summary>Def id; fired AFTER flags applied + phase restored.</summary>
     public event Action<string>? DialogueFinished;
 
+    /// <summary>Storage id — the chest UI shows on this.</summary>
+    public event Action<string>? StorageOpened;
+
+    public event Action? StorageClosed;
+
+    /// <summary>Catalog id — the shop UI shows on this.</summary>
+    public event Action<string>? ShopOpened;
+
+    public event Action? ShopClosed;
+
     public DialogueSession? ActiveDialogue { get; private set; }
+
+    /// <summary>Storage id of the open chest session; null when none.</summary>
+    public string? OpenStorageId { get; private set; }
+
+    /// <summary>Catalog id of the open shop session; null when none.</summary>
+    public string? OpenShopId { get; private set; }
 
     private readonly List<MapRoot> _maps = new();
     private OvernightReport _pendingReport;
@@ -151,7 +170,14 @@ public partial class WorldSim : Node
         ItemStackRecord? existing = data.ShippingBin.FirstOrDefault(s => s.ItemId == stack.ItemId);
         if (existing != null)
         {
-            existing.Count += stack.Count;
+            // Merge in long: an int wrap here would mint a negative count the overnight
+            // sale turns into negative money. Refusal is the non-destructive path.
+            long merged = (long)existing.Count + stack.Count;
+            if (merged > int.MaxValue)
+            {
+                return false;
+            }
+            existing.Count = (int)merged;
         }
         else
         {
@@ -159,6 +185,81 @@ public partial class WorldSim : Node
         }
 
         inventory.Slots[inventory.SelectedSlot] = null;
+        InventoryChanged?.Invoke();
+        return true;
+    }
+
+    /// <summary>
+    /// Moves the WHOLE stack in <paramref name="inventorySlot"/> into the storage,
+    /// partial-on-overflow. Loss/dupe-proof ordering (spec §1.5): the source slot is
+    /// vacated BEFORE the add, and the remainder (if any) goes back into that
+    /// just-vacated slot — it cannot collide with the add. Phase-free model op like
+    /// <see cref="DepositSelectedToBin"/>; the UI owns gating. False = nothing moved
+    /// (empty slot, or destination full) — no events fire.
+    /// </summary>
+    public bool TransferToStorage(string storageId, int inventorySlot)
+    {
+        GameData data = SaveService.Instance.Current;
+        InventoryData inventory = data.Player.Inventory;
+        ItemStackRecord? stack = inventory.SlotAt(inventorySlot);
+        if (stack == null)
+        {
+            return false;
+        }
+
+        StorageData storage = data.GetStorage(storageId);
+        inventory.Slots[inventorySlot] = null;
+        int overflow = StackOps.Add(storage.Slots, stack.ItemId, stack.Count);
+        if (overflow == stack.Count)
+        {
+            // Nothing moved — restore the original stack object; NO events.
+            inventory.Slots[inventorySlot] = stack;
+            return false;
+        }
+        if (overflow > 0)
+        {
+            inventory.Slots[inventorySlot] =
+                new ItemStackRecord { ItemId = stack.ItemId, Count = overflow };
+        }
+
+        StorageChanged?.Invoke(storageId);
+        InventoryChanged?.Invoke();
+        return true;
+    }
+
+    /// <summary>
+    /// Mirror of <see cref="TransferToStorage"/>: storage slot → inventory. Unknown
+    /// item ids transfer normally at max stack 1 — never destroyed.
+    /// </summary>
+    public bool TransferToInventory(string storageId, int storageSlot)
+    {
+        GameData data = SaveService.Instance.Current;
+        StorageData storage = data.GetStorage(storageId);
+        if (storageSlot < 0 || storageSlot >= storage.Slots.Count)
+        {
+            return false;
+        }
+        ItemStackRecord? stack = storage.Slots[storageSlot];
+        if (stack == null)
+        {
+            return false;
+        }
+
+        InventoryData inventory = data.Player.Inventory;
+        storage.Slots[storageSlot] = null;
+        int overflow = StackOps.Add(inventory.Slots, stack.ItemId, stack.Count);
+        if (overflow == stack.Count)
+        {
+            storage.Slots[storageSlot] = stack;
+            return false;
+        }
+        if (overflow > 0)
+        {
+            storage.Slots[storageSlot] =
+                new ItemStackRecord { ItemId = stack.ItemId, Count = overflow };
+        }
+
+        StorageChanged?.Invoke(storageId);
         InventoryChanged?.Invoke();
         return true;
     }
@@ -300,6 +401,135 @@ public partial class WorldSim : Node
         DialogueFinished?.Invoke(session.Def.Id);
     }
 
+    // Menu sessions (chest / shop) mirror the dialogue session: this bus owns which
+    // session is open and the phase moves with it; the UIs subscribe to Opened/Closed
+    // and never drive the phase themselves. Both sessions only ever open from Playing
+    // (PlayerHasControl gate), so Close always restores Playing — no from-phase flag
+    // needed. FinishDialogue discipline throughout: id nulled + phase restored, THEN
+    // listeners hear the event.
+
+    /// <summary>
+    /// Gate: player control + no session of either kind open. True means the phase
+    /// moved to Menu and <see cref="StorageOpened"/> fired.
+    /// </summary>
+    public bool OpenStorage(string storageId)
+    {
+        if (!GameState.Instance.PlayerHasControl || OpenStorageId != null || OpenShopId != null)
+        {
+            return false;
+        }
+        OpenStorageId = storageId;
+        GameState.Instance.TransitionTo(GameState.Phase.Menu);
+        StorageOpened?.Invoke(storageId);
+        return true;
+    }
+
+    /// <summary>Safe no-op when no chest session is open.</summary>
+    public void CloseStorage()
+    {
+        if (OpenStorageId == null)
+        {
+            return;
+        }
+        OpenStorageId = null;
+        GameState.Instance.TransitionTo(GameState.Phase.Playing);
+        StorageClosed?.Invoke();
+    }
+
+    /// <summary>
+    /// Same shape as <see cref="OpenStorage"/>; additionally refuses catalog ids
+    /// <see cref="ShopCatalog"/> does not know.
+    /// </summary>
+    public bool OpenShop(string catalogId)
+    {
+        if (!GameState.Instance.PlayerHasControl || OpenStorageId != null || OpenShopId != null)
+        {
+            return false;
+        }
+        if (ShopCatalog.TryGet(catalogId) == null)
+        {
+            return false;
+        }
+        OpenShopId = catalogId;
+        GameState.Instance.TransitionTo(GameState.Phase.Menu);
+        ShopOpened?.Invoke(catalogId);
+        return true;
+    }
+
+    /// <summary>Safe no-op when no shop session is open.</summary>
+    public void CloseShop()
+    {
+        if (OpenShopId == null)
+        {
+            return;
+        }
+        OpenShopId = null;
+        GameState.Instance.TransitionTo(GameState.Phase.Playing);
+        ShopClosed?.Invoke();
+    }
+
+    /// <summary>
+    /// Buys <paramref name="count"/> of <paramref name="itemId"/> from the open shop's
+    /// catalog, all-or-nothing. Integrity ordering (spec §3.2): every check lands
+    /// strictly BEFORE any mutation — a failed buy touches neither money nor inventory
+    /// and fires no events. On Ok: MoneyChanged THEN InventoryChanged.
+    /// </summary>
+    public BuyResult BuyItem(string itemId, int count)
+    {
+        // Malformed count is refused before any arithmetic (a negative count would
+        // otherwise credit money through the debit below).
+        if (count <= 0)
+        {
+            return BuyResult.UnknownItem;
+        }
+
+        // (1) The item must be on the OPEN shop's catalog — no session, no sale.
+        int price = -1;
+        IReadOnlyList<ShopEntry>? catalog =
+            OpenShopId == null ? null : ShopCatalog.TryGet(OpenShopId);
+        if (catalog != null)
+        {
+            foreach (ShopEntry entry in catalog)
+            {
+                if (entry.ItemId == itemId)
+                {
+                    price = entry.BuyPrice;
+                    break;
+                }
+            }
+        }
+        if (price < 0)
+        {
+            return BuyResult.UnknownItem;
+        }
+
+        GameData data = SaveService.Instance.Current;
+        PlayerData player = data.Player;
+
+        // (2)-(4) Remaining checks, still mutation-free.
+        long cost = (long)price * count;
+        if (player.Money < cost)
+        {
+            return BuyResult.InsufficientFunds;
+        }
+        if (!player.Inventory.HasRoomFor(itemId, count))
+        {
+            return BuyResult.NoRoom;
+        }
+
+        // (5)-(7) Mutate, then events in the frozen order.
+        player.Money -= cost;
+        int overflow = player.Inventory.Add(itemId, count);
+        if (overflow != 0)
+        {
+            // HasRoomFor passed above — nonzero overflow means the stack algebra drifted.
+            GD.PushError($"BuyItem overflow {overflow} for '{itemId}' x{count} after HasRoomFor passed.");
+        }
+        MoneyChanged?.Invoke(player.Money);
+        InventoryChanged?.Invoke();
+        return BuyResult.Ok;
+    }
+
     /// <summary>
     /// Re-derives NPC staging from (StoryFlags, Clock.Now) and pushes it to every live
     /// registered map. Maps with no scheduled NPC get an empty list — that is how
@@ -404,6 +634,27 @@ public partial class WorldSim : Node
             GameState.Instance.TransitionTo(GameState.Phase.Playing);
         }
         ActiveDialogue = null;
+
+        // Same strand for the menu sessions: a load can land while a chest or shop is
+        // up (both always Menu-from-Playing), so the discarded session must give the
+        // phase back and tell its UI to hide. Flag-based — never a phase comparison.
+        if (OpenStorageId != null || OpenShopId != null)
+        {
+            bool storageWasOpen = OpenStorageId != null;
+            bool shopWasOpen = OpenShopId != null;
+            OpenStorageId = null;
+            OpenShopId = null;
+            GameState.Instance.TransitionTo(GameState.Phase.Playing);
+            if (storageWasOpen)
+            {
+                StorageClosed?.Invoke();
+            }
+            if (shopWasOpen)
+            {
+                ShopClosed?.Invoke();
+            }
+        }
+
         SyncNpcsNow();
     }
 

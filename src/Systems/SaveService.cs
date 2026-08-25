@@ -204,6 +204,17 @@ public partial class SaveService : Node
                 data.StoryFlags[key] = saveDay;
             }
         }
+        // Storage repair mirrors the flag repair: drop the one degenerate key, revive
+        // null values, then normalize each entry. Known storage ids pad to capacity;
+        // unknown KEYS round-trip un-padded (their capacity is not ours to invent)
+        // with only degenerate-entry nulling. Unknown item ids inside are KEPT.
+        data.Storages ??= new();
+        data.Storages.Remove("");
+        foreach (string key in data.Storages.Keys.ToList())
+        {
+            var storage = data.Storages[key] ??= new StorageData();
+            storage.Normalize(StorageIds.CapacityOf(key));
+        }
         data.Player.MaxStamina = Math.Max(1, data.Player.MaxStamina);
         data.Player.Stamina = Math.Clamp(data.Player.Stamina, 0, data.Player.MaxStamina);
 

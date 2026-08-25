@@ -8,6 +8,7 @@ public sealed class GameData
     public Dictionary<string, MapState> Maps { get; set; } = new();
     public List<ItemStackRecord> ShippingBin { get; set; } = new();
     public Dictionary<string, long> StoryFlags { get; set; } = new();   // flag id -> DayIndex stamped
+    public Dictionary<string, StorageData> Storages { get; set; } = new();   // storage id -> slots
 
     public MapState GetMap(string mapId)
     {
@@ -17,6 +18,20 @@ public sealed class GameData
             Maps[mapId] = map;
         }
         return map;
+    }
+
+    // Lazy-create mirroring GetMap; new storages are normalized to their known
+    // capacity (unknown ids stay un-padded). NewGame ships an empty dict — the
+    // chest materializes on first open.
+    public StorageData GetStorage(string id)
+    {
+        if (!Storages.TryGetValue(id, out var storage))
+        {
+            storage = new StorageData();
+            storage.Normalize(StorageIds.CapacityOf(id));
+            Storages[id] = storage;
+        }
+        return storage;
     }
 
     public bool HasFlag(string id) => StoryFlags.ContainsKey(id);

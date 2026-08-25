@@ -11,6 +11,7 @@ public partial class Main : Node2D
     private Node2D _mapHost = null!;
     private Player.PlayerController _player = null!;
     private ScreenFade _fade = null!;
+    private OvernightReportUi _overnightReport = null!;
     private MapRoot? _currentMap;
     private bool _sleepFlowRunning;
     private bool _travelRunning;
@@ -20,6 +21,7 @@ public partial class Main : Node2D
         _mapHost = GetNode<Node2D>("World/MapHost");
         _player = GetNode<Player.PlayerController>("World/Player");
         _fade = GetNode<ScreenFade>("UI/ScreenFade");
+        _overnightReport = GetNode<OvernightReportUi>("UI/OvernightReport");
         GetNode<InteractionPrompt>("UI/InteractionPrompt").Bind(_player.Probe);
 
         GameState.Instance.StateChanged += OnStateChanged;
@@ -65,6 +67,22 @@ public partial class Main : Node2D
         // unknown-id fallback and stages NPCs at boot (AfterLoad fired before any
         // map was registered, so its sync had nothing to paint).
         WorldSim.Instance.CompleteTravel(map.MapId);
+
+        // A pre-3b save can hold a position that new geometry (building facades,
+        // doors) has since swallowed; loading it verbatim embeds the player in
+        // collision. Bounce to the spawn — the file itself is never rewritten.
+        var playerData = SaveService.Instance.Current.Player;
+        if (playerData.HasPosition)
+        {
+            var feetTile = new Vector2I(
+                Mathf.FloorToInt(playerData.X / MapRoot.TileSize),
+                Mathf.FloorToInt((playerData.Y + 6) / MapRoot.TileSize));
+            if (!map.IsStandable(feetTile))
+            {
+                GD.PushWarning($"Saved position ({playerData.X:0},{playerData.Y:0}) is no longer standable on '{map.MapId}'; respawning.");
+                playerData.HasPosition = false;
+            }
+        }
 
         if (!SaveService.Instance.Current.Player.HasPosition)
             _player.GlobalPosition = map.GetSpawn();
@@ -122,6 +140,20 @@ public partial class Main : Node2D
             Clock.Instance.AdvanceToDayStart();
             SaveService.Instance.Save();
             await _fade.FadeIn();
+            // Money is credited + autosaved above, so quitting mid-card loses only the
+            // popup. The phase is still Sleeping while the card is up (player frozen,
+            // PauseMenu inert, StoryDirector bails); the finally restores Playing on
+            // dismissal, and the dismissing press is swallowed by the controller's
+            // _hadControlLastPhysicsFrame guard.
+            Task card = _overnightReport.ShowIfPendingAsync();
+            bool showed = !card.IsCompleted;
+            await card;
+            // Mash grace: the player dismissed the card standing at the bed with E — the
+            // same key that re-sleeps. Hold Sleeping briefly so a habit double-tap dies
+            // while control is still off (the one-frame controller guard only covers the
+            // dismissing press itself). Zero-proceeds mornings keep exact pre-3b timing.
+            if (showed)
+                await ToSignal(GetTree().CreateTimer(0.3), SceneTreeTimer.SignalName.Timeout);
         }
         catch (Exception e)
         {
@@ -153,6 +185,33 @@ public partial class Main : Node2D
                 SaveService.Instance.Current.Player.MapId = args[i + 1];
                 SaveService.Instance.Current.Player.HasPosition = false;
             }
+
+            // Dev-only: advance the in-memory clock (never saved unless the run sleeps)
+            // so --screenshot can catch time-gated staging like the shopkeeper's hours.
+            // Through the clock, not GameData — the model already synced at load.
+            if (args[i] == "--add-minutes" && int.TryParse(args[i + 1], out int extra) && extra > 0)
+                Clock.Instance.AdvanceMinutes(extra);
+
+            // Dev-only: pop one of the 3b UIs after boot so --screenshot can capture it.
+            if (args[i] == "--open-ui")
+                CallDeferred(nameof(OpenUiForScreenshot), args[i + 1]);
+        }
+    }
+
+    // Deferred so the boot's LoadMap/phase state has fully settled first.
+    private void OpenUiForScreenshot(string which)
+    {
+        switch (which)
+        {
+            case "chest":
+                WorldSim.Instance.OpenStorage(StorageIds.FarmHouseChest);
+                break;
+            case "shop":
+                WorldSim.Instance.OpenShop(ShopCatalog.GeneralStore);
+                break;
+            case "help":
+                Input.ParseInputEvent(new InputEventAction { Action = "toggle_help", Pressed = true });
+                break;
         }
     }
 

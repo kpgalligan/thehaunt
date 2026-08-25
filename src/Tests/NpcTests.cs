@@ -155,6 +155,52 @@ public static class NpcTests
     }
 
     [SimTest]
+    public static void Npc_ShopkeeperSchedule(TestContext t)
+    {
+        // The shopkeeper keeps shop hours and nothing else: behind the counter of the
+        // general store during 180-659, absent otherwise, invariant under every
+        // intro-flag combination — and never staged on farm/town/town_hall, so the
+        // intro staging is untouched.
+        NpcDef shopkeeper = NpcDefs.All["shopkeeper"];
+        var behindCounter = new NpcPlacement(MapIds.GeneralStore, 6, 3, 0);
+        string[] introFlags =
+        {
+            StoryKeys.FirstPlanting, StoryKeys.RoadCleared,
+            StoryKeys.CrewArrivalDone, StoryKeys.MeetingDone,
+        };
+        int[] minutes = { 0, 179, 180, 400, 659, 660, 1199 };
+
+        for (int combo = 0; combo < 16; combo++)
+        {
+            var data = new GameData();
+            for (int bit = 0; bit < introFlags.Length; bit++)
+            {
+                if ((combo & (1 << bit)) != 0)
+                {
+                    data.TrySetFlag(introFlags[bit], 1);
+                }
+            }
+            foreach (int minute in minutes)
+            {
+                NpcPlacement? placed = NpcSchedules.Resolve(
+                    shopkeeper, data, new GameTime(3 * GameTime.MinutesPerDay + minute));
+                if (minute >= 180 && minute < 660)
+                {
+                    t.Assert(placed != null, $"combo {combo}: present at minute {minute}");
+                    t.AssertEqual(behindCounter, placed!.Value,
+                        $"combo {combo}: behind the counter at minute {minute}");
+                }
+                else
+                {
+                    t.Assert(placed == null, $"combo {combo}: absent at minute {minute}");
+                }
+                t.Assert(placed == null || placed.Value.MapId == MapIds.GeneralStore,
+                    $"combo {combo}: never outside the store at minute {minute}");
+            }
+        }
+    }
+
+    [SimTest]
     public static async Task Npc_ViewSpawnDespawn(TestContext t)
     {
         SaveService service = SaveService.Instance;

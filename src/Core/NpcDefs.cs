@@ -20,6 +20,7 @@ public static class NpcDefs
             new NpcDef("foreman", "Foreman", "#a0622e", NpcSchedules.Foreman),
             new NpcDef("crew_worker_a", "Repair Worker", "#3a6a9a", NpcSchedules.CrewWorkerA),
             new NpcDef("crew_worker_b", "Repair Worker", "#4a8a4a", NpcSchedules.CrewWorkerB),
+            new NpcDef("shopkeeper", "Shopkeeper", "#b08a4a" /* [KEVIN] */, NpcSchedules.Shopkeeper),
         };
         return defs.ToDictionary(d => d.Id);
     }

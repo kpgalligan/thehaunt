@@ -209,7 +209,7 @@ namespace TheHaunt.Systems;
 
 public partial class GameState : Node
 {
-    public enum Phase { Playing, Paused, Dialogue, Cutscene, Sleeping }
+    public enum Phase { Playing, Paused, Dialogue, Cutscene, Sleeping, Menu }   // Menu added by Phase 3b
 
     public static GameState Instance { get; private set; } = null!;
     public Phase Current { get; private set; } = Phase.Playing;
@@ -223,7 +223,8 @@ public partial class GameState : Node
 }
 ```
 - `_EnterTree`: `Instance = this; ProcessMode = ProcessModeEnum.Always;`
-- `TransitionTo`: no-op (return) if `next == Current`. `GetTree().Paused = (next == Phase.Paused)` — tree pause is used EXCLUSIVELY for the Paused phase; Dialogue/Cutscene/Sleeping never touch tree pause (clock stops via `ClockRuns`, player no-ops via `PlayerHasControl`). Fire `StateChanged(from, next)` last.
+- `TransitionTo`: no-op (return) if `next == Current`. `GetTree().Paused = (next == Phase.Paused)` — tree pause is used EXCLUSIVELY for the Paused phase; Dialogue/Cutscene/Sleeping/Menu never touch tree pause (clock stops via `ClockRuns`, player no-ops via `PlayerHasControl`). Fire `StateChanged(from, next)` last.
+- AMENDMENT (Phase 3b): `Menu` hosts the chest/shop UIs. Both derived queries are false in Menu (clock frozen, player frozen), `CanStartDialogue` refuses it, and no existing gate needed changes — the definitions above hold unchanged; WorldSim owns the open/close sessions (`OpenStorageId`/`OpenShopId`).
 
 ### Clock.cs
 ```csharp

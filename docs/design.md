@@ -66,7 +66,10 @@
 - **Phase 3 — Town & NPCs (intro slice done)**: maps + transitions (farm/town/town hall),
   NPC schedules on TenMinuteTicked, dialogue system, story flags, and the scripted intro
   (blocked road → first planting → crew arrival → town-hall meeting) shipped 2026-08-25.
-  Remaining as Phase 3b: connections/relationship mechanics, shops, more of the town.
+  **Phase 3b (shipped 2026-08-25)**: general store (interior map, Shopkeeper 9-5, seed
+  buying), farmhouse interior (bed/table/storage chest, save v4), itemized overnight
+  sales report on waking, Tab controls panel. Remaining as Phase 3c:
+  connections/relationship mechanics, more of the town.
 - **Phase 4 — Mining & fishing**: plus the unique specialties (design with Kevin first).
 - **Phase 5 — The malevolence**: entity manifestations, combat, weapons/special items,
   quest framework, escalation, endgame.

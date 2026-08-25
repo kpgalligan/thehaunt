@@ -9,7 +9,7 @@ namespace TheHaunt.Systems;
 /// </summary>
 public partial class GameState : Node
 {
-    public enum Phase { Playing, Paused, Dialogue, Cutscene, Sleeping }
+    public enum Phase { Playing, Paused, Dialogue, Cutscene, Sleeping, Menu }
 
     public static GameState Instance { get; private set; } = null!;
 

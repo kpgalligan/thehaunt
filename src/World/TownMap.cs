@@ -6,8 +6,9 @@ namespace TheHaunt.World;
 /// <summary>
 /// Programmatic placeholder town, 48x30 tiles, TestMap style. Grass with an
 /// east-west dirt road on rows 14-15 (continuous with the farm road), a stone
-/// town-hall facade with its Door, a plaza south of the road, and a west-edge
-/// MapExit back to the farm — always enabled: leaving town is never gated.
+/// town-hall facade with its Door, a general-store facade with its Door and
+/// storefront sign, a plaza south of the road, and a west-edge MapExit back to
+/// the farm — always enabled: leaving town is never gated.
 /// No bed, no farmland (IsTillable stays base false).
 /// </summary>
 public partial class TownMap : MapRoot
@@ -26,6 +27,10 @@ public partial class TownMap : MapRoot
 
     private const int DoorX = 23;
     private const int DoorY = 11;
+
+    // General-store facade (footprint x8-14, y8-11); door gap at (11,11).
+    private const int StoreDoorX = 11;
+    private const int StoreDoorY = 11;
 
     private static readonly Color[] TileColors =
     {
@@ -59,6 +64,7 @@ public partial class TownMap : MapRoot
         BuildGround(tileSet);
         BuildObstacles(tileSet);
         BuildSpawns();
+        BuildInteractables();
         BuildTravel();
     }
 
@@ -173,13 +179,25 @@ public partial class TownMap : MapRoot
             }
         }
 
+        // General-store facade block, same pattern — clear of the stone (8,6),
+        // the staging tiles, the plaza, and the road rows 14-15.
+        for (int y = 8; y <= 11; y++)
+        {
+            for (int x = 8; x <= 14; x++)
+            {
+                if (x == StoreDoorX && y == StoreDoorY)
+                    continue;
+                obstacles.SetCell(new Vector2I(x, y), 0, new Vector2I(Wall, 0));
+            }
+        }
+
         foreach (var coord in StoneCoords)
             obstacles.SetCell(coord, 0, new Vector2I(Stone, 0));
         AddChild(obstacles);
     }
 
     // ------------------------------------------------------------------
-    // Spawns / travel
+    // Spawns / interactables / travel
     // ------------------------------------------------------------------
 
     private void BuildSpawns()
@@ -196,7 +214,23 @@ public partial class TownMap : MapRoot
             Name = "from_hall",
             Position = new Vector2(DoorX * TileSize + 8, 13 * TileSize + 8), // (376, 224)
         });
+        spawns.AddChild(new Marker2D
+        {
+            Name = "from_store",
+            Position = new Vector2(StoreDoorX * TileSize + 8, 13 * TileSize + 8), // (184, 216)
+        });
         AddChild(spawns);
+    }
+
+    private void BuildInteractables()
+    {
+        AddChild(new Sign
+        {
+            Name = "StoreSign",
+            Position = new Vector2(12 * TileSize + 8, 12 * TileSize + 8), // (200, 200), beside the door path
+            // [KEVIN] placeholder copy — hours restate ShopHours; store NAME not invented.
+            Message = "General store. Open 9 to 5.",
+        });
     }
 
     private void BuildTravel()
@@ -221,6 +255,14 @@ public partial class TownMap : MapRoot
             TargetMapId = MapIds.TownHall,
             TargetSpawnId = "entry",
             Position = new Vector2(DoorX * TileSize + 8, DoorY * TileSize + 8), // (376, 184)
+        });
+
+        AddChild(new Door
+        {
+            Name = "StoreDoor",
+            TargetMapId = MapIds.GeneralStore,
+            TargetSpawnId = "entry",
+            Position = new Vector2(StoreDoorX * TileSize + 8, StoreDoorY * TileSize + 8), // (184, 184)
         });
     }
 }

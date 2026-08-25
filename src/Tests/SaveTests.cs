@@ -484,7 +484,10 @@ public static class SaveTests
         {
             service.DeserializeFrom(json);
             GameData loaded = service.Current;
-            t.AssertEqual(3, loaded.SaveVersion, "SaveVersion migrated to 3");
+            // The chain now carries v2 fixtures past 3; this test's job is the v2
+            // payload surviving the v2→v3 step, not pinning the chain's endpoint.
+            t.AssertEqual(SaveMigrations.CurrentVersion, loaded.SaveVersion,
+                "SaveVersion migrated to current");
             t.Assert(loaded.StoryFlags != null, "StoryFlags present after migration");
             t.AssertEqual(0, loaded.StoryFlags!.Count,
                 "migrated StoryFlags empty (the frozen literal adds no flags)");
@@ -534,7 +537,8 @@ public static class SaveTests
         {
             service.DeserializeFrom(json);
             GameData loaded = service.Current;
-            t.AssertEqual(3, loaded.SaveVersion, "SaveVersion migrated 1 -> 3 through the chain");
+            t.AssertEqual(SaveMigrations.CurrentVersion, loaded.SaveVersion,
+                "SaveVersion migrated from 1 to current through the chain");
 
             // The frozen v1 -> v2 step: starter kit + money grant.
             t.AssertEqual(500L, loaded.Player.Money, "chained money grant");
@@ -642,7 +646,7 @@ public static class SaveTests
     [SimTest]
     public static void Save_FixtureV3Loads(TestContext t)
     {
-        // The frozen v3 fixture is the v4 migration's future input: a meeting-pending
+        // The frozen v3 fixture is the v4 migration's input: a meeting-pending
         // mid-story state (player in town, crew arrival done) with an unknown flag.
         string json = ReadFixture(t, "v3_minimal.json");
         SaveService service = SaveService.Instance;
@@ -650,7 +654,7 @@ public static class SaveTests
         {
             service.DeserializeFrom(json);
             GameData loaded = service.Current;
-            t.AssertEqual(3, loaded.SaveVersion, "SaveVersion");
+            t.AssertEqual(SaveMigrations.CurrentVersion, loaded.SaveVersion, "SaveVersion");
             t.AssertEqual(3600L, loaded.TotalMinutes, "TotalMinutes");
             t.AssertEqual("town", loaded.Player.MapId, "player mid-story in town");
             t.AssertEqual(760L, loaded.Player.Money, "money");
@@ -703,6 +707,227 @@ public static class SaveTests
         {
             service.NewGame();
         }
+    }
+
+    [SimTest]
+    public static void Save_MigrationV3ToV4(TestContext t)
+    {
+        string json = ReadFixture(t, "v3_minimal.json");
+        SaveService service = SaveService.Instance;
+        try
+        {
+            service.DeserializeFrom(json);
+            GameData loaded = service.Current;
+            t.AssertEqual(SaveMigrations.CurrentVersion, loaded.SaveVersion,
+                "SaveVersion migrated to current");
+            t.Assert(loaded.Storages != null, "Storages present after migration");
+            t.AssertEqual(0, loaded.Storages!.Count,
+                "migrated Storages empty (the frozen literal adds no storages)");
+
+            // The full v3 payload must survive the migration untouched.
+            t.AssertEqual(3600L, loaded.TotalMinutes, "v3 TotalMinutes survives");
+            t.AssertEqual("town", loaded.Player.MapId, "v3 player MapId survives");
+            t.AssertEqual(56f, loaded.Player.X, "v3 player X survives");
+            t.AssertEqual(232f, loaded.Player.Y, "v3 player Y survives");
+            t.AssertEqual(2, loaded.Player.Facing, "v3 facing survives");
+            t.AssertEqual(760L, loaded.Player.Money, "v3 money survives");
+            t.AssertEqual(80, loaded.Player.Stamina, "v3 stamina survives");
+            t.AssertEqual(100, loaded.Player.MaxStamina, "v3 max stamina survives");
+            AssertStack(t, loaded.Player.Inventory.SlotAt(0), "hoe", 1, "v3 slot 0");
+            TileRecord? tile = loaded.Maps["test_farm"].GetTile(5, 6);
+            t.Assert(tile != null, "v3 tile (5,6) survives");
+            t.AssertEqual("turnip", tile!.CropId, "v3 tile crop survives");
+            t.AssertEqual(3, tile.GrowthDay, "v3 tile growth day survives");
+            t.AssertEqual(2L, tile.LastWateredDay, "v3 tile last watered day survives");
+            t.AssertEqual(1L, loaded.FlagDay(StoryKeys.FirstPlanting), "v3 first_planting survives");
+            t.AssertEqual(2L, loaded.FlagDay(StoryKeys.RoadCleared), "v3 road_cleared survives");
+            t.AssertEqual(2L, loaded.FlagDay(StoryKeys.CrewArrivalDone), "v3 crew_arrival_done survives");
+            t.AssertEqual(9L, loaded.FlagDay("future.mystery_flag"), "v3 unknown flag survives");
+
+            // Idempotence: re-serializing and re-loading the migrated data must be
+            // byte-identical — the only-if-absent guard makes a second pass a no-op.
+            string firstPass = service.SerializeToString();
+            service.DeserializeFrom(firstPass);
+            t.AssertEqual(firstPass, service.SerializeToString(),
+                "second migration pass serializes byte-identically");
+            t.AssertEqual(0, service.Current.Storages.Count,
+                "Storages still empty on the second pass");
+        }
+        finally
+        {
+            service.NewGame();
+        }
+    }
+
+    [SimTest]
+    public static void Save_MigratedStorageMatchesNewGame(TestContext t)
+    {
+        // Drift guard: if NewGame ever gains pre-filled storages, this MUST fail — the
+        // fix is a conscious decision (a new migration step), never editing the frozen
+        // v3→v4 migration. An empty dict IS correct: the chest materializes on first open.
+        string json = ReadFixture(t, "v3_minimal.json");
+        SaveService service = SaveService.Instance;
+        try
+        {
+            service.DeserializeFrom(json);
+            Dictionary<string, StorageData> migrated = service.Current.Storages;
+            Dictionary<string, StorageData> fresh = GameData.NewGame().Storages;
+
+            t.AssertEqual(fresh.Count, migrated.Count, "storage count matches new game");
+            foreach (string key in fresh.Keys)
+            {
+                t.Assert(migrated.ContainsKey(key), $"storage '{key}' matches new game");
+            }
+        }
+        finally
+        {
+            service.NewGame();
+        }
+    }
+
+    [SimTest]
+    public static void Save_StorageRoundTrip(TestContext t)
+    {
+        SaveService service = SaveService.Instance;
+        try
+        {
+            var data = new GameData();
+            StorageData chest = data.GetStorage(StorageIds.FarmHouseChest);
+            chest.Slots[0] = new ItemStackRecord { ItemId = "turnip", Count = 3 };
+            // Slot 5 leaves a null hole below it — index stability must survive.
+            chest.Slots[5] = new ItemStackRecord { ItemId = "mystery_relic", Count = 2 };
+            data.Storages["future.locker"] = new StorageData
+            {
+                Slots = { new ItemStackRecord { ItemId = "turnip_seeds", Count = 1 } },
+            };
+            string json = JsonSerializer.Serialize(data, SaveJsonContext.Default.GameData);
+
+            // The load path runs the storage repair — everything must survive it intact.
+            service.DeserializeFrom(json);
+            AssertStorageRoundTripStacks(t, service.Current, "after load");
+
+            service.DeserializeFrom(service.SerializeToString());
+            AssertStorageRoundTripStacks(t, service.Current, "after round-trip");
+        }
+        finally
+        {
+            service.NewGame();
+        }
+    }
+
+    [SimTest]
+    public static void Save_FixtureV4Loads(TestContext t)
+    {
+        // The frozen v4 fixture pins storage preservation: a known chest (padded on
+        // load) holding an unknown item id, plus an unknown storage KEY that must
+        // round-trip verbatim and un-padded.
+        string json = ReadFixture(t, "v4_minimal.json");
+        SaveService service = SaveService.Instance;
+        try
+        {
+            service.DeserializeFrom(json);
+            GameData loaded = service.Current;
+            t.AssertEqual(SaveMigrations.CurrentVersion, loaded.SaveVersion, "SaveVersion");
+            t.AssertEqual(480L, loaded.TotalMinutes, "TotalMinutes");
+            t.AssertEqual("test_farm", loaded.Player.MapId, "player map");
+            t.AssertEqual(100L, loaded.Player.Money, "money");
+            AssertV4Storages(t, loaded, "after load");
+
+            service.DeserializeFrom(service.SerializeToString());
+            AssertV4Storages(t, service.Current, "after round-trip");
+        }
+        finally
+        {
+            service.NewGame();
+        }
+    }
+
+    [SimTest]
+    public static void Save_StorageRepairRules(TestContext t)
+    {
+        // Storage repair mirrors the flag/bin repair: the one degenerate key ("") is
+        // dropped, null values revive as empty storages, degenerate entries are
+        // nulled in place, and known storage ids pad to capacity.
+        const string json = """
+            {"SaveVersion":4,"TotalMinutes":0,"Storages":{
+                "":{"Slots":[{"ItemId":"turnip","Count":1}]},
+                "farm_house_chest":{"Slots":[
+                    {"ItemId":"","Count":5},
+                    {"ItemId":"turnip","Count":-2},
+                    {"ItemId":"turnip","Count":3}]},
+                "future.locker":null}}
+            """;
+        SaveService service = SaveService.Instance;
+        try
+        {
+            service.DeserializeFrom(json);
+            GameData loaded = service.Current;
+            t.Assert(!loaded.Storages.ContainsKey(""), "empty-string key dropped by load repair");
+            t.AssertEqual(2, loaded.Storages.Count, "exactly the two repaired storages remain");
+
+            StorageData chest = loaded.Storages[StorageIds.FarmHouseChest];
+            t.AssertEqual(20, chest.Slots.Count, "known chest padded to 20 slots");
+            t.Assert(chest.Slots[0] == null, "empty-id entry nulled");
+            t.Assert(chest.Slots[1] == null, "non-positive-count entry nulled");
+            AssertStack(t, chest.Slots[2], "turnip", 3, "well-formed stack kept in place");
+
+            t.Assert(loaded.Storages["future.locker"] != null,
+                "null storage value repaired to an empty storage");
+            t.AssertEqual(0, loaded.Storages["future.locker"].Slots.Count,
+                "unknown storage key NOT padded (its capacity is not ours to invent)");
+
+            // Over-capacity chest: 25 slots survive un-trimmed with stacks in place
+            // (raising a capacity later must stay a constant change, not a migration).
+            var over = new GameData();
+            var big = new StorageData();
+            for (int i = 0; i < 24; i++)
+            {
+                big.Slots.Add(null);
+            }
+            big.Slots.Add(new ItemStackRecord { ItemId = "turnip", Count = 1 });
+            over.Storages[StorageIds.FarmHouseChest] = big;
+            service.DeserializeFrom(JsonSerializer.Serialize(over, SaveJsonContext.Default.GameData));
+            StorageData kept = service.Current.Storages[StorageIds.FarmHouseChest];
+            t.AssertEqual(25, kept.Slots.Count, "over-capacity chest NOT trimmed");
+            AssertStack(t, kept.Slots[24], "turnip", 1, "over-capacity stack kept in place");
+        }
+        finally
+        {
+            service.NewGame();
+        }
+    }
+
+    private static void AssertStorageRoundTripStacks(TestContext t, GameData data, string label)
+    {
+        t.Assert(data.Storages.ContainsKey(StorageIds.FarmHouseChest), $"{label}: chest present");
+        StorageData chest = data.Storages[StorageIds.FarmHouseChest];
+        t.AssertEqual(20, chest.Slots.Count, $"{label}: chest still at capacity");
+        AssertStack(t, chest.Slots[0], "turnip", 3, $"{label}: chest slot 0");
+        t.Assert(chest.Slots[1] == null, $"{label}: chest null hole survives");
+        AssertStack(t, chest.Slots[5], "mystery_relic", 2, $"{label}: unknown item id kept at slot 5");
+
+        t.Assert(data.Storages.ContainsKey("future.locker"), $"{label}: unknown storage key kept");
+        StorageData locker = data.Storages["future.locker"];
+        t.AssertEqual(1, locker.Slots.Count, $"{label}: unknown storage NOT padded");
+        AssertStack(t, locker.Slots[0], "turnip_seeds", 1, $"{label}: locker slot 0");
+    }
+
+    private static void AssertV4Storages(TestContext t, GameData data, string label)
+    {
+        t.AssertEqual(2, data.Storages.Count, $"{label}: exactly the two fixture storages");
+        StorageData chest = data.Storages[StorageIds.FarmHouseChest];
+        t.AssertEqual(20, chest.Slots.Count, $"{label}: chest normalized (padded) to 20 slots");
+        AssertStack(t, chest.Slots[0], "turnip", 3, $"{label}: chest slot 0");
+        AssertStack(t, chest.Slots[1], "future.artifact", 2,
+            $"{label}: chest slot 1 (unknown item preserved)");
+        for (int i = 2; i < chest.Slots.Count; i++)
+        {
+            t.Assert(chest.Slots[i] == null, $"{label}: chest slot {i} empty");
+        }
+
+        StorageData locker = data.Storages["future.locker"];
+        t.AssertEqual(1, locker.Slots.Count, $"{label}: unknown storage preserved un-padded");
+        AssertStack(t, locker.Slots[0], "turnip_seeds", 1, $"{label}: locker slot 0");
     }
 
     private static string ReadFixture(TestContext t, string name)

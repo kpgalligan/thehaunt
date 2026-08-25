@@ -1,4 +1,4 @@
-[gd_scene load_steps=11 format=3]
+[gd_scene load_steps=15 format=3]
 
 [ext_resource type="Script" path="res://src/Main.cs" id="1_main"]
 [ext_resource type="Script" path="res://src/Player/PlayerController.cs" id="2_player"]
@@ -10,6 +10,10 @@
 [ext_resource type="Script" path="res://src/UI/StaminaBar.cs" id="8_stamina"]
 [ext_resource type="Script" path="res://src/UI/DialogueUi.cs" id="9_dialogue"]
 [ext_resource type="Script" path="res://src/Story/StoryDirector.cs" id="10_story"]
+[ext_resource type="Script" path="res://src/UI/HelpPanel.cs" id="11_help"]
+[ext_resource type="Script" path="res://src/UI/ChestUi.cs" id="12_chest"]
+[ext_resource type="Script" path="res://src/UI/ShopUi.cs" id="13_shop"]
+[ext_resource type="Script" path="res://src/UI/OvernightReportUi.cs" id="14_report"]
 
 [node name="Main" type="Node2D"]
 script = ExtResource("1_main")
@@ -40,8 +44,20 @@ script = ExtResource("7_hotbar")
 [node name="StaminaBar" type="Control" parent="UI"]
 script = ExtResource("8_stamina")
 
+[node name="HelpPanel" type="Control" parent="UI"]
+script = ExtResource("11_help")
+
 [node name="DialogueUi" type="Control" parent="UI"]
 script = ExtResource("9_dialogue")
+
+[node name="ChestUi" type="Control" parent="UI"]
+script = ExtResource("12_chest")
+
+[node name="ShopUi" type="Control" parent="UI"]
+script = ExtResource("13_shop")
+
+[node name="OvernightReport" type="Control" parent="UI"]
+script = ExtResource("14_report")
 
 [node name="PauseMenu" type="Control" parent="UI"]
 process_mode = 3

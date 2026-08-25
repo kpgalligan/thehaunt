@@ -11,13 +11,16 @@ namespace TheHaunt.World;
 public static class MapRegistry
 {
     public static bool Contains(string mapId) =>
-        mapId is MapIds.Farm or MapIds.Town or MapIds.TownHall;
+        mapId is MapIds.Farm or MapIds.Town or MapIds.TownHall
+            or MapIds.FarmHouse or MapIds.GeneralStore;
 
     public static MapRoot Create(string mapId) => mapId switch
     {
         MapIds.Farm => new TestMap(),
         MapIds.Town => new TownMap(),
         MapIds.TownHall => new TownHallMap(),
+        MapIds.FarmHouse => new FarmHouseMap(),
+        MapIds.GeneralStore => new GeneralStoreMap(),
         _ => throw new ArgumentException($"Unknown map id '{mapId}'.", nameof(mapId)),
     };
 }

@@ -3,14 +3,16 @@ using Godot;
 using TheHaunt.Core;
 using TheHaunt.Player;
 using TheHaunt.Systems;
+using TheHaunt.UI;
 using TheHaunt.World;
 
 namespace TheHaunt.Tests;
 
 public static class IntegrationTests
 {
-    // Bed Area2D position in TestMap: footprint center of tiles (8,8)-(8,9). See spec §3.
-    private static readonly Vector2 BedPosition = new(136, 152);
+    // Bed Area2D position in FarmHouseMap: footprint tiles (12,2)-(12,3). The bed
+    // moved indoors with the 3b farmhouse. See phase3b-spec §4.4.
+    private static readonly Vector2 BedPosition = new(200, 56);
 
     [SimTest]
     public static async Task Events_MapSwapStress(TestContext t)
@@ -79,8 +81,14 @@ public static class IntegrationTests
             t.Assert(service.Current.GetMap("test_farm").GetTile(binTile.X, binTile.Y) == null,
                 "no TileRecord created at the shipping-bin tile");
 
-            t.Assert(!map.IsTillable(8, 8), "bed tile (8,8) not tillable");
-            t.Assert(!map.IsTillable(8, 9), "bed tile (8,9) not tillable");
+            // The bed moved indoors with the 3b farmhouse: its vacated tiles are plain
+            // tillable grass again — a deliberate decision, recorded here.
+            t.Assert(map.IsTillable(8, 8), "vacated bed tile (8,8) is tillable again");
+            t.Assert(map.IsTillable(8, 9), "vacated bed tile (8,9) is tillable again");
+            t.Assert(!map.IsTillable(5, 5), "farmhouse facade wall (5,5) not tillable");
+            t.Assert(!map.IsTillable(9, 4), "farmhouse facade wall (9,4) not tillable");
+            t.Assert(!map.IsTillable(6, 7), "farmhouse door tile (6,7) not tillable");
+            t.Assert(!map.IsTillable(5, 12), "relocated stone (5,12) not tillable");
             t.Assert(!map.IsTillable(12, 8), "sign tile (12,8) not tillable");
             t.Assert(!map.IsTillable(10, 8), "shipping-bin tile (10,8) not tillable");
             t.Assert(map.IsTillable(20, 25), "clear grass tile (20,25) stays tillable");
@@ -158,12 +166,17 @@ public static class IntegrationTests
             t.Assert(maybePlayer != null, "World/Player exists after boot");
             PlayerController player = maybePlayer!;
 
+            // The bed lives indoors now — enter the farmhouse first.
+            await TravelTo(t, MapIds.FarmHouse, "entry", "into the farmhouse");
+
             // Stand just below the bed and face up so the probe reaches into it.
+            // (The arrival spawn overlaps the interior door, so the probe may hold a
+            // stale door focus for a frame — wait for the BED specifically.)
             player.GlobalPosition = BedPosition + new Vector2(0, 28);
             player.Probe.SetFacing(3);
 
-            bool focused = await t.WaitUntil(() => player.Probe.Focused != null, 2);
-            t.Assert(focused, "probe focused an interactable near the bed within 2 s");
+            bool focused = await t.WaitUntil(() => player.Probe.Focused is Bed, 2);
+            t.Assert(focused, "probe focused the bed within 2 s");
             t.AssertEqual("Sleep", player.Probe.Focused!.PromptText, "focused prompt text");
         }
         finally
@@ -508,6 +521,307 @@ public static class IntegrationTests
         }
     }
 
+    [SimTest]
+    public static async Task Integration_ChestOpenTransferClose(TestContext t)
+    {
+        Node? main = null;
+        try
+        {
+            main = GD.Load<PackedScene>("res://scenes/Main.tscn").Instantiate();
+            t.Host.AddChild(main);
+            await t.WaitFrames(5);
+            t.AssertEqual(0L, Clock.Instance.Now.TotalMinutes, "boots fresh (no leaked autosave)");
+            var maybePlayer = main.GetNodeOrNull<PlayerController>("World/Player");
+            t.Assert(maybePlayer != null, "World/Player exists after boot");
+            PlayerController player = maybePlayer!;
+
+            // Story quiet (no planting happens here, but cheap insurance).
+            WorldSim.Instance.SetStoryFlag(StoryKeys.CrewArrivalDone);
+            WorldSim.Instance.SetStoryFlag(StoryKeys.MeetingDone);
+
+            // Seed both sides BEFORE the chest opens: chest slot 0 is the
+            // opening-press canary (a leaked press would transfer it).
+            GameData data = SaveService.Instance.Current;
+            StorageData chest = data.GetStorage(StorageIds.FarmHouseChest);
+            chest.Slots[0] = new ItemStackRecord { ItemId = "turnip", Count = 3 };
+            data.Player.Inventory.Slots[5] = new ItemStackRecord { ItemId = "greenbean", Count = 2 };
+
+            await TravelTo(t, MapIds.FarmHouse, "entry", "into the farmhouse");
+
+            // Stand under the chest at (2,2) and face up so the probe focuses it.
+            // (The arrival spawn overlaps the interior door — wait for the CHEST
+            // specifically, not just any focus.)
+            player.GlobalPosition = new Vector2(40, 56); // tile (2,3) center
+            player.Probe.SetFacing(3);
+            t.Assert(await t.WaitUntil(() => player.Probe.Focused is Chest, 2),
+                "probe focused the chest");
+            t.AssertEqual("Open", player.Probe.Focused!.PromptText, "chest prompt text");
+
+            // Open with a real interact press through the input pipeline.
+            await PressKey(t, Key.E);
+            t.Assert(await t.WaitUntil(() => WorldSim.Instance.OpenStorageId != null, 2),
+                "interact press opened the chest session");
+            t.AssertEqual(StorageIds.FarmHouseChest, WorldSim.Instance.OpenStorageId,
+                "open storage id");
+            t.AssertEqual(GameState.Phase.Menu, GameState.Instance.Current,
+                "phase in Menu while the chest is open");
+
+            // The opening press must NOT have doubled as a transfer press on the
+            // focused chest slot 0 (the DialogueUi _openedFrame pattern).
+            await t.WaitFrames(2);
+            t.Assert(chest.Slots[0] != null && chest.Slots[0]!.Count == 3,
+                "opening press did not transfer chest slot 0");
+
+            // Chest -> inventory: a second interact press moves the focused slot 0 stack.
+            await PressKey(t, Key.E);
+            t.Assert(await t.WaitUntil(() => chest.Slots[0] == null, 2),
+                "interact press transferred the focused chest stack");
+            t.AssertEqual(3, data.Player.Inventory.CountOf("turnip"),
+                "turnips arrived in the inventory");
+
+            // Inventory -> chest through the same model op the slot buttons call (grid
+            // focus navigation is not simulated headlessly; the assertions are the contract).
+            t.Assert(WorldSim.Instance.TransferToStorage(StorageIds.FarmHouseChest, 5),
+                "inventory stack deposited");
+            t.Assert(data.Player.Inventory.SlotAt(5) == null, "inventory source slot vacated");
+            t.AssertEqual(2, StackOps.CountOf(chest.Slots, "greenbean"), "greenbeans in the chest");
+
+            // Esc closes: session cleared, straight back to Playing...
+            await PressKey(t, Key.Escape);
+            t.Assert(await t.WaitUntil(
+                () => WorldSim.Instance.OpenStorageId == null
+                    && GameState.Instance.Current == GameState.Phase.Playing, 2),
+                "Esc closed the chest back to Playing");
+
+            // ...and the closing press is fully swallowed: the same Esc never reaches
+            // the pause menu, nothing re-opens, and no stray press moves an item on
+            // the first control frame — the closing-press regression pin.
+            await t.WaitFrames(5);
+            t.AssertEqual(GameState.Phase.Playing, GameState.Instance.Current,
+                "closing Esc never reached the pause menu");
+            t.Assert(WorldSim.Instance.OpenStorageId == null, "chest did not re-open");
+            t.AssertEqual(3, data.Player.Inventory.CountOf("turnip"),
+                "inventory stable across the close");
+            t.AssertEqual(2, StackOps.CountOf(chest.Slots, "greenbean"),
+                "chest stable across the close");
+        }
+        finally
+        {
+            WorldSim.Instance.CloseStorage();
+            await CleanupMainAsync(t, main);
+        }
+    }
+
+    [SimTest]
+    public static async Task Integration_MorningReportFlow(TestContext t)
+    {
+        Node? main = null;
+        try
+        {
+            main = GD.Load<PackedScene>("res://scenes/Main.tscn").Instantiate();
+            t.Host.AddChild(main);
+            await t.WaitFrames(5);
+            t.AssertEqual(0L, Clock.Instance.Now.TotalMinutes, "boots fresh (no leaked autosave)");
+
+            // Story quiet: no beat may interleave with the report card.
+            WorldSim.Instance.SetStoryFlag(StoryKeys.CrewArrivalDone);
+            WorldSim.Instance.SetStoryFlag(StoryKeys.MeetingDone);
+
+            var maybeReport = main.GetNodeOrNull<OvernightReportUi>("UI/OvernightReport");
+            t.Assert(maybeReport != null, "UI/OvernightReport exists");
+            OvernightReportUi report = maybeReport!;
+            t.Assert(!report.Visible, "no card before any sleep");
+
+            // Ship one stack of turnips.
+            InventoryData inv = SaveService.Instance.Current.Player.Inventory;
+            inv.Slots[5] = new ItemStackRecord { ItemId = "turnip", Count = 5 };
+            WorldSim.Instance.SelectSlot(5);
+            t.Assert(WorldSim.Instance.DepositSelectedToBin(), "deposit turnips");
+            long moneyBefore = SaveService.Instance.Current.Player.Money;
+            long expected = 5L * ItemDefs.Get("turnip").SellPrice; // 175
+
+            // Sleep: the card must interpose while the phase is STILL Sleeping.
+            long dayBefore = Clock.Instance.Now.DayIndex;
+            GameState.Instance.TransitionTo(GameState.Phase.Sleeping);
+            t.Assert(await t.WaitUntil(() => Clock.Instance.Now.DayIndex > dayBefore, 10),
+                "sleep advanced the day");
+            t.Assert(await t.WaitUntil(() => report.Visible, 10), "report card shown");
+            t.AssertEqual(GameState.Phase.Sleeping, GameState.Instance.Current,
+                "phase still Sleeping while the card is up");
+
+            // Copy pins (§5.2): the sold line and the total row.
+            t.Assert(AnyTextContains(report, "Turnip x5"), "sold line lists 'Turnip x5'");
+            t.Assert(AnyTextContains(report, "+175g"), "total row shows '+175g'");
+
+            // Money was credited AND autosaved BEFORE the card: quitting mid-card
+            // loses only the popup, never money.
+            t.AssertEqual(moneyBefore + expected, SaveService.Instance.Current.Player.Money,
+                "money credited before the card");
+            t.Assert(SaveService.Instance.SaveFileExists(), "autosave already on disk under the card");
+            string autosavePath = Path.Combine(
+                SaveService.SaveDirectory, SaveService.DefaultSlot + ".json");
+            JsonNode? savedMoney = JsonNode.Parse(File.ReadAllText(autosavePath))!["Player"]?["Money"];
+            t.Assert(savedMoney != null && savedMoney.GetValue<long>() == moneyBefore + expected,
+                "the autosave already carries the credited money");
+
+            report.Dismiss();
+            t.Assert(await t.WaitUntil(
+                () => GameState.Instance.Current == GameState.Phase.Playing, 10),
+                "Dismiss released the sleep flow to Playing");
+            t.Assert(!report.Visible, "card hidden after dismissal");
+
+            // A second, empty-bin night reaches Playing WITHOUT any dismissal —
+            // proof that zero-proceeds mornings show nothing.
+            long day2 = Clock.Instance.Now.DayIndex;
+            GameState.Instance.TransitionTo(GameState.Phase.Sleeping);
+            t.Assert(await t.WaitUntil(
+                () => Clock.Instance.Now.DayIndex > day2
+                    && GameState.Instance.Current == GameState.Phase.Playing, 10),
+                "empty-bin sleep reached Playing on its own");
+            t.Assert(!report.Visible, "zero-proceeds morning shows no card");
+        }
+        finally
+        {
+            await CleanupMainAsync(t, main);
+        }
+    }
+
+    [SimTest]
+    public static async Task Integration_SleepInHouseCrewBeatOnExit(TestContext t)
+    {
+        // The 3b normal case: plant, sleep INDOORS, and meet the crew only on
+        // stepping outside — dialogue-driven end to end, deliberately NOT pre-stamped.
+        Node? main = null;
+        try
+        {
+            main = GD.Load<PackedScene>("res://scenes/Main.tscn").Instantiate();
+            t.Host.AddChild(main);
+            await t.WaitFrames(5);
+            t.AssertEqual(0L, Clock.Instance.Now.TotalMinutes, "boots fresh (no leaked autosave)");
+
+            // First planting on day 0: the road clears at the next dawn.
+            var tile = new Vector2I(20, 14); // dirt rectangle, obstacle-free
+            WorldSim.Instance.SelectSlot(0); // hoe
+            t.AssertEqual(ActionOutcome.Tilled, WorldSim.Instance.UseSelectedItem(tile), "till");
+            WorldSim.Instance.SelectSlot(3); // turnip seeds
+            t.AssertEqual(ActionOutcome.Planted, WorldSim.Instance.UseSelectedItem(tile), "plant");
+
+            // Head indoors and sleep there. The farmhouse is not the farm exterior,
+            // so the crew beat cannot fire out of the sleep flow's return to Playing.
+            await TravelTo(t, MapIds.FarmHouse, "entry", "into the farmhouse");
+            long dayBefore = Clock.Instance.Now.DayIndex;
+            GameState.Instance.TransitionTo(GameState.Phase.Sleeping);
+            t.Assert(await t.WaitUntil(
+                () => Clock.Instance.Now.DayIndex > dayBefore
+                    && GameState.Instance.Current == GameState.Phase.Playing, 10),
+                "indoor sleep reached the morning (empty bin: no card)");
+
+            t.AssertEqual(1L, SaveService.Instance.Current.FlagDay(StoryKeys.RoadCleared),
+                "road cleared at the indoor dawn");
+            await t.WaitFrames(30);
+            t.Assert(WorldSim.Instance.ActiveDialogue == null,
+                "no crew beat indoors");
+            t.Assert(!SaveService.Instance.Current.HasFlag(StoryKeys.CrewArrivalDone),
+                "crew arrival still pending");
+
+            // Step outside: the beat fires at the door. It starts straight out of the
+            // travel flow's return to Playing, so wait for the arrival + the beat —
+            // never for Playing.
+            t.Assert(WorldSim.Instance.RequestTravel(MapIds.Farm, "house_door"),
+                "travel out the front door accepted");
+            t.Assert(await t.WaitUntil(
+                () => SaveService.Instance.Current.Player.MapId == MapIds.Farm, 10),
+                "back on the farm exterior");
+            t.Assert(await t.WaitUntil(() => WorldSim.Instance.ActiveDialogue != null, 10),
+                "crew beat fired on stepping outside");
+            t.AssertEqual("intro_crew_arrival", WorldSim.Instance.ActiveDialogue!.Def.Id,
+                "the active dialogue is the crew arrival beat");
+
+            await DriveDialogueToCompletion(t, "crew arrival at the door");
+            t.AssertEqual(1L, SaveService.Instance.Current.FlagDay(StoryKeys.CrewArrivalDone),
+                "crew_arrival_done stamped by the beat's terminal node");
+            t.Assert(await t.WaitUntil(
+                () => GameState.Instance.Current == GameState.Phase.Playing, 10),
+                "Playing restored after the beat");
+        }
+        finally
+        {
+            await CleanupMainAsync(t, main);
+        }
+    }
+
+    [SimTest]
+    public static async Task Help_ToggleGating(TestContext t)
+    {
+        Node? main = null;
+        try
+        {
+            main = GD.Load<PackedScene>("res://scenes/Main.tscn").Instantiate();
+            t.Host.AddChild(main);
+            await t.WaitFrames(5);
+            t.AssertEqual(0L, Clock.Instance.Now.TotalMinutes, "boots fresh (no leaked autosave)");
+
+            // Story quiet so nothing steals control mid-test.
+            WorldSim.Instance.SetStoryFlag(StoryKeys.CrewArrivalDone);
+            WorldSim.Instance.SetStoryFlag(StoryKeys.MeetingDone);
+
+            var maybeHelp = FindNode<HelpPanel>(main);
+            t.Assert(maybeHelp != null, "HelpPanel exists under Main's UI");
+            HelpPanel help = maybeHelp!;
+            t.Assert(!help.Visible, "help panel hidden at boot");
+
+            // Playing: Tab toggles both ways, and the phase never moves (non-modal).
+            await PressKey(t, Key.Tab);
+            t.Assert(await t.WaitUntil(() => help.Visible, 2), "Tab shows the panel in Playing");
+            t.AssertEqual(GameState.Phase.Playing, GameState.Instance.Current,
+                "non-modal: showing the panel keeps Playing");
+            await PressKey(t, Key.Tab);
+            t.Assert(await t.WaitUntil(() => !help.Visible, 2), "Tab hides the panel again");
+
+            // Dialogue: inert.
+            t.Assert(WorldSim.Instance.StartDialogue("foreman_wait"), "dialogue started");
+            await t.WaitFrames(2);
+            await PressKey(t, Key.Tab);
+            await t.WaitFrames(5);
+            t.Assert(!help.Visible, "Tab inert during dialogue");
+            await DriveDialogueToCompletion(t, "help-gating dialogue");
+            t.Assert(await t.WaitUntil(() => GameState.Instance.PlayerHasControl, 5),
+                "control restored after the dialogue");
+
+            // Menu (chest session): inert.
+            t.Assert(WorldSim.Instance.OpenStorage(StorageIds.FarmHouseChest),
+                "chest session opened");
+            await PressKey(t, Key.Tab);
+            await t.WaitFrames(5);
+            t.Assert(!help.Visible, "Tab inert in Menu");
+            WorldSim.Instance.CloseStorage();
+            await t.WaitFrames(2);
+
+            // Paused: inert.
+            GameState.Instance.TransitionTo(GameState.Phase.Paused);
+            await PressKey(t, Key.Tab);
+            await t.WaitFrames(5);
+            t.Assert(!help.Visible, "Tab inert while paused");
+            GameState.Instance.TransitionTo(GameState.Phase.Playing);
+            await t.WaitFrames(2);
+
+            // Losing control force-hides an open panel — it can never underlap a modal.
+            await PressKey(t, Key.Tab);
+            t.Assert(await t.WaitUntil(() => help.Visible, 2), "panel re-shown in Playing");
+            t.Assert(WorldSim.Instance.OpenStorage(StorageIds.FarmHouseChest),
+                "modal session opens over the panel");
+            t.Assert(!help.Visible, "control loss force-hid the panel");
+            WorldSim.Instance.CloseStorage();
+            await t.WaitFrames(2);
+            t.Assert(!help.Visible, "panel stays hidden after the modal closes");
+        }
+        finally
+        {
+            WorldSim.Instance.CloseStorage();
+            await CleanupMainAsync(t, main);
+        }
+    }
+
     // Debris blockade cells frozen by phase3-spec §6.
     private static readonly Vector2I[] RoadBlockCells =
     {
@@ -587,17 +901,83 @@ public static class IntegrationTests
         t.Assert(WorldSim.Instance.ActiveDialogue == null, $"{label}: dialogue ran to completion");
     }
 
-    // Runs Main's full sleep flow (fade -> day advance -> autosave -> fade) via the
-    // Sleeping transition and waits for the morning.
+    // Runs Main's full sleep flow (fade -> day advance -> autosave -> fade -> report)
+    // via the Sleeping transition and waits for the morning. A shipping night raises
+    // the overnight report card, which holds the flow in Sleeping until dismissed —
+    // the helper dismisses it programmatically (only the shipping night shows one).
     private static async Task SleepOneNight(TestContext t, string label)
     {
         long dayBefore = Clock.Instance.Now.DayIndex;
         GameState.Instance.TransitionTo(GameState.Phase.Sleeping);
-        bool completed = await t.WaitUntil(
-            () => Clock.Instance.Now.DayIndex > dayBefore
-                && GameState.Instance.Current == GameState.Phase.Playing,
+        t.Assert(await t.WaitUntil(() => Clock.Instance.Now.DayIndex > dayBefore, 10),
+            $"sleep advanced the day ({label})");
+
+        OvernightReportUi? report = FindNode<OvernightReportUi>(t.Host);
+        bool settled = await t.WaitUntil(
+            () => GameState.Instance.Current == GameState.Phase.Playing
+                || (report != null && report.Visible),
             10);
+        t.Assert(settled, $"morning settled into Playing or the report card ({label})");
+        if (report != null && report.Visible)
+        {
+            report.Dismiss();
+        }
+        bool completed = await t.WaitUntil(
+            () => GameState.Instance.Current == GameState.Phase.Playing, 10);
         t.Assert(completed, $"sleep flow completed within 10 s ({label})");
+    }
+
+    // Depth-first search by node type — 3b UI nodes are found structurally so the
+    // tests never hard-code more scene paths than the spec freezes.
+    private static T? FindNode<T>(Node root) where T : class
+    {
+        if (root is T match)
+        {
+            return match;
+        }
+        foreach (Node child in root.GetChildren())
+        {
+            if (FindNode<T>(child) is { } found)
+            {
+                return found;
+            }
+        }
+        return null;
+    }
+
+    // Injects a full press+release of a physical key through the real input pipeline
+    // (Input singleton + viewport dispatch), waiting frames between the edges so both
+    // just-pressed polling and _UnhandledInput observe the press.
+    private static async Task PressKey(TestContext t, Key physicalKey)
+    {
+        Input.ParseInputEvent(new InputEventKey { PhysicalKeycode = physicalKey, Pressed = true });
+        await t.WaitFrames(2);
+        Input.ParseInputEvent(new InputEventKey { PhysicalKeycode = physicalKey, Pressed = false });
+        await t.WaitFrames(2);
+    }
+
+    // Finds a Label/RichTextLabel whose text contains the fragment — copy pins for
+    // code-built UI cards without depending on their internal layout.
+    private static bool AnyTextContains(Node root, string fragment)
+    {
+        string? text = root switch
+        {
+            Label label => label.Text,
+            RichTextLabel rich => rich.Text,
+            _ => null,
+        };
+        if (text != null && text.Contains(fragment))
+        {
+            return true;
+        }
+        foreach (Node child in root.GetChildren())
+        {
+            if (AnyTextContains(child, fragment))
+            {
+                return true;
+            }
+        }
+        return false;
     }
 
     // --- Pure cell-state function (recomputed independently of the map code, spec §3) ---

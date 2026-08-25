@@ -190,6 +190,58 @@ public static class FarmTests
     }
 
     [SimTest]
+    public static void Overnight_ReportItemizesSales(TestContext t)
+    {
+        var data = GameData.NewGame();
+        data.ShippingBin.Add(new ItemStackRecord { ItemId = "turnip", Count = 5 });
+        data.ShippingBin.Add(new ItemStackRecord { ItemId = "greenbean", Count = 2 });
+        data.ShippingBin.Add(new ItemStackRecord { ItemId = "mystery_relic", Count = 3 });
+        long moneyBefore = data.Player.Money;
+
+        OvernightReport report = OvernightSim.Run(data, dayEnding: 0);
+
+        // One ShippedLine per SOLD stack, in deposit order; the unknown id sells
+        // nothing and produces no line.
+        t.Assert(report.Sales != null, "report carries the itemized sales");
+        IReadOnlyList<ShippedLine> sales = report.Sales!;
+        t.AssertEqual(2, sales.Count, "one line per sold stack, none for the unknown id");
+        t.AssertEqual(new ShippedLine("turnip", 5, 175), sales[0], "turnip line (5 x 35)");
+        t.AssertEqual(new ShippedLine("greenbean", 2, 80), sales[1], "greenbean line (2 x 40)");
+
+        long lineSum = 0;
+        foreach (ShippedLine line in sales)
+        {
+            lineSum += line.Proceeds;
+        }
+        t.AssertEqual(report.ShippingProceeds, lineSum, "line proceeds sum to ShippingProceeds");
+        t.AssertEqual(255L, report.ShippingProceeds, "proceeds exact");
+        t.AssertEqual(moneyBefore + 255L, data.Player.Money, "money credited by the same sum");
+
+        // Unknown/unsellable ids stay binned — item deletion is data loss.
+        t.AssertEqual(1, data.ShippingBin.Count, "unknown id stays binned");
+        t.AssertEqual("mystery_relic", data.ShippingBin[0].ItemId, "the surviving stack is the unknown id");
+        t.AssertEqual(3, data.ShippingBin[0].Count, "unknown stack count preserved");
+    }
+
+    [SimTest]
+    public static void Overnight_NonPositiveBinEntryNeverSells(TestContext t)
+    {
+        // Review pin: a hostile-writer Count <= 0 bin entry must be skipped and
+        // preserved — selling it would MINT negative money and brick the save on
+        // the next load's negative-Money check.
+        var data = GameData.NewGame();
+        data.ShippingBin.Add(new ItemStackRecord { ItemId = "turnip", Count = -5 });
+        long moneyBefore = data.Player.Money;
+
+        OvernightReport report = OvernightSim.Run(data, dayEnding: 0);
+
+        t.AssertEqual(0L, report.ShippingProceeds, "no proceeds from a degenerate entry");
+        t.AssertEqual(0, report.Sales!.Count, "no ShippedLine for a degenerate entry");
+        t.AssertEqual(moneyBefore, data.Player.Money, "money untouched");
+        t.AssertEqual(1, data.ShippingBin.Count, "entry preserved for the load repair to drop");
+    }
+
+    [SimTest]
     public static void Farm_RegrowCycle(TestContext t)
     {
         var data = GameData.NewGame();

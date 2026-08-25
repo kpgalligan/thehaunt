@@ -11,9 +11,9 @@ namespace TheHaunt.Tests;
 /// </summary>
 public partial class TestRunner : Node
 {
-    // Guard against silent discovery breakage: the phase-3 suite ships 62 tests
-    // (37 phase-2 + 25 phase-3).
-    private const int MinimumExpectedTests = 63;
+    // Guard against silent discovery breakage: the phase-3b suite ships 87 tests
+    // (63 phase-2/3 + 24 phase-3b incl. review pins). Re-pin to the exact count whenever tests ship.
+    private const int MinimumExpectedTests = 87;
 
     public override async void _Ready()
     {

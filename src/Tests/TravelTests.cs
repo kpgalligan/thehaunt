@@ -8,13 +8,15 @@ namespace TheHaunt.Tests;
 
 public static class TravelTests
 {
-    // Documented spawn roster per map (spec §2.6) — each must resolve to a real
-    // Marker2D, never the camera-center fallback.
+    // Documented spawn roster per map (phase3-spec §2.6 + phase3b-spec §4) — each
+    // must resolve to a real Marker2D, never the camera-center fallback.
     private static readonly Dictionary<string, string[]> DocumentedSpawns = new()
     {
-        [MapIds.Farm] = new[] { "default", "road" },
-        [MapIds.Town] = new[] { "from_farm", "from_hall" },
+        [MapIds.Farm] = new[] { "default", "road", "house_door" },
+        [MapIds.Town] = new[] { "from_farm", "from_hall", "from_store" },
         [MapIds.TownHall] = new[] { "entry" },
+        [MapIds.FarmHouse] = new[] { "default", "entry" },
+        [MapIds.GeneralStore] = new[] { "default", "entry" },
     };
 
     [SimTest]
@@ -238,6 +240,110 @@ public static class TravelTests
             service.NewGame();
             GameState.Instance.TransitionTo(GameState.Phase.Playing);
         }
+    }
+
+    [SimTest]
+    public static async Task Travel_InteriorRoundTrips(TestContext t)
+    {
+        Node? main = null;
+        try
+        {
+            main = GD.Load<PackedScene>("res://scenes/Main.tscn").Instantiate();
+            t.Host.AddChild(main);
+            await t.WaitFrames(5);
+            t.AssertEqual(0L, Clock.Instance.Now.TotalMinutes, "boots fresh (no leaked autosave)");
+
+            // Keep the story quiet while we tour the interiors (back-to-back so no
+            // beat can slip in between the deferred trigger checks).
+            WorldSim.Instance.SetStoryFlag(StoryKeys.CrewArrivalDone);
+            WorldSim.Instance.SetStoryFlag(StoryKeys.MeetingDone);
+
+            var maybePlayer = main.GetNodeOrNull<PlayerController>("World/Player");
+            t.Assert(maybePlayer != null, "World/Player exists after boot");
+            PlayerController player = maybePlayer!;
+
+            // Farm -> farmhouse through the actual HouseDoor node (its target wiring
+            // is under test, not just the travel bus).
+            await EnterDoor(t, main, player, MapIds.FarmHouse, "farm door into the farmhouse");
+            // Interior 'entry' spawns sit one tile above their door, so the player's
+            // feet box laps the door blocker by 2 px and MoveAndSlide may nudge the
+            // body out — a tight radius still cleanly rules out the fallback spawn.
+            AssertNearSpawn(t, player, new Vector2(120, 136),
+                "arrived at the farmhouse 'entry' spawn, tile (7,8)");
+
+            // Farmhouse -> farm through the interior door: lands at 'house_door'.
+            await EnterDoor(t, main, player, MapIds.Farm, "farmhouse door back to the farm");
+            t.AssertEqual(new Vector2(104, 136), player.GlobalPosition,
+                "arrived at the farm 'house_door' spawn, tile (6,8)");
+
+            // Over to town on the bus, then through the StoreDoor and back.
+            t.Assert(WorldSim.Instance.RequestTravel(MapIds.Town, "from_farm"),
+                "travel to town accepted");
+            t.Assert(await t.WaitUntil(
+                () => SaveService.Instance.Current.Player.MapId == MapIds.Town
+                    && GameState.Instance.Current == GameState.Phase.Playing, 10),
+                "arrived in town");
+
+            await EnterDoor(t, main, player, MapIds.GeneralStore, "store door off the plaza");
+            AssertNearSpawn(t, player, new Vector2(120, 136),
+                "arrived at the store 'entry' spawn, tile (7,8)");
+
+            await EnterDoor(t, main, player, MapIds.Town, "store door back to town");
+            t.AssertEqual(new Vector2(184, 216), player.GlobalPosition,
+                "arrived at the town 'from_store' spawn, tile (11,13)");
+            t.AssertEqual(MapIds.Town, SaveService.Instance.Current.Player.MapId,
+                "model MapId back in town");
+        }
+        finally
+        {
+            await CleanupMainAsync(t, main);
+        }
+    }
+
+    // Finds the Door leading to targetMapId on the current map, interacts with it,
+    // and waits out Main's fade/swap travel flow.
+    private static async Task EnterDoor(TestContext t, Node main, PlayerController player,
+        string targetMapId, string label)
+    {
+        t.Assert(await t.WaitUntil(() => GameState.Instance.PlayerHasControl, 10),
+            $"{label}: control returned before the door press");
+        MapRoot? map = FindCurrentMap(main);
+        t.Assert(map != null, $"{label}: a current map exists under MapHost");
+        Door? door = FindDoor(map!, targetMapId);
+        t.Assert(door != null, $"{label}: a Door targeting '{targetMapId}' exists");
+        t.Assert(door!.CanInteract(player), $"{label}: door reports interactable");
+        door.Interact(player);
+        t.Assert(await t.WaitUntil(
+            () => SaveService.Instance.Current.Player.MapId == targetMapId
+                && GameState.Instance.Current == GameState.Phase.Playing, 10),
+            $"{label}: arrived and returned to Playing");
+    }
+
+    // Exactness up to the door-blocker depenetration nudge (see the call sites):
+    // 3 px distinguishes the real marker from any fallback by two orders of magnitude.
+    private static void AssertNearSpawn(TestContext t, PlayerController player,
+        Vector2 expected, string label)
+    {
+        t.Assert(player.GlobalPosition.DistanceTo(expected) <= 3f,
+            $"{label} (expected ~{expected}, got {player.GlobalPosition})");
+    }
+
+    // Same DFS as FindExit, for Doors: tests must not depend on where in the map's
+    // tree a door is parented.
+    private static Door? FindDoor(Node root, string targetMapId)
+    {
+        if (root is Door door && door.TargetMapId == targetMapId)
+        {
+            return door;
+        }
+        foreach (Node child in root.GetChildren())
+        {
+            if (FindDoor(child, targetMapId) is { } found)
+            {
+                return found;
+            }
+        }
+        return null;
     }
 
     // Depth-first search for a MapExit targeting the given map — the tests must not

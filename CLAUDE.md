@@ -8,8 +8,9 @@ check with the user before inventing lore (names and specialties are deliberatel
 
 The architecture contracts are `docs/foundation-spec.md` (clock/save/state base),
 `docs/phase2-spec.md` (items/inventory, farming, stamina, economy), and
-`docs/phase3-spec.md` (story flags, maps/travel, dialogue, NPCs, scripted intro). Read
-them before touching Core/Systems code — public signatures and semantics are specified there.
+`docs/phase3-spec.md` (story flags, maps/travel, dialogue, NPCs, scripted intro), and
+`docs/phase3b-spec.md` (storage/chest + save v4, general store + buy flow, overnight
+report, Menu phase, help panel). Read them before touching Core/Systems code — public signatures and semantics are specified there.
 
 ## Toolchain
 
@@ -19,20 +20,22 @@ them before touching Core/Systems code — public signatures and semantics are s
 ## Commands
 
 - Build (fast correctness check — run after every C# change): `dotnet build`
-- Full test suite (headless, 63 tests, exit code 0/1): `godot-mono --headless res://scenes/tests/TestRunner.tscn`
+- Full test suite (headless, 87 tests, exit code 0/1): `godot-mono --headless res://scenes/tests/TestRunner.tscn`
 - Re-import after adding/changing assets or scenes: `godot-mono --headless --import`
 - Run the game: `godot-mono --path .`
 - Screenshot for visual verification (opens a window briefly, saves PNG, quits): `godot-mono --path . -- --screenshot /path/out.png`
-  (dev flags: `--start-map <id>` boots into a map; `--screenshot-frames <n>` delays the capture, e.g. past a beat's staging timer)
+  (dev flags: `--start-map <id>` boots into a map; `--screenshot-frames <n>` delays the capture,
+  e.g. past a beat's staging timer; `--add-minutes <n>` advances the clock in-memory, e.g. into
+  shop hours; `--open-ui <chest|shop|help>` pops a UI after boot)
 
 ## Structure
 
-- `src/Core/` — PURE C# (no `using Godot`, test-enforced): GameTime/calendar, ClockModel, GameData + save DTOs, migrations, item/crop defs (code registries), InventoryData, FarmActions, OvernightSim; story: StoryKeys/IntroRules/MapIds, DialogueDef(s)/DialogueSession/DialogueSelector, NpcDef(s)/NpcSchedules
-- `src/Systems/` — the four autoloads, in registration order: GameState, Clock, SaveService, WorldSim (the single gameplay-mutation bus — all model writes flow through it, incl. story flags, travel requests, and the dialogue session; UI subscribes to its events)
-- `src/World/` — MapRoot base (owns NPC views), MapRegistry, TestMap/TownMap/TownHallMap (programmatic), IInteractable, Bed, Sign, ShippingBin, MapExit, Door, NpcView, PlaceholderSprites
+- `src/Core/` — PURE C# (no `using Godot`, test-enforced): GameTime/calendar, ClockModel, GameData + save DTOs, migrations, item/crop defs (code registries), InventoryData, FarmActions, OvernightSim + ShippedLine; storage: StackOps/StorageData/StorageIds; shop: ShopCatalog (+ ShopEntry/BuyResult)/ShopHours; story: StoryKeys/IntroRules/MapIds, DialogueDef(s)/DialogueSession/DialogueSelector, NpcDef(s)/NpcSchedules
+- `src/Systems/` — the four autoloads, in registration order: GameState, Clock, SaveService, WorldSim (the single gameplay-mutation bus — all model writes flow through it, incl. story flags, travel requests, the dialogue session, chest/shop Menu sessions, transfers, and purchases; UI subscribes to its events)
+- `src/World/` — MapRoot base (owns NPC views + IsStandable), MapRegistry, TestMap/TownMap/TownHallMap/FarmHouseMap/GeneralStoreMap (programmatic), IInteractable, Bed, Sign, ShippingBin, Chest, ShopCounter, MapExit, Door, NpcView, PlaceholderSprites
 - `src/Player/` — PlayerController (movement, tool targeting, hotbar input), InteractionProbe (focus consults CanInteract; guards freed nodes)
 - `src/Story/` — StoryDirector (plain Node child of Main, NOT an autoload; runs the scripted beats)
-- `src/UI/` — Hud, InteractionPrompt, HotbarUi, StaminaBar, DialogueUi, PauseMenu, ScreenFade (each builds its own controls in _Ready)
+- `src/UI/` — Hud, InteractionPrompt, HotbarUi, StaminaBar, HelpPanel, DialogueUi, ChestUi, ShopUi, OvernightReportUi, PauseMenu, ScreenFade (each builds its own controls in _Ready)
 - `src/Tests/` — headless [SimTest] suite + TestRunner; scenes/tests/TestRunner.tscn
 - `src/Main.cs` + `scenes/Main.tscn` — composition root: boot, map loading, sleep + travel flows
 - `assets/`, `data/` — art/audio and .tres game data (empty so far; placeholder art is procedural)
@@ -65,6 +68,15 @@ them before touching Core/Systems code — public signatures and semantics are s
 - Any Main-booting test that plants and sleeps must pre-stamp the intro completion flags
   (crew_arrival_done, meeting_done) or drive the dialogue — otherwise the crew beat
   fires on the morning after and WaitUntil(Playing) hangs.
+- Chest/shop UIs run in the Menu phase, owned by WorldSim's Open*/Close* sessions
+  (OpenStorageId/OpenShopId) — UIs never call TransitionTo themselves; Menu freezes clock
+  and player but never tree pause. Modal UIs replicate DialogueUi's _openedFrame guard.
+- Storage containers live in GameData.Storages (id -> StorageData); unknown storage keys
+  and item ids are preserved verbatim; transfers/purchases go through WorldSim
+  (TransferToStorage/TransferToInventory/BuyItem — checks strictly before mutations).
+- The overnight report is awaited INSIDE Main.RunSleepFlow while the phase is still
+  Sleeping (report before Playing, then a 0.3 s mash-grace); OvernightCompleted itself
+  fires mid-advance while the screen is black — latch, never display, in the handler.
 
 ## Conventions
 

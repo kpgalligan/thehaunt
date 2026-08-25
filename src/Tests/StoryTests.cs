@@ -183,6 +183,27 @@ public static class StoryTests
     }
 
     [SimTest]
+    public static void Story_CrewBeatNotPendingIndoors(TestContext t)
+    {
+        // Pure rules: the crew beat pends ONLY on the farm exterior — its map term is
+        // strict equality with MapIds.Farm. Sleeping in the 3b farmhouse therefore
+        // defers the beat to the moment the player steps back outside (the
+        // Integration_SleepInHouseCrewBeatOnExit flow relies on exactly this).
+        var crewPending = new GameData();
+        crewPending.TrySetFlag(StoryKeys.FirstPlanting, 1);
+        crewPending.TrySetFlag(StoryKeys.RoadCleared, 2);
+        var morning = new GameTime(2 * GameTime.MinutesPerDay + 60);
+
+        t.Assert(IntroRules.PendingBeat(crewPending, morning, "farm_house") == null,
+            "nothing pends inside the farmhouse");
+        t.Assert(IntroRules.PendingBeat(crewPending, morning, "general_store") == null,
+            "nothing pends inside the store");
+        t.AssertEqual((StoryBeatId?)StoryBeatId.CrewArrival,
+            IntroRules.PendingBeat(crewPending, morning, "test_farm"),
+            "the crew beat pends on the farm exterior");
+    }
+
+    [SimTest]
     public static void Story_MeetingRecursNightly(TestContext t)
     {
         // No day-equality term anywhere: the meeting re-pends EVERY evening from 18:00

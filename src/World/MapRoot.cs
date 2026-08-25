@@ -93,6 +93,44 @@ public partial class MapRoot : Node2D
 
     private readonly Dictionary<string, NpcView> _npcViews = new();
 
+    /// <summary>
+    /// Whether a saved player position on this tile is physically valid: walkable
+    /// ground, no obstacle cell, no Door blocker. Main's boot guard uses this to
+    /// bounce positions that new geometry (e.g. the 3b building facades) has since
+    /// swallowed — the save's numbers are never rewritten, the player just respawns.
+    /// </summary>
+    public virtual bool IsStandable(Vector2I tile)
+    {
+        var ground = Ground;
+        if (ground == null)
+            return true; // no terrain info: don't second-guess the save
+        var tileData = ground.GetCellTileData(tile);
+        if (tileData == null || !tileData.GetCustomData("walkable").AsBool())
+            return false;
+        var obstacles = GetNodeOrNull<TileMapLayer>("Obstacles");
+        if (obstacles != null && obstacles.GetCellSourceId(tile) != -1)
+            return false;
+        var doors = new List<Door>();
+        CollectDoors(this, doors);
+        foreach (Door door in doors)
+        {
+            var doorTile = new Vector2I(
+                Mathf.FloorToInt(door.GlobalPosition.X / TileSize),
+                Mathf.FloorToInt(door.GlobalPosition.Y / TileSize));
+            if (doorTile == tile)
+                return false; // doors carry full-tile blockers
+        }
+        return true;
+    }
+
+    private static void CollectDoors(Node node, List<Door> doors)
+    {
+        if (node is Door door)
+            doors.Add(door);
+        foreach (Node child in node.GetChildren())
+            CollectDoors(child, doors);
+    }
+
     // Terrain-only tillability; existing tile records are the model's concern.
     public virtual bool IsTillable(int x, int y) => false;
 

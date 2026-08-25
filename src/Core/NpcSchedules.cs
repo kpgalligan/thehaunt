@@ -82,4 +82,14 @@ public static class NpcSchedules
             120, 600,                                        // 8:00 AM - 4:00 PM
             new NpcPlacement(MapIds.Town, 33, 13, 0)),       // [KEVIN]
     };
+
+    // Flag-free and bound to the ShopHours constants so shop-open and
+    // shopkeeper-present can never diverge; absent outside hours, never on
+    // farm/town/town_hall (intro staging untouched). Silent this phase [KEVIN].
+    public static IReadOnlyList<ScheduleEntry> Shopkeeper { get; } = new[]
+    {
+        new ScheduleEntry(null, null,
+            ShopHours.OpenMinute, ShopHours.CloseMinute,     // 9:00 AM - 5:00 PM
+            new NpcPlacement(MapIds.GeneralStore, 6, 3, 0)), // behind the counter, facing down
+    };
 }
