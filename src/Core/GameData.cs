@@ -6,6 +6,8 @@ public sealed class GameData
     public long TotalMinutes { get; set; }
     public PlayerData Player { get; set; } = new();
     public Dictionary<string, MapState> Maps { get; set; } = new();
+    public List<ItemStackRecord> ShippingBin { get; set; } = new();
+    public Dictionary<string, long> StoryFlags { get; set; } = new();   // flag id -> DayIndex stamped
 
     public MapState GetMap(string mapId)
     {
@@ -17,6 +19,32 @@ public sealed class GameData
         return map;
     }
 
-    // Defaults: time 0, player MapId "test_farm", HasPosition false.
-    public static GameData NewGame() => new();
+    public bool HasFlag(string id) => StoryFlags.ContainsKey(id);
+
+    public long FlagDay(string id) => StoryFlags.TryGetValue(id, out var d) ? d : -1;
+
+    // Only-if-absent; true iff newly set. Flags are monotone — no unset API,
+    // absence = false, stamp = day-index (never a bool). Unknown keys from saves
+    // round-trip untouched.
+    public bool TrySetFlag(string id, long day)
+    {
+        if (StoryFlags.ContainsKey(id))
+        {
+            return false;
+        }
+        StoryFlags[id] = day;
+        return true;
+    }
+
+    // Defaults: time 0, player MapId "test_farm", HasPosition false,
+    // 500g, full stamina, the starter kit in hand.
+    public static GameData NewGame()
+    {
+        var data = new GameData();
+        data.Player.Money = 500;
+        data.Player.Stamina = 100;
+        data.Player.MaxStamina = 100;
+        StarterKit.Apply(data.Player);
+        return data;
+    }
 }

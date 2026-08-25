@@ -1,4 +1,4 @@
-[gd_scene load_steps=7 format=3]
+[gd_scene load_steps=11 format=3]
 
 [ext_resource type="Script" path="res://src/Main.cs" id="1_main"]
 [ext_resource type="Script" path="res://src/Player/PlayerController.cs" id="2_player"]
@@ -6,6 +6,10 @@
 [ext_resource type="Script" path="res://src/UI/InteractionPrompt.cs" id="4_prompt"]
 [ext_resource type="Script" path="res://src/UI/PauseMenu.cs" id="5_pause"]
 [ext_resource type="Script" path="res://src/UI/ScreenFade.cs" id="6_fade"]
+[ext_resource type="Script" path="res://src/UI/HotbarUi.cs" id="7_hotbar"]
+[ext_resource type="Script" path="res://src/UI/StaminaBar.cs" id="8_stamina"]
+[ext_resource type="Script" path="res://src/UI/DialogueUi.cs" id="9_dialogue"]
+[ext_resource type="Script" path="res://src/Story/StoryDirector.cs" id="10_story"]
 
 [node name="Main" type="Node2D"]
 script = ExtResource("1_main")
@@ -18,6 +22,9 @@ process_mode = 1
 [node name="Player" type="CharacterBody2D" parent="World"]
 script = ExtResource("2_player")
 
+[node name="Story" type="Node" parent="."]
+script = ExtResource("10_story")
+
 [node name="UI" type="CanvasLayer" parent="."]
 process_mode = 3
 
@@ -26,6 +33,15 @@ script = ExtResource("3_hud")
 
 [node name="InteractionPrompt" type="Control" parent="UI"]
 script = ExtResource("4_prompt")
+
+[node name="HotbarUi" type="Control" parent="UI"]
+script = ExtResource("7_hotbar")
+
+[node name="StaminaBar" type="Control" parent="UI"]
+script = ExtResource("8_stamina")
+
+[node name="DialogueUi" type="Control" parent="UI"]
+script = ExtResource("9_dialogue")
 
 [node name="PauseMenu" type="Control" parent="UI"]
 process_mode = 3

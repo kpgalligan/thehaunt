@@ -165,6 +165,47 @@ public partial class SaveService : Node
         {
             throw new JsonException($"Save data invalid: negative TotalMinutes ({data.TotalMinutes}).");
         }
+        if (data.Player.Money < 0)
+        {
+            throw new JsonException($"Save data invalid: negative Money ({data.Player.Money}).");
+        }
+        data.Player.Inventory ??= new InventoryData();
+        data.Player.Inventory.Normalize();
+        data.ShippingBin ??= new();
+        // Bin repair mirrors Inventory.Normalize: drop degenerate entries (null element,
+        // null/empty id, non-positive count) that would NRE or mint negative money in the
+        // overnight sale. Unknown-but-well-formed ids are deliberately KEPT.
+        data.ShippingBin.RemoveAll(s => s is null || string.IsNullOrEmpty(s.ItemId) || s.Count <= 0);
+        // Flag repair mirrors the bin: drop the one degenerate key, clamp bad stamps.
+        // Unknown-but-well-formed flag ids are deliberately KEPT (preserve-unknown rule).
+        data.StoryFlags ??= new();
+        data.StoryFlags.Remove("");
+        foreach (string key in data.StoryFlags.Keys.ToList())
+        {
+            if (data.StoryFlags[key] < 0)
+            {
+                data.StoryFlags[key] = 0;
+            }
+        }
+        // A future-dated stamp on a KNOWN intro flag wedges the day-comparison rules
+        // (a first_planting stamped past today means the road never clears, and
+        // only-if-absent flags cannot be restamped by replaying). Clamp them to the
+        // save's own day. Unknown flags keep their stamps verbatim — their semantics
+        // are not ours to repair.
+        long saveDay = new GameTime(data.TotalMinutes).DayIndex;
+        foreach (string key in new[]
+        {
+            StoryKeys.FirstPlanting, StoryKeys.RoadCleared,
+            StoryKeys.CrewArrivalDone, StoryKeys.MeetingDone,
+        })
+        {
+            if (data.StoryFlags.TryGetValue(key, out long stamp) && stamp > saveDay)
+            {
+                data.StoryFlags[key] = saveDay;
+            }
+        }
+        data.Player.MaxStamina = Math.Max(1, data.Player.MaxStamina);
+        data.Player.Stamina = Math.Clamp(data.Player.Stamina, 0, data.Player.MaxStamina);
 
         foreach (MapState map in data.Maps.Values)
         {

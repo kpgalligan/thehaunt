@@ -22,6 +22,12 @@ public partial class GameState : Node
 
     public bool PlayerHasControl => Current == Phase.Playing;
 
+    /// <summary>
+    /// Dialogue may start from free play (NPC talk) or from inside a Cutscene beat
+    /// (the beat keeps owning the phase exit) — never from Paused/Dialogue/Sleeping.
+    /// </summary>
+    public bool CanStartDialogue => Current is Phase.Playing or Phase.Cutscene;
+
     public override void _EnterTree()
     {
         Instance = this;

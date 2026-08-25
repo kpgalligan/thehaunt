@@ -26,11 +26,15 @@ public partial class InteractionProbe : Area2D
     {
         // Poll overlaps instead of tracking enter/exit signals — robust against
         // signal ordering and areas freed while overlapped.
+        var interactor = GetParent() as Node2D;
         IInteractable? nearest = null;
         float nearestDistSq = float.PositiveInfinity;
         foreach (var area in GetOverlappingAreas())
         {
-            if (area is not IInteractable candidate)
+            // Focus only what would actually respond — a focused-but-refusing
+            // candidate renders a lying prompt (silent NPCs are the live case).
+            if (area is not IInteractable candidate
+                || interactor == null || !candidate.CanInteract(interactor))
                 continue;
             float distSq = GlobalPosition.DistanceSquaredTo(area.GlobalPosition);
             if (distSq < nearestDistSq)
@@ -61,6 +65,14 @@ public partial class InteractionProbe : Area2D
 
     public void TryInteract(Node2D interactor)
     {
+        // Focused can point at a node freed since the last poll: despawns happen after
+        // this frame's poll, and the parent player polls interact BEFORE the probe's
+        // next re-poll can clear the stale reference.
+        if (Focused is GodotObject obj && !IsInstanceValid(obj))
+        {
+            Focused = null;
+            return;
+        }
         if (Focused != null && Focused.CanInteract(interactor))
             Focused.Interact(interactor);
     }

@@ -1,6 +1,7 @@
 using Godot;
 using TheHaunt.Core;
 using TheHaunt.Systems;
+using TheHaunt.World;
 
 namespace TheHaunt.Player;
 
@@ -8,13 +9,16 @@ public partial class PlayerController : CharacterBody2D, IPersistentSystem
 {
     public const float MoveSpeed = 80f; // px/sec
 
-    private const int SpriteWidth = 16;
-    private const int SpriteHeight = 22;
+    private const int TileSize = 16;
+    private const float UseToolCooldown = 0.25f; // seconds
 
-    private static readonly Color HairColor = new("5a4a3a");
-    private static readonly Color SkinColor = new("e8c8a0");
+    private static readonly StringName[] HotbarActions =
+    {
+        "hotbar_1", "hotbar_2", "hotbar_3", "hotbar_4", "hotbar_5",
+        "hotbar_6", "hotbar_7", "hotbar_8", "hotbar_9", "hotbar_10",
+    };
+
     private static readonly Color TunicColor = new("4a6ab0");
-    private static readonly Color EyeColor = new("2a2a2a");
 
     public int Facing { get; private set; } // 0=down 1=left 2=right 3=up
     public InteractionProbe Probe { get; private set; } = null!;
@@ -23,6 +27,8 @@ public partial class PlayerController : CharacterBody2D, IPersistentSystem
     private Sprite2D? _sprite;
     private Camera2D? _camera;
     private Rect2? _pendingCameraLimits;
+    private float _sinceLastToolUse = UseToolCooldown; // start ready
+    private bool _hadControlLastPhysicsFrame;
 
     public override void _EnterTree()
     {
@@ -40,7 +46,7 @@ public partial class PlayerController : CharacterBody2D, IPersistentSystem
         CollisionMask = 1;
 
         for (int i = 0; i < _facingTextures.Length; i++)
-            _facingTextures[i] = CreateFacingTexture(i);
+            _facingTextures[i] = PlaceholderSprites.Character(i, TunicColor);
 
         _sprite = new Sprite2D { Position = new Vector2(0, -3) };
         AddChild(_sprite);
@@ -66,10 +72,19 @@ public partial class PlayerController : CharacterBody2D, IPersistentSystem
     {
         if (!GameState.Instance.PlayerHasControl)
         {
+            _hadControlLastPhysicsFrame = false;
             Velocity = Vector2.Zero;
             MoveAndSlide();
             return;
         }
+
+        // The press that CLOSED a dialogue is handled in _UnhandledInput, which runs
+        // before this frame's physics — but the Input singleton still reports it as
+        // just-pressed here, and the phase was restored synchronously in that same
+        // dispatch. Swallow action presses on the first frame control returns, or the
+        // closing E re-opens the conversation (and a closing click swings the tool).
+        bool firstFrameBack = !_hadControlLastPhysicsFrame;
+        _hadControlLastPhysicsFrame = true;
 
         var input = Input.GetVector("move_left", "move_right", "move_up", "move_down");
         Velocity = input * MoveSpeed;
@@ -85,8 +100,61 @@ public partial class PlayerController : CharacterBody2D, IPersistentSystem
                 ApplyFacing(facing);
         }
 
-        if (Input.IsActionJustPressed("interact"))
+        if (!firstFrameBack && Input.IsActionJustPressed("interact"))
             Probe.TryInteract(this);
+
+        _sinceLastToolUse += (float)delta;
+        if (!firstFrameBack && Input.IsActionJustPressed("use_tool") && _sinceLastToolUse >= UseToolCooldown)
+        {
+            _sinceLastToolUse = 0f;
+            WorldSim.Instance.UseSelectedItem(TargetTile());
+        }
+
+        for (int i = 0; i < HotbarActions.Length; i++)
+        {
+            if (Input.IsActionJustPressed(HotbarActions[i]))
+                WorldSim.Instance.SelectSlot(i);
+        }
+    }
+
+    public override void _UnhandledInput(InputEvent @event)
+    {
+        if (!GameState.Instance.PlayerHasControl)
+            return;
+
+        // Wheel actions land press+release within one frame, so polling
+        // IsActionJustPressed in _PhysicsProcess would miss them.
+        int step;
+        if (@event.IsActionPressed("hotbar_next"))
+            step = 1;
+        else if (@event.IsActionPressed("hotbar_prev"))
+            step = -1;
+        else
+            return;
+
+        int selected = SaveService.Instance.Current.Player.Inventory.SelectedSlot;
+        WorldSim.Instance.SelectSlot(
+            (selected + step + InventoryData.Capacity) % InventoryData.Capacity);
+        GetViewport().SetInputAsHandled();
+    }
+
+    // Feet tile + facing direction, computed directly — never from the probe
+    // position (feet + dir*14 rounds back into the player's own tile when
+    // feet%16 < 2).
+    public Vector2I TargetTile()
+    {
+        Vector2 feet = GlobalPosition + new Vector2(0, 6);
+        var feetTile = new Vector2I(
+            Mathf.FloorToInt(feet.X / TileSize),
+            Mathf.FloorToInt(feet.Y / TileSize));
+        Vector2I dir = Facing switch
+        {
+            1 => new Vector2I(-1, 0),
+            2 => new Vector2I(1, 0),
+            3 => new Vector2I(0, -1),
+            _ => new Vector2I(0, 1),
+        };
+        return feetTile + dir;
     }
 
     public void ApplyCameraLimits(Rect2 limits)
@@ -127,36 +195,5 @@ public partial class PlayerController : CharacterBody2D, IPersistentSystem
             _sprite.Texture = _facingTextures[Facing];
         if (Probe != null)
             Probe.SetFacing(Facing);
-    }
-
-    // 16x22 placeholder: hair on top, face below, tunic for the body, 2 px of
-    // transparent margin on each side. Facing up shows the back of the head
-    // (hair extends over the face rows); eyes shift with left/right facing.
-    private static ImageTexture CreateFacingTexture(int facing)
-    {
-        var img = Image.CreateEmpty(SpriteWidth, SpriteHeight, false, Image.Format.Rgba8);
-        img.Fill(new Color(0, 0, 0, 0));
-
-        int hairBottomRow = facing == 3 ? 9 : 5;
-        for (int y = 0; y < SpriteHeight; y++)
-        {
-            Color color = y <= hairBottomRow ? HairColor
-                : y <= 11 ? SkinColor
-                : TunicColor;
-            for (int x = 2; x <= 13; x++)
-                img.SetPixel(x, y, color);
-        }
-
-        if (facing != 3)
-        {
-            int offset = facing switch { 1 => -2, 2 => 2, _ => 0 };
-            foreach (int eyeX in new[] { 5 + offset, 10 + offset })
-            {
-                img.SetPixel(eyeX, 8, EyeColor);
-                img.SetPixel(eyeX, 9, EyeColor);
-            }
-        }
-
-        return ImageTexture.CreateFromImage(img);
     }
 }

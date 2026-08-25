@@ -23,6 +23,21 @@ public static class SaveTests
         map.SetTile(new TileRecord { X = 7, Y = 8, Kind = "tilled", LastWateredDay = 12 });
         map.Objects.Add(new PlacedObjectRecord { X = 9, Y = 10, ObjectId = "chest" });
 
+        data.Player.Money = 4321;
+        data.Player.Stamina = 37;
+        data.Player.MaxStamina = 120;
+        data.Player.Inventory.Slots[0] = new ItemStackRecord { ItemId = "turnip", Count = 5 };
+        data.Player.Inventory.Slots[1] = new ItemStackRecord { ItemId = "hoe", Count = 1 };
+        // Slot 2 deliberately stays null — a hole between stacks must survive.
+        data.Player.Inventory.Slots[3] = new ItemStackRecord { ItemId = "greenbean_seeds", Count = 3 };
+        data.Player.Inventory.SelectedSlot = 3;
+        data.ShippingBin.Add(new ItemStackRecord { ItemId = "greenbean", Count = 4 });
+        data.ShippingBin.Add(new ItemStackRecord { ItemId = "turnip", Count = 1 });
+        // TotalMinutes 777 is day 0; a known intro flag must be stamped consistently
+        // (future-dated known stamps are clamped by load repair — that path has its
+        // own test, Save_FutureIntroStampsClamped).
+        data.StoryFlags[StoryKeys.FirstPlanting] = 0;
+
         string json = JsonSerializer.Serialize(data, SaveJsonContext.Default.GameData);
         SaveService service = SaveService.Instance;
         try
@@ -51,6 +66,21 @@ public static class SaveTests
             t.AssertEqual("chest", loadedMap.Objects[0].ObjectId, "object id");
             t.AssertEqual(9, loadedMap.Objects[0].X, "object X");
             t.AssertEqual(10, loadedMap.Objects[0].Y, "object Y");
+
+            t.AssertEqual(4321L, loaded.Player.Money, "money");
+            t.AssertEqual(37, loaded.Player.Stamina, "stamina");
+            t.AssertEqual(120, loaded.Player.MaxStamina, "max stamina");
+            InventoryData inv = loaded.Player.Inventory;
+            AssertStack(t, inv.SlotAt(0), "turnip", 5, "slot 0");
+            AssertStack(t, inv.SlotAt(1), "hoe", 1, "slot 1");
+            t.Assert(inv.SlotAt(2) == null, "slot 2 null hole survives");
+            AssertStack(t, inv.SlotAt(3), "greenbean_seeds", 3, "slot 3");
+            t.AssertEqual(3, inv.SelectedSlot, "selected slot");
+            t.AssertEqual(2, loaded.ShippingBin.Count, "shipping bin stack count");
+            AssertStack(t, loaded.ShippingBin[0], "greenbean", 4, "bin[0]");
+            AssertStack(t, loaded.ShippingBin[1], "turnip", 1, "bin[1]");
+            t.Assert(loaded.HasFlag(StoryKeys.FirstPlanting), "populated story flag survives");
+            t.AssertEqual(0L, loaded.FlagDay(StoryKeys.FirstPlanting), "story flag day-stamp");
         }
         finally
         {
@@ -117,6 +147,203 @@ public static class SaveTests
             TileRecord? tile = loaded.Maps["test_farm"].GetTile(3, 4);
             t.Assert(tile != null, "tile (3,4) survived");
             t.AssertEqual("tilled", tile!.Kind, "tile kind");
+        }
+        finally
+        {
+            service.NewGame();
+        }
+    }
+
+    [SimTest]
+    public static void Save_FixtureV2Loads(TestContext t)
+    {
+        string json = ReadFixture(t, "v2_minimal.json");
+        SaveService service = SaveService.Instance;
+        try
+        {
+            service.DeserializeFrom(json);
+            GameData loaded = service.Current;
+            // The chain now carries v2 fixtures to the current version; this test's job
+            // is the v2 payload surviving, not pinning the chain's endpoint.
+            t.AssertEqual(SaveMigrations.CurrentVersion, loaded.SaveVersion, "SaveVersion");
+            t.AssertEqual(2400L, loaded.TotalMinutes, "TotalMinutes");
+            t.AssertEqual(150f, loaded.Player.X, "player X");
+            t.AssertEqual(130f, loaded.Player.Y, "player Y");
+            t.AssertEqual(1, loaded.Player.Facing, "player facing");
+            t.AssertEqual(750L, loaded.Player.Money, "money");
+            t.AssertEqual(40, loaded.Player.Stamina, "stamina");
+            t.AssertEqual(100, loaded.Player.MaxStamina, "max stamina");
+
+            InventoryData inv = loaded.Player.Inventory;
+            t.AssertEqual(2, inv.SelectedSlot, "selected slot");
+            AssertStack(t, inv.SlotAt(0), "hoe", 1, "slot 0");
+            t.Assert(inv.SlotAt(1) == null, "slot 1 empty");
+            AssertStack(t, inv.SlotAt(2), "turnip_seeds", 7, "slot 2");
+
+            t.AssertEqual(1, loaded.ShippingBin.Count, "bin stack count");
+            AssertStack(t, loaded.ShippingBin[0], "turnip", 3, "bin[0]");
+
+            TileRecord? tile = loaded.Maps["test_farm"].GetTile(5, 6);
+            t.Assert(tile != null, "tile (5,6) present");
+            t.AssertEqual("turnip", tile!.CropId, "tile crop id");
+            t.AssertEqual(2, tile.GrowthDay, "tile growth day");
+            t.AssertEqual(1L, tile.LastWateredDay, "tile last watered day");
+        }
+        finally
+        {
+            service.NewGame();
+        }
+    }
+
+    [SimTest]
+    public static void Save_MigrationV1ToV2(TestContext t)
+    {
+        string json = ReadFixture(t, "v1_minimal.json");
+        SaveService service = SaveService.Instance;
+        try
+        {
+            service.DeserializeFrom(json);
+            GameData loaded = service.Current;
+            t.AssertEqual(SaveMigrations.CurrentVersion, loaded.SaveVersion,
+                "SaveVersion migrated to current");
+            t.AssertEqual(500L, loaded.Player.Money, "migrated money grant");
+            t.AssertEqual(100, loaded.Player.Stamina, "migrated stamina");
+            t.AssertEqual(100, loaded.Player.MaxStamina, "migrated max stamina");
+
+            InventoryData inv = loaded.Player.Inventory;
+            t.AssertEqual(0, inv.SelectedSlot, "migrated selected slot");
+            AssertStack(t, inv.SlotAt(0), "hoe", 1, "migrated slot 0");
+            AssertStack(t, inv.SlotAt(1), "watering_can", 1, "migrated slot 1");
+            AssertStack(t, inv.SlotAt(2), "scythe", 1, "migrated slot 2");
+            AssertStack(t, inv.SlotAt(3), "turnip_seeds", 15, "migrated slot 3");
+            AssertStack(t, inv.SlotAt(4), "greenbean_seeds", 5, "migrated slot 4");
+            for (int i = 5; i < InventoryData.Capacity; i++)
+            {
+                t.Assert(inv.SlotAt(i) == null, $"migrated slot {i} empty");
+            }
+            t.AssertEqual(0, loaded.ShippingBin.Count, "migrated shipping bin empty");
+
+            // The v1 payload must survive the migration untouched.
+            t.AssertEqual(600L, loaded.TotalMinutes, "v1 TotalMinutes survives");
+            t.AssertEqual(100f, loaded.Player.X, "v1 player X survives");
+            t.AssertEqual(120f, loaded.Player.Y, "v1 player Y survives");
+            t.AssertEqual(2, loaded.Player.Facing, "v1 facing survives");
+            TileRecord? tile = loaded.Maps["test_farm"].GetTile(3, 4);
+            t.Assert(tile != null, "v1 tile (3,4) survives");
+            t.AssertEqual("tilled", tile!.Kind, "v1 tile kind survives");
+            t.AssertEqual(-1L, tile.LastWateredDay, "v1 tile LastWateredDay survives");
+
+            // Idempotence: a second pass over the migrated data must not re-grant anything.
+            string firstPass = SnapshotStacks(loaded);
+            service.DeserializeFrom(service.SerializeToString());
+            t.AssertEqual(firstPass, SnapshotStacks(service.Current),
+                "second load is stack-for-stack identical");
+            t.AssertEqual(500L, service.Current.Player.Money, "money not re-granted");
+        }
+        finally
+        {
+            service.NewGame();
+        }
+    }
+
+    [SimTest]
+    public static void Save_MigratedKitMatchesNewGame(TestContext t)
+    {
+        // Drift guard: if the starter kit ever changes, this MUST fail — the fix is a
+        // conscious decision (a new migration step), never editing the frozen v1→v2 migration.
+        string json = ReadFixture(t, "v1_minimal.json");
+        SaveService service = SaveService.Instance;
+        try
+        {
+            service.DeserializeFrom(json);
+            InventoryData migrated = service.Current.Player.Inventory;
+            InventoryData fresh = GameData.NewGame().Player.Inventory;
+
+            t.AssertEqual(fresh.SelectedSlot, migrated.SelectedSlot, "selected slot matches new game");
+            t.AssertEqual(fresh.Slots.Count, migrated.Slots.Count, "slot count matches new game");
+            for (int i = 0; i < fresh.Slots.Count; i++)
+            {
+                ItemStackRecord? expected = fresh.SlotAt(i);
+                ItemStackRecord? actual = migrated.SlotAt(i);
+                if (expected == null)
+                {
+                    t.Assert(actual == null, $"slot {i}: empty in both");
+                    continue;
+                }
+                t.Assert(actual != null, $"slot {i}: present in both");
+                t.AssertEqual(expected.ItemId, actual!.ItemId, $"slot {i}: item id");
+                t.AssertEqual(expected.Count, actual.Count, $"slot {i}: count");
+            }
+        }
+        finally
+        {
+            service.NewGame();
+        }
+    }
+
+    [SimTest]
+    public static void Save_UnknownItemIdSurvives(TestContext t)
+    {
+        SaveService service = SaveService.Instance;
+        try
+        {
+            var data = new GameData();
+            data.Player.Inventory.Slots[4] = new ItemStackRecord { ItemId = "mystery_relic", Count = 3 };
+            data.ShippingBin.Add(new ItemStackRecord { ItemId = "mystery_relic", Count = 2 });
+            string json = JsonSerializer.Serialize(data, SaveJsonContext.Default.GameData);
+
+            // The load path runs Normalize — the unknown item must survive it intact.
+            service.DeserializeFrom(json);
+            AssertStack(t, service.Current.Player.Inventory.SlotAt(4),
+                "mystery_relic", 3, "unknown item after load");
+            t.AssertEqual(1, service.Current.ShippingBin.Count, "bin stack count after load");
+            AssertStack(t, service.Current.ShippingBin[0],
+                "mystery_relic", 2, "unknown bin item after load");
+
+            service.DeserializeFrom(service.SerializeToString());
+            AssertStack(t, service.Current.Player.Inventory.SlotAt(4),
+                "mystery_relic", 3, "unknown item after round-trip");
+            t.AssertEqual(1, service.Current.ShippingBin.Count, "bin stack count after round-trip");
+            AssertStack(t, service.Current.ShippingBin[0],
+                "mystery_relic", 2, "unknown bin item after round-trip");
+        }
+        finally
+        {
+            service.NewGame();
+        }
+    }
+
+    [SimTest]
+    public static void Save_ShippingBinSanitized(TestContext t)
+    {
+        // Load repair mirrors Inventory.Normalize: degenerate bin entries (null element,
+        // null/empty id, non-positive count) are dropped; unknown-but-well-formed ids are
+        // KEPT (item deletion is data loss).
+        const string json = """
+            {"SaveVersion":2,"TotalMinutes":600,"ShippingBin":[
+                null,
+                {"ItemId":"turnip","Count":-100},
+                {"ItemId":null,"Count":5},
+                {"ItemId":"mystery_relic","Count":3},
+                {"ItemId":"greenbean","Count":2}]}
+            """;
+        SaveService service = SaveService.Instance;
+        try
+        {
+            service.DeserializeFrom(json);
+            GameData loaded = service.Current;
+            t.AssertEqual(2, loaded.ShippingBin.Count, "exactly the two well-formed stacks survive");
+            AssertStack(t, loaded.ShippingBin[0], "mystery_relic", 3, "unknown-but-well-formed id kept");
+            AssertStack(t, loaded.ShippingBin[1], "greenbean", 2, "known sellable stack kept");
+
+            // The negative-count turnip stack is gone, so the overnight sale cannot mint
+            // negative proceeds: money moves by exactly the greenbean sale (2 x 40).
+            long moneyBefore = loaded.Player.Money;
+            OvernightSim.Run(loaded, dayEnding: Clock.Instance.Now.DayIndex);
+            t.AssertEqual(moneyBefore + 80L, loaded.Player.Money,
+                "money increased by exactly 2 x 40 (no negative proceeds)");
+            t.AssertEqual(1, loaded.ShippingBin.Count, "unsellable stack still occupies the bin");
+            AssertStack(t, loaded.ShippingBin[0], "mystery_relic", 3, "mystery_relic survives the sale");
         }
         finally
         {
@@ -246,6 +473,268 @@ public static class SaveTests
             }
             service.NewGame();
         }
+    }
+
+    [SimTest]
+    public static void Save_MigrationV2ToV3(TestContext t)
+    {
+        string json = ReadFixture(t, "v2_minimal.json");
+        SaveService service = SaveService.Instance;
+        try
+        {
+            service.DeserializeFrom(json);
+            GameData loaded = service.Current;
+            t.AssertEqual(3, loaded.SaveVersion, "SaveVersion migrated to 3");
+            t.Assert(loaded.StoryFlags != null, "StoryFlags present after migration");
+            t.AssertEqual(0, loaded.StoryFlags!.Count,
+                "migrated StoryFlags empty (the frozen literal adds no flags)");
+
+            // The full v2 payload must survive the migration untouched.
+            t.AssertEqual(2400L, loaded.TotalMinutes, "v2 TotalMinutes survives");
+            t.AssertEqual(150f, loaded.Player.X, "v2 player X survives");
+            t.AssertEqual(130f, loaded.Player.Y, "v2 player Y survives");
+            t.AssertEqual(1, loaded.Player.Facing, "v2 facing survives");
+            t.AssertEqual(750L, loaded.Player.Money, "v2 money survives");
+            t.AssertEqual(40, loaded.Player.Stamina, "v2 stamina survives");
+            t.AssertEqual(100, loaded.Player.MaxStamina, "v2 max stamina survives");
+            InventoryData inv = loaded.Player.Inventory;
+            t.AssertEqual(2, inv.SelectedSlot, "v2 selected slot survives");
+            AssertStack(t, inv.SlotAt(0), "hoe", 1, "v2 slot 0");
+            t.Assert(inv.SlotAt(1) == null, "v2 slot 1 empty");
+            AssertStack(t, inv.SlotAt(2), "turnip_seeds", 7, "v2 slot 2");
+            t.AssertEqual(1, loaded.ShippingBin.Count, "v2 bin stack count survives");
+            AssertStack(t, loaded.ShippingBin[0], "turnip", 3, "v2 bin[0]");
+            TileRecord? tile = loaded.Maps["test_farm"].GetTile(5, 6);
+            t.Assert(tile != null, "v2 tile (5,6) survives");
+            t.AssertEqual("turnip", tile!.CropId, "v2 tile crop survives");
+            t.AssertEqual(2, tile.GrowthDay, "v2 tile growth day survives");
+            t.AssertEqual(1L, tile.LastWateredDay, "v2 tile last watered day survives");
+
+            // Idempotence: re-serializing and re-loading the migrated data must be
+            // byte-identical — the only-if-absent guard makes a second pass a no-op.
+            string firstPass = service.SerializeToString();
+            service.DeserializeFrom(firstPass);
+            t.AssertEqual(firstPass, service.SerializeToString(),
+                "second migration pass serializes byte-identically");
+            t.AssertEqual(0, service.Current.StoryFlags.Count,
+                "StoryFlags still empty on the second pass");
+        }
+        finally
+        {
+            service.NewGame();
+        }
+    }
+
+    [SimTest]
+    public static void Save_MigrationChainV1ToV3(TestContext t)
+    {
+        string json = ReadFixture(t, "v1_minimal.json");
+        SaveService service = SaveService.Instance;
+        try
+        {
+            service.DeserializeFrom(json);
+            GameData loaded = service.Current;
+            t.AssertEqual(3, loaded.SaveVersion, "SaveVersion migrated 1 -> 3 through the chain");
+
+            // The frozen v1 -> v2 step: starter kit + money grant.
+            t.AssertEqual(500L, loaded.Player.Money, "chained money grant");
+            t.AssertEqual(100, loaded.Player.Stamina, "chained stamina");
+            t.AssertEqual(100, loaded.Player.MaxStamina, "chained max stamina");
+            InventoryData inv = loaded.Player.Inventory;
+            AssertStack(t, inv.SlotAt(0), "hoe", 1, "chained slot 0");
+            AssertStack(t, inv.SlotAt(1), "watering_can", 1, "chained slot 1");
+            AssertStack(t, inv.SlotAt(2), "scythe", 1, "chained slot 2");
+            AssertStack(t, inv.SlotAt(3), "turnip_seeds", 15, "chained slot 3");
+            AssertStack(t, inv.SlotAt(4), "greenbean_seeds", 5, "chained slot 4");
+
+            // The frozen v2 -> v3 step: empty flags.
+            t.Assert(loaded.StoryFlags != null, "StoryFlags present after the chain");
+            t.AssertEqual(0, loaded.StoryFlags!.Count, "chained StoryFlags empty");
+
+            // The v1 payload must survive both steps untouched.
+            t.AssertEqual(600L, loaded.TotalMinutes, "v1 TotalMinutes survives the chain");
+            t.AssertEqual(100f, loaded.Player.X, "v1 player X survives the chain");
+            t.AssertEqual(120f, loaded.Player.Y, "v1 player Y survives the chain");
+            t.AssertEqual(2, loaded.Player.Facing, "v1 facing survives the chain");
+            TileRecord? tile = loaded.Maps["test_farm"].GetTile(3, 4);
+            t.Assert(tile != null, "v1 tile (3,4) survives the chain");
+            t.AssertEqual("tilled", tile!.Kind, "v1 tile kind survives the chain");
+            t.AssertEqual(-1L, tile.LastWateredDay, "v1 tile LastWateredDay survives the chain");
+        }
+        finally
+        {
+            service.NewGame();
+        }
+    }
+
+    [SimTest]
+    public static void Save_StoryFlagsRoundTrip(TestContext t)
+    {
+        // Flag repair mirrors the shipping-bin repair: the one degenerate key ("") is
+        // dropped, negative stamps clamp to 0, and unknown-but-well-formed flag ids are
+        // KEPT (the preserve-unknown-ids rule applied to flags).
+        const string json = """
+            {"SaveVersion":3,"TotalMinutes":0,"StoryFlags":{
+                "":5,
+                "intro.first_planting":-4,
+                "future.mystery_flag":9}}
+            """;
+        SaveService service = SaveService.Instance;
+        try
+        {
+            service.DeserializeFrom(json);
+            GameData loaded = service.Current;
+            t.Assert(!loaded.HasFlag(""), "empty-string key dropped by load repair");
+            t.AssertEqual(0L, loaded.FlagDay(StoryKeys.FirstPlanting), "negative stamp clamped to 0");
+            t.AssertEqual(9L, loaded.FlagDay("future.mystery_flag"), "unknown flag kept with its stamp");
+            t.AssertEqual(2, loaded.StoryFlags.Count, "exactly the two repaired flags remain");
+
+            // The unknown key must re-serialize byte-exactly and survive a full round-trip.
+            string reserialized = service.SerializeToString();
+            t.Assert(reserialized.Contains("\"future.mystery_flag\": 9"),
+                "unknown flag re-serializes byte-exactly");   // WriteIndented puts a space after ':'
+            service.DeserializeFrom(reserialized);
+            t.AssertEqual(9L, service.Current.FlagDay("future.mystery_flag"),
+                "unknown flag survives the round-trip");
+            t.AssertEqual(0L, service.Current.FlagDay(StoryKeys.FirstPlanting),
+                "clamped stamp survives the round-trip");
+            t.AssertEqual(2, service.Current.StoryFlags.Count,
+                "flag count stable across the round-trip");
+        }
+        finally
+        {
+            service.NewGame();
+        }
+    }
+
+    [SimTest]
+    public static void Save_FutureIntroStampsClamped(TestContext t)
+    {
+        // A future-dated stamp on a KNOWN intro flag would wedge the day-comparison
+        // rules forever (road never clears; only-if-absent flags cannot be restamped).
+        // Load repair clamps known intro stamps to the save's own day; unknown flags
+        // keep their stamps verbatim (preserve-unknown rule).
+        const string json = """
+            {"SaveVersion":3,"TotalMinutes":3600,"StoryFlags":{
+                "intro.first_planting":999999,
+                "future.mystery_flag":999999}}
+            """;
+        SaveService service = SaveService.Instance;
+        try
+        {
+            service.DeserializeFrom(json);
+            long saveDay = new GameTime(3600).DayIndex;
+            t.AssertEqual(saveDay, service.Current.FlagDay(StoryKeys.FirstPlanting),
+                "future-dated known stamp clamped to the save's day");
+            t.AssertEqual(999999L, service.Current.FlagDay("future.mystery_flag"),
+                "unknown flag stamp preserved verbatim");
+            // Liveness: the very next dawn clears the road again.
+            var flags = IntroRules.FlagsToSetOnDayStarted(service.Current, saveDay + 1);
+            t.Assert(flags.Contains(StoryKeys.RoadCleared),
+                "clamped stamp restores intro progress at the next dawn");
+        }
+        finally
+        {
+            service.NewGame();
+        }
+    }
+
+    [SimTest]
+    public static void Save_FixtureV3Loads(TestContext t)
+    {
+        // The frozen v3 fixture is the v4 migration's future input: a meeting-pending
+        // mid-story state (player in town, crew arrival done) with an unknown flag.
+        string json = ReadFixture(t, "v3_minimal.json");
+        SaveService service = SaveService.Instance;
+        try
+        {
+            service.DeserializeFrom(json);
+            GameData loaded = service.Current;
+            t.AssertEqual(3, loaded.SaveVersion, "SaveVersion");
+            t.AssertEqual(3600L, loaded.TotalMinutes, "TotalMinutes");
+            t.AssertEqual("town", loaded.Player.MapId, "player mid-story in town");
+            t.AssertEqual(760L, loaded.Player.Money, "money");
+            t.AssertEqual(80, loaded.Player.Stamina, "stamina");
+            t.AssertEqual(1L, loaded.FlagDay(StoryKeys.FirstPlanting), "first_planting stamp");
+            t.AssertEqual(2L, loaded.FlagDay(StoryKeys.RoadCleared), "road_cleared stamp");
+            t.AssertEqual(2L, loaded.FlagDay(StoryKeys.CrewArrivalDone), "crew_arrival_done stamp");
+            t.Assert(!loaded.HasFlag(StoryKeys.MeetingDone), "meeting_done absent");
+            t.AssertEqual(9L, loaded.FlagDay("future.mystery_flag"), "unknown flag preserved");
+
+            // Meeting pending per PendingBeat: nothing fires where the player stands
+            // (town, 6:00 AM), but the state derives the meeting at the hall in-window.
+            var now = new GameTime(loaded.TotalMinutes);
+            t.Assert(IntroRules.PendingBeat(loaded, now, loaded.Player.MapId) == null,
+                "nothing pends in town at 6:00 AM");
+            var evening = new GameTime(
+                now.DayIndex * GameTime.MinutesPerDay + IntroRules.MeetingStartMinuteOfDay);
+            t.AssertEqual((StoryBeatId?)StoryBeatId.TownMeeting,
+                IntroRules.PendingBeat(loaded, evening, MapIds.TownHall),
+                "meeting pends at the hall from 18:00");
+        }
+        finally
+        {
+            service.NewGame();
+        }
+    }
+
+    [SimTest]
+    public static void Save_MigratedStoryMatchesNewGame(TestContext t)
+    {
+        // Drift guard: if NewGame ever gains starting flags, this MUST fail — the fix is
+        // a conscious decision (a new migration step), never editing the frozen v2→v3
+        // migration. Zero flags IS the "morning after the storm" state.
+        string json = ReadFixture(t, "v2_minimal.json");
+        SaveService service = SaveService.Instance;
+        try
+        {
+            service.DeserializeFrom(json);
+            Dictionary<string, long> migrated = service.Current.StoryFlags;
+            Dictionary<string, long> fresh = GameData.NewGame().StoryFlags;
+
+            t.AssertEqual(fresh.Count, migrated.Count, "flag count matches new game");
+            foreach ((string key, long day) in fresh)
+            {
+                t.Assert(migrated.TryGetValue(key, out long migratedDay) && migratedDay == day,
+                    $"flag '{key}' matches new game");
+            }
+        }
+        finally
+        {
+            service.NewGame();
+        }
+    }
+
+    private static string ReadFixture(TestContext t, string name)
+    {
+        using var file = Godot.FileAccess.Open(
+            $"res://src/Tests/fixtures/{name}", Godot.FileAccess.ModeFlags.Read);
+        t.Assert(file != null, $"fixture '{name}' opens: {Godot.FileAccess.GetOpenError()}");
+        return file!.GetAsText();
+    }
+
+    private static void AssertStack(TestContext t, ItemStackRecord? stack, string itemId, int count, string label)
+    {
+        t.Assert(stack != null, $"{label}: stack present");
+        t.AssertEqual(itemId, stack!.ItemId, $"{label}: item id");
+        t.AssertEqual(count, stack.Count, $"{label}: count");
+    }
+
+    // One-line encoding of every stack (inventory slots, selection, shipping bin) so two
+    // save states can be compared stack-for-stack with a single string equality.
+    private static string SnapshotStacks(GameData data)
+    {
+        var parts = new List<string>();
+        foreach (ItemStackRecord? stack in data.Player.Inventory.Slots)
+        {
+            parts.Add(stack == null ? "-" : $"{stack.ItemId}x{stack.Count}");
+        }
+        parts.Add($"sel:{data.Player.Inventory.SelectedSlot}");
+        foreach (ItemStackRecord stack in data.ShippingBin)
+        {
+            parts.Add($"bin:{stack.ItemId}x{stack.Count}");
+        }
+        return string.Join("|", parts);
     }
 
     // Recurse into generic type arguments everywhere, and into public instance
