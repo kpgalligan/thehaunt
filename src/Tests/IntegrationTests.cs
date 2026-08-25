@@ -638,7 +638,7 @@ public static class IntegrationTests
             WorldSim.Instance.SelectSlot(5);
             t.Assert(WorldSim.Instance.DepositSelectedToBin(), "deposit turnips");
             long moneyBefore = SaveService.Instance.Current.Player.Money;
-            long expected = 5L * ItemDefs.Get("turnip").SellPrice; // 175
+            long expected = 5L * ItemDefs.Get("turnip").SellPrice; // 200
 
             // Sleep: the card must interpose while the phase is STILL Sleeping.
             long dayBefore = Clock.Instance.Now.DayIndex;
@@ -651,7 +651,7 @@ public static class IntegrationTests
 
             // Copy pins (§5.2): the sold line and the total row.
             t.Assert(AnyTextContains(report, "Turnip x5"), "sold line lists 'Turnip x5'");
-            t.Assert(AnyTextContains(report, "+175g"), "total row shows '+175g'");
+            t.Assert(AnyTextContains(report, $"+{expected}g"), "total row shows the exact total");
 
             // Money was credited AND autosaved BEFORE the card: quitting mid-card
             // loses only the popup, never money.

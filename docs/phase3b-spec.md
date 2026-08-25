@@ -442,7 +442,9 @@ Dialogue/Menu/Paused; force-hides on control loss).
 
 ## §9 [KEVIN] ledger
 
-1. Buy prices: turnip_seeds 20g, greenbean_seeds 30g (2x sell). Seeds-only catalog for now.
+1. ~~Buy prices~~ RATIFIED 2026-08-26: seed resale = 50% of buy (invariant-tested); shelf =
+   turnip 20g, potato 50g, greenbean 60g, cauliflower 80g; turnip crop sell 35→40g;
+   potato (6 nights, yields 2, sells 40g) and cauliflower (10 nights, sells 175g) added.
 2. Store hours 9-5; "Closed (9-5)" prompt; storefront sign copy; store NAME not invented.
 3. Shopkeeper: role label, tunic #b08a4a; silent this phase (counter seals them off) — say
    the word for a greeting line or town/meeting appearances.
@@ -507,3 +509,13 @@ refuted) — all confirmed items fixed:
 Dev flags added for visual verification: `--add-minutes <n>` (advances the clock through
 Clock.AdvanceMinutes, in-memory only) and `--open-ui <chest|shop|help>` (pops a 3b UI
 after boot). Both live in Main.HandleCmdlineArgs beside `--start-map`.
+
+Economy ratified (2026-08-26, supersedes §3.1's placeholder catalog): pricing rules are
+(1) seed SellPrice = half the shop buy price — enforced by Shop_SeedResaleIsHalfBuy —
+and (2) g/day/tile tiers ~4 starter / ~5 mid / ~9-10 premium. Live changes: turnip crop
+sell 35→40 (4.0 g/day), greenbean seed buy 30→60 + seed sell 15→30 (9.3 g/day, breaks
+even on the second harvest). New crops: potato (6 nights, HarvestCount 2 — first user of
+that mechanic — crop 40g, seed 50g, 5.0 g/day) and cauliflower (10 nights, crop 175g,
+seed 80g, 9.5 g/day in two large payouts). Shelf order cheapest-first: turnip 20 /
+potato 50 / greenbean 60 / cauliflower 80. Suite re-pinned at 88. Note: crops do not yet
+die at season end — the per-season math firms up when seasonal gating lands.

@@ -205,7 +205,7 @@ public static class FarmTests
         t.Assert(report.Sales != null, "report carries the itemized sales");
         IReadOnlyList<ShippedLine> sales = report.Sales!;
         t.AssertEqual(2, sales.Count, "one line per sold stack, none for the unknown id");
-        t.AssertEqual(new ShippedLine("turnip", 5, 175), sales[0], "turnip line (5 x 35)");
+        t.AssertEqual(new ShippedLine("turnip", 5, 200), sales[0], "turnip line (5 x 40)");
         t.AssertEqual(new ShippedLine("greenbean", 2, 80), sales[1], "greenbean line (2 x 40)");
 
         long lineSum = 0;
@@ -214,8 +214,8 @@ public static class FarmTests
             lineSum += line.Proceeds;
         }
         t.AssertEqual(report.ShippingProceeds, lineSum, "line proceeds sum to ShippingProceeds");
-        t.AssertEqual(255L, report.ShippingProceeds, "proceeds exact");
-        t.AssertEqual(moneyBefore + 255L, data.Player.Money, "money credited by the same sum");
+        t.AssertEqual(280L, report.ShippingProceeds, "proceeds exact");
+        t.AssertEqual(moneyBefore + 280L, data.Player.Money, "money credited by the same sum");
 
         // Unknown/unsellable ids stay binned — item deletion is data loss.
         t.AssertEqual(1, data.ShippingBin.Count, "unknown id stays binned");

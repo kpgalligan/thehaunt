@@ -18,6 +18,10 @@ public static class CropDefs
         {
             new CropDef("turnip", "Turnip", new[] { 1, 1, 1, 2 }, "turnip"),
             new CropDef("greenbean", "Green Bean", new[] { 1, 1, 2, 2 }, "greenbean", RegrowDays: 3),
+            // Ratified 3b economy additions: potato is the first HarvestCount user;
+            // cauliflower is the premium slow single.
+            new CropDef("potato", "Potato", new[] { 1, 1, 2, 2 }, "potato", HarvestCount: 2),
+            new CropDef("cauliflower", "Cauliflower", new[] { 2, 2, 3, 3 }, "cauliflower"),
         };
         return defs.ToDictionary(d => d.Id);
     }

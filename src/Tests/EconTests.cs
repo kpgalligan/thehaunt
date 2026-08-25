@@ -162,8 +162,8 @@ public static class EconTests
             sequence.Clear();
             t.AssertEqual(BuyResult.Ok, WorldSim.Instance.BuyItem("greenbean_seeds", 5),
                 "buy 5 greenbean seeds");
-            t.AssertEqual(moneyBefore - 40L - 150L, service.Current.Player.Money,
-                "exact debit (5 x 30g)");
+            t.AssertEqual(moneyBefore - 40L - 300L, service.Current.Player.Money,
+                "exact debit (5 x 60g)");
             t.AssertEqual(2, sequence.Count, "one event pair per buy");
         }
         finally
@@ -255,6 +255,23 @@ public static class EconTests
             "general store catalog resolves");
         t.Assert(ShopCatalog.TryGet("no_such_catalog") == null,
             "unknown catalog id resolves to null");
+    }
+
+    [SimTest]
+    public static void Shop_SeedResaleIsHalfBuy(TestContext t)
+    {
+        // Ratified pricing rule: every shop-sold seed resells (ships) for exactly
+        // half its buy price — shipping leftover seeds is possible but always lossy,
+        // so there is no buy-then-ship arbitrage. New catalog rows must keep this.
+        foreach ((string catalogId, IReadOnlyList<ShopEntry> entries) in ShopCatalog.All)
+        {
+            foreach (ShopEntry entry in entries)
+            {
+                ItemDef def = ItemDefs.Get(entry.ItemId);
+                t.AssertEqual(entry.BuyPrice, def.SellPrice * 2,
+                    $"catalog '{catalogId}': '{entry.ItemId}' buy price is exactly 2x its sell price");
+            }
+        }
     }
 
     [SimTest]

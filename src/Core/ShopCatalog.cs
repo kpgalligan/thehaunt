@@ -24,10 +24,14 @@ public static class ShopCatalog
         // Buy prices are 2x sell; seeds-only catalog for now [KEVIN].
         return new Dictionary<string, IReadOnlyList<ShopEntry>>
         {
+            // Ratified shelf (cheapest first): buy prices are exactly 2x the seed's
+            // SellPrice — the Shop_SeedResaleIsHalfBuy invariant test enforces it.
             [GeneralStore] = new ShopEntry[]
             {
                 new("turnip_seeds", 20),
-                new("greenbean_seeds", 30),
+                new("potato_seeds", 50),
+                new("greenbean_seeds", 60),
+                new("cauliflower_seeds", 80),
             },
         };
     }

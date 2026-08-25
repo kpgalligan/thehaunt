@@ -20,7 +20,7 @@ report, Menu phase, help panel). Read them before touching Core/Systems code —
 ## Commands
 
 - Build (fast correctness check — run after every C# change): `dotnet build`
-- Full test suite (headless, 87 tests, exit code 0/1): `godot-mono --headless res://scenes/tests/TestRunner.tscn`
+- Full test suite (headless, 88 tests, exit code 0/1): `godot-mono --headless res://scenes/tests/TestRunner.tscn`
 - Re-import after adding/changing assets or scenes: `godot-mono --headless --import`
 - Run the game: `godot-mono --path .`
 - Screenshot for visual verification (opens a window briefly, saves PNG, quits): `godot-mono --path . -- --screenshot /path/out.png`
