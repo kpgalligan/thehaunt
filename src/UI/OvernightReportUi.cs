@@ -102,7 +102,7 @@ public partial class OvernightReportUi : Control
 
     private void BuildControls()
     {
-        var panel = new PanelContainer { CustomMinimumSize = new Vector2(180, 0) };
+        var panel = new PanelContainer { CustomMinimumSize = new Vector2(140, 0) };
         panel.SetAnchorsAndOffsetsPreset(LayoutPreset.Center);
         panel.GrowHorizontal = GrowDirection.Both;
         panel.GrowVertical = GrowDirection.Both;
@@ -137,7 +137,7 @@ public partial class OvernightReportUi : Control
         vbox.AddChild(_totalLabel);
 
         var hint = new Label { Text = "▼", HorizontalAlignment = HorizontalAlignment.Right };
-        hint.AddThemeFontSizeOverride("font_size", 10);
+        hint.AddThemeFontSizeOverride("font_size", 8);
         vbox.AddChild(hint);
     }
 

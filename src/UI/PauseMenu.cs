@@ -52,7 +52,7 @@ public partial class PauseMenu : Control
         dim.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
         AddChild(dim);
 
-        var panel = new Panel { CustomMinimumSize = new Vector2(220, 190) };
+        var panel = new Panel { CustomMinimumSize = new Vector2(170, 148) };
         panel.SetAnchorsAndOffsetsPreset(LayoutPreset.Center);
         panel.GrowHorizontal = GrowDirection.Both;
         panel.GrowVertical = GrowDirection.Both;
@@ -84,7 +84,7 @@ public partial class PauseMenu : Control
         vbox.AddChild(quit);
 
         _feedbackLabel = new Label { HorizontalAlignment = HorizontalAlignment.Center };
-        _feedbackLabel.AddThemeFontSizeOverride("font_size", 10);
+        _feedbackLabel.AddThemeFontSizeOverride("font_size", 8);
         vbox.AddChild(_feedbackLabel);
     }
 

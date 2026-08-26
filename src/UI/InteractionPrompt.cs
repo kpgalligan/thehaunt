@@ -21,8 +21,8 @@ public partial class InteractionPrompt : Control
             Visible = false,
             HorizontalAlignment = HorizontalAlignment.Center,
         };
-        // 56 (not 24) so the prompt clears the hotbar along the bottom edge.
-        _label.SetAnchorsAndOffsetsPreset(LayoutPreset.CenterBottom, LayoutPresetMode.Minsize, margin: 56);
+        // 46 (not 24) so the prompt clears the hotbar along the bottom edge.
+        _label.SetAnchorsAndOffsetsPreset(LayoutPreset.CenterBottom, LayoutPresetMode.Minsize, margin: 46);
         _label.GrowHorizontal = GrowDirection.Both;
         _label.GrowVertical = GrowDirection.Begin;
         AddChild(_label);

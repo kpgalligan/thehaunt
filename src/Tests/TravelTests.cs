@@ -43,8 +43,9 @@ public static class TravelTests
                         $"'{id}': spawn '{spawn}' is a real marker, not the fallback");
                 }
                 Rect2 limits = map.GetCameraLimits();
-                t.Assert(limits.Size.X >= 640 && limits.Size.Y >= 360,
-                    $"'{id}': camera limits {limits.Size} cover at least the 640x360 viewport");
+                t.Assert(limits.Size.X >= MapRoot.ViewportWidth && limits.Size.Y >= MapRoot.ViewportHeight,
+                    $"'{id}': camera limits {limits.Size} cover at least the "
+                    + $"{MapRoot.ViewportWidth}x{MapRoot.ViewportHeight} viewport");
 
                 map.Free();
                 map = null;

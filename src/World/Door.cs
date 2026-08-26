@@ -13,6 +13,12 @@ public partial class Door : Area2D, IInteractable
     [Export] public string TargetMapId { get; set; } = "";
     [Export] public string TargetSpawnId { get; set; } = "default";
 
+    /// <summary>
+    /// False where the doorway is already drawn into the map's art (the town facades):
+    /// the node still carries the blocker and the prompt, it just draws nothing.
+    /// </summary>
+    [Export] public bool DrawPlaceholder { get; set; } = true;
+
     public string PromptText => "Enter";
 
     // The IsQueuedForDeletion guard closes the one-frame freed-but-overlapped
@@ -29,7 +35,8 @@ public partial class Door : Area2D, IInteractable
         CollisionMask = 0;
         Monitorable = true;
 
-        AddChild(new Sprite2D { Texture = BuildTexture() });
+        if (DrawPlaceholder)
+            AddChild(new Sprite2D { Texture = BuildTexture() });
 
         AddChild(new CollisionShape2D
         {

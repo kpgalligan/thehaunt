@@ -24,8 +24,8 @@ WorldSim="*res://src/Systems/WorldSim.cs"
 
 [display]
 
-window/size/viewport_width=640
-window/size/viewport_height=360
+window/size/viewport_width=480
+window/size/viewport_height=270
 window/size/window_width_override=1280
 window/size/window_height_override=720
 window/stretch/mode="canvas_items"
@@ -34,6 +34,13 @@ window/stretch/aspect="keep"
 [dotnet]
 
 project/assembly_name="TheHaunt"
+
+[gui]
+
+; Scales the built-in theme (fonts, paddings, stylebox borders) with the
+; 640x360 -> 480x270 viewport change, so every code-built Control keeps the share
+; of the screen it had before.
+theme/default_theme_scale=0.75
 
 [input]
 

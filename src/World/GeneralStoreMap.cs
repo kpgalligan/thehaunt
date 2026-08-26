@@ -35,6 +35,9 @@ public partial class GeneralStoreMap : MapRoot
         new("9a7a4a"), // counter wood
     };
 
+    /// <summary>Indoors: fixed warm key, never the day/night tint.</summary>
+    public override bool IsInterior => true;
+
     public override void _EnterTree()
     {
         // Default the id before registration so WorldSim never sees a nameless map.

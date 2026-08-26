@@ -23,8 +23,7 @@ public partial class PlayerController : CharacterBody2D, IPersistentSystem
     public int Facing { get; private set; } // 0=down 1=left 2=right 3=up
     public InteractionProbe Probe { get; private set; } = null!;
 
-    private readonly ImageTexture[] _facingTextures = new ImageTexture[4];
-    private Sprite2D? _sprite;
+    private CharacterSprite? _sprite;
     private Camera2D? _camera;
     private Rect2? _pendingCameraLimits;
     private float _sinceLastToolUse = UseToolCooldown; // start ready
@@ -45,10 +44,7 @@ public partial class PlayerController : CharacterBody2D, IPersistentSystem
         CollisionLayer = 1;
         CollisionMask = 1;
 
-        for (int i = 0; i < _facingTextures.Length; i++)
-            _facingTextures[i] = PlaceholderSprites.Character(i, TunicColor);
-
-        _sprite = new Sprite2D { Position = new Vector2(0, -3) };
+        _sprite = new CharacterSprite { Tunic = TunicColor };
         AddChild(_sprite);
 
         AddChild(new CollisionShape2D
@@ -75,6 +71,7 @@ public partial class PlayerController : CharacterBody2D, IPersistentSystem
             _hadControlLastPhysicsFrame = false;
             Velocity = Vector2.Zero;
             MoveAndSlide();
+            _sprite?.SetMoving(false);
             return;
         }
 
@@ -89,6 +86,7 @@ public partial class PlayerController : CharacterBody2D, IPersistentSystem
         var input = Input.GetVector("move_left", "move_right", "move_up", "move_down");
         Velocity = input * MoveSpeed;
         MoveAndSlide();
+        _sprite?.SetMoving(input != Vector2.Zero);
 
         if (input != Vector2.Zero)
         {
@@ -191,8 +189,7 @@ public partial class PlayerController : CharacterBody2D, IPersistentSystem
     {
         // Clamp: Facing can arrive from a hand-edited save file via ReadState.
         Facing = Math.Clamp(facing, 0, 3);
-        if (_sprite != null)
-            _sprite.Texture = _facingTextures[Facing];
+        _sprite?.SetFacing(Facing);
         if (Probe != null)
             Probe.SetFacing(Facing);
     }

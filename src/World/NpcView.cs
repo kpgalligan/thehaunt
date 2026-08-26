@@ -17,7 +17,7 @@ public partial class NpcView : Area2D, IInteractable
 
     public string PromptText => "Talk";
 
-    private Sprite2D? _sprite;
+    private CharacterSprite? _sprite;
     private int _facing; // 0=down 1=left 2=right 3=up
 
     // A null selector result = present-but-silent (no Talk prompt). The
@@ -36,12 +36,9 @@ public partial class NpcView : Area2D, IInteractable
         CollisionMask = 0;
         Monitorable = true;
 
-        _sprite = new Sprite2D
-        {
-            Position = new Vector2(0, -3), // same lift as the player sprite
-            Texture = PlaceholderSprites.Character(_facing, Tunic),
-        };
+        _sprite = new CharacterSprite { Tunic = Tunic };
         AddChild(_sprite);
+        _sprite.SetFacing(_facing);
 
         AddChild(new CollisionShape2D
         {
@@ -67,7 +64,6 @@ public partial class NpcView : Area2D, IInteractable
         if (facing == _facing)
             return;
         _facing = facing;
-        if (_sprite != null)
-            _sprite.Texture = PlaceholderSprites.Character(_facing, Tunic);
+        _sprite?.SetFacing(_facing);
     }
 }

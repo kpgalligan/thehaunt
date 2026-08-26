@@ -8,11 +8,29 @@ public partial class MapRoot : Node2D
 {
     public const int TileSize = 16;
 
+    // 480x270 shows 30x17 tiles — roughly double the apparent size of every character
+    // and building against the old 640x360 (art bible §01). Kept in sync with
+    // display/window/size in project.godot.
+    public const int ViewportWidth = 480;
+    public const int ViewportHeight = 270;
+
     [Export] public string MapId { get; set; } = "";
 
     public TileMapLayer? Ground => GetNodeOrNull<TileMapLayer>("Ground");
 
-    public override void _EnterTree() => WorldSim.Instance.RegisterMap(this);
+    /// <summary>
+    /// Interiors take a fixed warm key instead of the day/night tint — that contrast
+    /// is what makes stepping inside at dusk feel like relief (art handoff §6).
+    /// </summary>
+    public virtual bool IsInterior => false;
+
+    public override void _EnterTree()
+    {
+        // Merges this map's sprites into the Y-sort Main runs over World: the player
+        // passes behind a roof overhang or a prop and in front of its base row.
+        YSortEnabled = true;
+        WorldSim.Instance.RegisterMap(this);
+    }
 
     public override void _ExitTree() => WorldSim.Instance.UnregisterMap(this);
 
@@ -25,15 +43,15 @@ public partial class MapRoot : Node2D
             if (used.Size.X > 0 && used.Size.Y > 0)
                 return ExpandToViewport(new Rect2(used.Position * TileSize, used.Size * TileSize));
         }
-        return new Rect2(0, 0, 640, 360);
+        return new Rect2(0, 0, ViewportWidth, ViewportHeight);
     }
 
-    // An interior smaller than the viewport makes Camera2D limits unsatisfiable
-    // and pins the view asymmetrically; grow to at least 640x360, centered on
-    // the original rect.
+    // A map smaller than the viewport makes Camera2D limits unsatisfiable and pins the
+    // view asymmetrically; grow to at least the viewport, centered on the original rect.
     private static Rect2 ExpandToViewport(Rect2 rect)
     {
-        var size = new Vector2(Mathf.Max(rect.Size.X, 640), Mathf.Max(rect.Size.Y, 360));
+        var size = new Vector2(
+            Mathf.Max(rect.Size.X, ViewportWidth), Mathf.Max(rect.Size.Y, ViewportHeight));
         return new Rect2(rect.Position - (size - rect.Size) / 2f, size);
     }
 

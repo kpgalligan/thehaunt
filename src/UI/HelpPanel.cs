@@ -78,7 +78,7 @@ public partial class HelpPanel : Control
     private static Label MakeRow(string text)
     {
         var label = new Label { Text = text }; // Labels ignore mouse by default
-        label.AddThemeFontSizeOverride("font_size", 10);
+        label.AddThemeFontSizeOverride("font_size", 8);
         return label;
     }
 

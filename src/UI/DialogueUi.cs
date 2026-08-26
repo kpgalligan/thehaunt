@@ -73,7 +73,7 @@ public partial class DialogueUi : Control
         _panel.SetAnchorsAndOffsetsPreset(LayoutPreset.BottomWide);
         _panel.OffsetLeft = 8;
         _panel.OffsetRight = -8;
-        _panel.OffsetTop = -92; // ~84 px tall above the 8 px bottom margin
+        _panel.OffsetTop = -72; // ~64 px tall above the 8 px bottom margin
         _panel.OffsetBottom = -8;
         _panel.GrowHorizontal = GrowDirection.Both;
         _panel.GrowVertical = GrowDirection.Begin; // a choice list taller than 84 px expands upward
@@ -106,7 +106,7 @@ public partial class DialogueUi : Control
         vbox.AddChild(_choices);
 
         _hint = new Label { Text = "▼", HorizontalAlignment = HorizontalAlignment.Right };
-        _hint.AddThemeFontSizeOverride("font_size", 10);
+        _hint.AddThemeFontSizeOverride("font_size", 8);
         vbox.AddChild(_hint);
     }
 

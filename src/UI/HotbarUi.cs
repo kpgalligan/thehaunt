@@ -9,8 +9,8 @@ namespace TheHaunt.UI;
 /// Unknown item ids render as a gray '?' placeholder — never dropped, never thrown on.</summary>
 public partial class HotbarUi : Control
 {
-    private const int SlotSize = 26;
-    private const int IconSize = 12;
+    private const int SlotSize = 20;
+    private const int IconSize = 10;
 
     private readonly Panel[] _slotPanels = new Panel[InventoryData.Capacity];
     private readonly TextureRect[] _slotIcons = new TextureRect[InventoryData.Capacity];
@@ -60,7 +60,7 @@ public partial class HotbarUi : Control
                 Visible = false,
                 HorizontalAlignment = HorizontalAlignment.Right,
             };
-            count.AddThemeFontSizeOverride("font_size", 8);
+            count.AddThemeFontSizeOverride("font_size", 6);
             count.AddThemeColorOverride("font_outline_color", new Color(0f, 0f, 0f, 0.9f));
             count.AddThemeConstantOverride("outline_size", 2);
             count.SetAnchorsAndOffsetsPreset(LayoutPreset.BottomRight, LayoutPresetMode.Minsize, margin: 1);
