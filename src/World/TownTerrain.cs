@@ -6,18 +6,15 @@ namespace TheHaunt.World;
 /// The town terrain TileSet, loaded once from the art handoff's Godot resource.
 ///
 /// The .tres owns the atlas and the collision polygons (they ship with the art and
-/// stay the artist's to change). Two things it cannot carry are added here so there
-/// is still exactly one source of truth:
-///   * the "walkable" custom data layer <see cref="MapRoot.IsStandable"/> reads —
-///     derived from the resource's own collision, never hand-listed;
-///   * a collision-only tile on the atlas's transparent tail cell, so the Obstacles
-///     layer can block the ground under sprite-drawn facades and props.
+/// stay the artist's to change). What it cannot carry — the derived "walkable" custom
+/// data and the collision-only blocker cell — is added by <see cref="TileSetTools"/>,
+/// so town, farm and interiors all get it the same way.
 /// </summary>
 public static class TownTerrain
 {
     public const string TileSetPath = "res://assets/sprites/town/thehaunt_terrain.tres";
 
-    public const string WalkableData = "walkable";
+    public const string WalkableData = TileSetTools.WalkableData;
 
     private static TileSet? _cached;
 
@@ -29,29 +26,27 @@ public static class TownTerrain
         var tileSet = GD.Load<TileSet>(TileSetPath)
             ?? throw new InvalidOperationException($"Town terrain TileSet missing at '{TileSetPath}'.");
 
-        tileSet.AddCustomDataLayer();
-        tileSet.SetCustomDataLayerName(0, WalkableData);
-        tileSet.SetCustomDataLayerType(0, Variant.Type.Bool);
-
-        var source = (TileSetAtlasSource)tileSet.GetSource(0);
+        TileSetTools.AddWalkableLayer(tileSet);
 
         // Collision-only cell: the atlas's row-3 tail is fully transparent, so this
         // blocks and reads as unwalkable while drawing nothing.
-        source.CreateTile(TerrainTiles.Blocker);
-        var blocker = source.GetTileData(TerrainTiles.Blocker, 0);
-        blocker.SetCollisionPolygonsCount(0, 1);
-        blocker.SetCollisionPolygonPoints(0, 0, new[]
-        {
-            new Vector2(-8, -8), new Vector2(8, -8), new Vector2(8, 8), new Vector2(-8, 8),
-        });
+        TileSetTools.MakeBlocker((TileSetAtlasSource)tileSet.GetSource(0), TerrainTiles.Blocker);
 
-        for (int i = 0; i < source.GetTilesCount(); i++)
-        {
-            var coords = source.GetTileId(i);
-            var data = source.GetTileData(coords, 0);
-            data.SetCustomData(WalkableData, data.GetCollisionPolygonsCount(0) == 0);
-        }
-
+        TileSetTools.DeriveWalkable(tileSet);
         return tileSet;
     }
+
+    /// <summary>
+    /// A private copy of the town TileSet, for a set that needs the woods edge and the
+    /// blocker but is not the town — the farm draws the same forest boundary as the same
+    /// diegetic map limit. Cache-ignoring, because <see cref="Get"/>'s instance is
+    /// already owned by the town's TileSet and a source belongs to one set at a time.
+    ///
+    /// The whole TileSet comes back, not just its source: the source is a sub-resource of
+    /// it, and handing out the source alone leaves the set unreferenced and collectable
+    /// in the window before the caller re-parents it.
+    /// </summary>
+    public static TileSet LoadCopy() =>
+        ResourceLoader.Load<TileSet>(TileSetPath, cacheMode: ResourceLoader.CacheMode.Ignore)
+        ?? throw new InvalidOperationException($"Town terrain TileSet missing at '{TileSetPath}'.");
 }

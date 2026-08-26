@@ -12,11 +12,15 @@ The architecture contracts are `docs/foundation-spec.md` (clock/save/state base)
 `docs/phase3b-spec.md` (storage/chest + save v4, general store + buy flow, overnight
 report, Menu phase, help panel). Read them before touching Core/Systems code — public signatures and semantics are specified there.
 
-The art contract is `docs/designs/design_handoff_town_art/` — the palette, projection,
-tile grammar, lighting keys and the act-by-act dread escalation. Its `README.md` is the
-integration brief and `reference/The Haunt - Art Direction.dc.html` is the full bible;
-both govern any new art, bought or commissioned. Its `art/` PNGs are the shipped town
-assets, copied into `assets/sprites/` — never redraw, scale or filter them.
+The art contract is `docs/designs/` — two handoffs, both binding.
+`design_handoff_town_art/` is the base: palette, projection, tile grammar, lighting keys
+and the act-by-act dread escalation, with `reference/The Haunt - Art Direction.dc.html`
+as the full bible. `design_handoff_farm_interiors/` is incremental on top of it (farm
+soil autotile, crops at 16x32, the barn's three states, the 64-tile interior atlas and 34
+furniture pieces) — where the two conflict, handoff 01 wins. Each `README.md` is its
+integration brief; the `reference/` room and scene renders are design targets, not
+assets. The `art/` PNGs are the shipped assets, copied into `assets/sprites/` — never
+redraw, scale or filter them.
 
 ## Toolchain
 
@@ -26,7 +30,7 @@ assets, copied into `assets/sprites/` — never redraw, scale or filter them.
 ## Commands
 
 - Build (fast correctness check — run after every C# change): `dotnet build`
-- Full test suite (headless, 93 tests, exit code 0/1): `godot-mono --headless res://scenes/tests/TestRunner.tscn`
+- Full test suite (headless, 115 tests, exit code 0/1): `godot-mono --headless res://scenes/tests/TestRunner.tscn`
 - Re-import after adding/changing assets or scenes: `godot-mono --headless --import`
 - Run the game: `godot-mono --path .`
 - Screenshot for visual verification (opens a window briefly, saves PNG, quits): `godot-mono --path . -- --screenshot /path/out.png`
@@ -37,17 +41,31 @@ assets, copied into `assets/sprites/` — never redraw, scale or filter them.
 
 ## Structure
 
-- `src/Core/` — PURE C# (no `using Godot`, test-enforced): GameTime/calendar, ClockModel, GameData + save DTOs, migrations, item/crop defs (code registries), InventoryData, FarmActions, OvernightSim + ShippedLine; storage: StackOps/StorageData/StorageIds; shop: ShopCatalog (+ ShopEntry/BuyResult)/ShopHours; story: StoryKeys/IntroRules/MapIds, DialogueDef(s)/DialogueSession/DialogueSelector, NpcDef(s)/NpcSchedules
+- `src/Core/` — PURE C# (no `using Godot`, test-enforced): GameTime/calendar, ClockModel, GameData + save DTOs, migrations, item/crop defs (code registries), InventoryData, FarmActions, OvernightSim + ShippedLine; storage: StackOps/StorageData/StorageIds; shop: ShopCatalog (+ ShopEntry/BuyResult)/ShopHours; story: StoryKeys/IntroRules/BarnRules/MapIds, DialogueDef(s)/DialogueSession/DialogueSelector, NpcDef(s)/NpcSchedules
 - `src/Systems/` — the four autoloads, in registration order: GameState, Clock, SaveService, WorldSim (the single gameplay-mutation bus — all model writes flow through it, incl. story flags, travel requests, the dialogue session, chest/shop Menu sessions, transfers, and purchases; UI subscribes to its events)
-- `src/World/` — MapRoot base (owns NPC views + IsStandable + IsInterior), MapRegistry, TestMap/TownMap/TownHallMap/FarmHouseMap/GeneralStoreMap (programmatic), IInteractable, Bed, Sign, ShippingBin, Chest, ShopCounter, MapExit, Door, NpcView, PlaceholderSprites; town art layer: TerrainTiles (named atlas coords + autotile/kerb lookups) + TownTerrain (the TileSet), Prop/TownProps/StoreFacade/LampPost, CharacterSprites + CharacterSprite, DayNight + DayNightTint + GlowLight
+- `src/World/` — MapRoot base (owns NPC views + IsStandable + IsInterior + the shared
+  scatter hash), MapRegistry, the exteriors TestMap/TownMap and the InteriorMap base with
+  TownHallMap/FarmHouseMap/GeneralStoreMap/BarnMap on it (all programmatic), IInteractable,
+  Bed, Sign, ShippingBin, Chest, ShopCounter, MapExit, Door, NpcView, PlaceholderSprites;
+  art layer: TileSetTools (walkable derivation + blockers) and the three named-coordinate
+  tables TerrainTiles/FarmTiles/InteriorTiles with their TileSets TownTerrain/FarmTerrain/
+  InteriorTerrain/CropTiles, Prop + the sheets TownProps/FarmBuildings/Furniture,
+  StoreFacade/BarnFacade/LampPost, CharacterSprites + CharacterSprite,
+  DayNight + DayNightTint + GlowLight;
+  recipes: MapRecipe + MapPlacement + PlacementKinds/PlacementFields + MapRecipeFile +
+  MapRecipeException, and MapRecipeSeeds (the one-shot exporter that seeds a map's first recipe
+  from its C# literals)
 - `src/Player/` — PlayerController (movement, tool targeting, hotbar input), InteractionProbe (focus consults CanInteract; guards freed nodes)
 - `src/Story/` — StoryDirector (plain Node child of Main, NOT an autoload; runs the scripted beats)
 - `src/UI/` — Hud, InteractionPrompt, HotbarUi, StaminaBar, HelpPanel, DialogueUi, ChestUi, ShopUi, OvernightReportUi, PauseMenu, ScreenFade (each builds its own controls in _Ready)
 - `src/Tests/` — headless [SimTest] suite + TestRunner; scenes/tests/TestRunner.tscn
 - `src/Main.cs` + `scenes/Main.tscn` — composition root: boot, map loading, sleep + travel flows
-- `assets/sprites/` — the town art batch (`character.png`, `lights.png`, `town/`: terrain +
-  its TileSet, both facades, props); `assets/audio`, `assets/fonts`, `data/` still empty.
-  Farm, interiors, crops and tool animations are still procedural placeholders.
+- `assets/sprites/` — `character.png`, `lights.png`; `town/` (terrain + its TileSet, both
+  facades, props); `farm/` (farm terrain + crops TileSets, farm buildings, barn);
+  `interior/` (interior TileSet + furniture). `assets/audio` and `assets/fonts` are still
+  empty. Tool-use animations, seasonal variants and animals are still undrawn.
+- `data/maps/` — map recipes, one JSON per map id, canonical one-placement-per-line. Only
+  `test_farm.json` exists so far; every other map still holds its placements as C# literals.
 
 ## Standing architecture rules (from the design review — violations are bugs)
 
@@ -86,7 +104,7 @@ assets, copied into `assets/sprites/` — never redraw, scale or filter them.
 - The overnight report is awaited INSIDE Main.RunSleepFlow while the phase is still
   Sleeping (report before Playing, then a 0.3 s mash-grace); OvernightCompleted itself
   fires mid-advance while the screen is black — latch, never display, in the handler.
-- Art rules (from the town handoff — see `docs/designs/design_handoff_town_art/README.md`):
+- Art rules (from the two handoffs — see their `README.md`s):
   - Ground is drawn flat; anything vertical is drawn front-face-only in elevation, base
     anchored, never with side walls. A `Prop`'s Position is its footprint's bottom-centre.
   - Draw order is Y-sort, enabled on World/MapHost in Main.tscn and on every MapRoot so
@@ -101,8 +119,33 @@ assets, copied into `assets/sprites/` — never redraw, scale or filter them.
     lit by anything but fire.
   - Act II/III are a variant set of the SAME tiles at the SAME coordinates, swapped by a
     story flag: every painted cell goes through `TerrainTiles.ForAct`. No map is rebuilt.
-  - Keep `PlaceholderSprites` and the procedural tile atlases working — they let a new map
-    ship before its art exists.
+  - Keep `PlaceholderSprites` and the procedural fallbacks working (`Door.DrawPlaceholder`,
+    `Bed`/`Chest`/`ShippingBin`'s zero-size `ArtSource`) — they let a new map ship before
+    its art exists.
+  - Every sheet gets its `walkable` data and its blocker from `TileSetTools`. Only the town
+    atlas has a spare transparent cell; the farm borrows it (`FarmTerrain` merges a private
+    copy of the town atlas, which is also where the shared woods edge comes from) and the
+    interiors add a one-tile transparent source of their own.
+  - Interiors are `InteriorMap` subclasses: a room is a layout function — size, wall set,
+    floor variants indexed `(x+y) % n`, a door column, and a `Decorate()`. Walls and
+    fixtures paint on Obstacles (visual AND collision); furniture is a `Prop` plus a
+    blocker; the cobweb is the sheet's only alpha tile and goes on the Dressing layer.
+  - Soil is an autotile, so `TestMap.RefreshTile` repaints a five-cell plus, not one cell:
+    tilling changes this cell's tile AND its four neighbours' edges.
+  - The Crops layer is Y-sorted because crop cells are 16x32 and overhang the row above.
+  - The barn's three drawn states are two monotone flags through `BarnRules`, never an int
+    in one flag — a flag's value in this model is the day it was stamped, not a level.
+    Nothing advances them yet; that seam is deliberately empty.
+- Map recipes (`data/maps/*.json`) are CONTENT, not save state — the same bucket as ItemDefs and
+  CropDefs, never GameData. Read at map build time, never written at runtime; the editor is the only
+  writer. A recipe stores tile coordinates and NAMES, never atlas coordinates and never pixel
+  positions, because that is exactly what keeps `ForAct` wrapping every painted cell and `Prop.Anchor`
+  owning every anchor. Unknown records round-trip verbatim, like unknown item ids. A map with no
+  recipe falls back to its C# literals, so every map stays constructible with no file present.
+- Anything that mutates a shared, process-cached resource must be IDEMPOTENT. The three TileSet
+  builders assemble their `.tres` at runtime behind a C# static, and a `dotnet build` with the editor
+  open reloads the assembly — clearing the static but NOT Godot's resource cache, so `Build` re-enters
+  an already-built set. `TileSetReloadTests` guards this.
 
 ## Conventions
 
@@ -111,7 +154,9 @@ assets, copied into `assets/sprites/` — never redraw, scale or filter them.
 - Facing encoding: 0=down, 1=left, 2=right, 3=up. Tiles are 16px; tile (x,y) center = (x*16+8, y*16+8).
 - Physics layers: 1 = world/blocking, 2 = interactable areas.
 - Scene files: keep hand-authored .tscn minimal (node skeleton + scripts); scripts build their
-  visual children in code until real art lands. Real maps will be editor-authored later.
+  visual children in code until real art lands. Maps are NOT becoming .tscn — see the map recipe
+  rule above; `MapRegistry`'s and phase3-spec's "becomes PackedScene.Instantiate" comments are
+  superseded.
 - Code-built Controls: use `SetAnchorsAndOffsetsPreset(...)` to lay out, never `SetAnchorsPreset(...)`
   — the latter keeps the control's current rect (zero for a fresh Control) by compensating offsets,
   which silently produces invisible zero-size UI.
@@ -122,5 +167,9 @@ assets, copied into `assets/sprites/` — never redraw, scale or filter them.
   `gui/theme/default_theme_scale` carries the built-in theme, and explicit font sizes and
   widget constants are tuned by hand. Re-check every UI screenshot if the viewport changes.
 - Characters are 16x32 with feet on the bottom row (one tile of floor, one tile of overhang).
-  Right is a horizontal flip of left; the sheet holds down/left/up only.
+  Right is a horizontal flip of left; the sheet holds down/left/up only. Furniture and crops
+  follow the same rule: a 16x32 piece stands on its cell and overhangs the one above it.
+- A drawn doorway sits one tile ABOVE the facade's bottom row (the bottom row is its stone
+  plinth), but the Door node stays on the bottom row: the player walks up to the ground in
+  front of the building, not onto its foundation.
 - Do not commit `.godot/` (generated) or `export_presets.cfg`.

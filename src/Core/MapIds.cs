@@ -7,5 +7,7 @@ public static class MapIds
     public const string TownHall = "town_hall";
     public const string FarmHouse = "farm_house";
     public const string GeneralStore = "general_store";
-    public static readonly IReadOnlyList<string> All = new[] { Farm, Town, TownHall, FarmHouse, GeneralStore };
+    public const string Barn = "barn";
+    public static readonly IReadOnlyList<string> All =
+        new[] { Farm, Town, TownHall, FarmHouse, GeneralStore, Barn };
 }

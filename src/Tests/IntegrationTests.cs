@@ -10,9 +10,11 @@ namespace TheHaunt.Tests;
 
 public static class IntegrationTests
 {
-    // Bed Area2D position in FarmHouseMap: footprint tiles (12,2)-(12,3). The bed
-    // moved indoors with the 3b farmhouse. See phase3b-spec §4.4.
-    private static readonly Vector2 BedPosition = new(200, 56);
+    // Bed Area2D position in FarmHouseMap: the centre of its footprint, tiles
+    // (12,2)-(12,3). The bed moved indoors with the 3b farmhouse (phase3b-spec §4.4)
+    // and on to the tile grid with the drawn art — the 16x32 sprite covers exactly
+    // those two cells, where the placeholder sat half a cell low.
+    private static readonly Vector2 BedPosition = new(200, 48);
 
     [SimTest]
     public static async Task Events_MapSwapStress(TestContext t)
@@ -87,7 +89,7 @@ public static class IntegrationTests
             t.Assert(map.IsTillable(8, 9), "vacated bed tile (8,9) is tillable again");
             t.Assert(!map.IsTillable(5, 5), "farmhouse facade wall (5,5) not tillable");
             t.Assert(!map.IsTillable(9, 4), "farmhouse facade wall (9,4) not tillable");
-            t.Assert(!map.IsTillable(6, 7), "farmhouse door tile (6,7) not tillable");
+            t.Assert(!map.IsTillable(7, 7), "farmhouse door tile (7,7) not tillable");
             t.Assert(!map.IsTillable(5, 12), "relocated stone (5,12) not tillable");
             t.Assert(!map.IsTillable(12, 8), "sign tile (12,8) not tillable");
             t.Assert(!map.IsTillable(10, 8), "shipping-bin tile (10,8) not tillable");
@@ -981,13 +983,15 @@ public static class IntegrationTests
     }
 
     // --- Pure cell-state function (recomputed independently of the map code, spec §3) ---
-    // FarmSoil atlas: column 0 = tilled-dry, column 1 = tilled-wet; wet iff the record was
-    // watered on the CURRENT day at refresh time. Crops atlas: (column, row) =
-    // (StageForDay(GrowthDay), index of the crop in CropDefs iteration order).
+    // FarmSoil atlas: row 1 dry, row 2 wet, column chosen by which sides are still grass;
+    // wet iff the record was watered on the CURRENT day at refresh time. Crops atlas:
+    // (column, row) = (StageForDay(GrowthDay), index of the crop in CropDefs order).
 
     private static readonly Vector2I EmptyCell = new(-1, -1);
-    private static readonly Vector2I SoilDry = new(0, 0);
-    private static readonly Vector2I SoilWet = new(1, 0);
+    // Every tile these tests work is tilled on its own, so column 0 — "grass on every
+    // side" — is the configuration it takes. FarmArtTests covers the neighbour cases.
+    private static readonly Vector2I SoilDry = new(0, 1);
+    private static readonly Vector2I SoilWet = new(0, 2);
 
     private static void AssertCells(TestContext t, TestMap map, Vector2I tile, string label)
     {

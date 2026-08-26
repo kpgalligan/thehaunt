@@ -269,7 +269,10 @@ SAME change set (NpcTests:71 and Map_RegistryCreatesAll iterate them).
 14x10 tiles (224x160). Plank floor + wall ring (TownHallMap pattern: south wall carries the
 door). Oversized near-black ColorRect added FIRST (behind Ground, e.g. position (-640,-360)
 size (1600,1000)) so the camera letterbox reads as darkness. Contents:
-- `Bed` (unchanged class) at tiles (12,2)-(12,3), Position (200,56).
+- `Bed` (unchanged class) at tiles (12,2)-(12,3), Position (200,48).
+  (Was (200,56) as first specified; corrected when the drawn 16x32 bed landed — its
+  collision box spans y 32-64, so the centre of those two cells is 48, and the old
+  value put a third of the box into row 4. See the farm/interiors art handoff.)
 - Table: 2 blocking decor tiles (6,4)-(7,4) painted on Obstacles (own atlas tile, wood look).
 - `Chest` at (2,2) center (40,40), StorageId `farm_house_chest`.
 - `Door { TargetMapId=MapIds.Farm, TargetSpawnId="house_door" }` at (7,9) flush in the south
@@ -376,7 +379,7 @@ TestRunner.MinimumExpectedTests: 63 → 85 (re-pin to the exact shipped count at
    NOT tillable; relocated stone (5,12) NOT tillable; bin (10,8)/sign (12,8) unchanged;
    (20,25) still tillable.
 2. `Interaction_ProbeFindsBed` — travel to farm_house first (RequestTravel + await arrival);
-   BedPosition becomes (200,56); stand at BedPosition+(0,28) facing up; same prompt assert.
+   BedPosition becomes (200,48); stand at BedPosition+(0,28) facing up; same prompt assert.
 3. `SleepOneNight` helper — after the day advances, if the report card is visible call its
    `Dismiss()`, then WaitUntil(Playing). All call sites compile unchanged (only the shipping
    night actually shows the card).

@@ -30,4 +30,23 @@ public partial class Prop : Sprite2D
     /// <summary>Bottom-centre of a footprint spanning <paramref name="tiles"/> tiles from (x, y).</summary>
     public static Vector2 Anchor(int x, int y, int tiles = 1) =>
         new(x * MapRoot.TileSize + tiles * MapRoot.TileSize / 2f, (y + 1) * MapRoot.TileSize);
+
+    /// <summary>
+    /// A plain centred sprite cut from an atlas, for the interactables (bed, chest,
+    /// shipping bin) that own their collision and only needed a picture. They keep their
+    /// procedural placeholder for the case this returns nothing to draw — a new map still
+    /// ships before its art exists.
+    /// </summary>
+    public static Sprite2D Cut(string texturePath, Rect2 source, Vector2 offset = default)
+    {
+        var atlas = GD.Load<Texture2D>(texturePath)
+            ?? throw new InvalidOperationException($"Sprite sheet missing at '{texturePath}'.");
+        return new Sprite2D
+        {
+            Texture = atlas,
+            RegionEnabled = true,
+            RegionRect = source,
+            Offset = offset,
+        };
+    }
 }

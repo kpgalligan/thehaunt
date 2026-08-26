@@ -395,21 +395,4 @@ public partial class TownMap : MapRoot
             Position = new Vector2(StoreDoorX * TileSize + 8, StoreDoorY * TileSize + 8), // (184, 184)
         });
     }
-
-    // ------------------------------------------------------------------
-
-    private static Vector2I Pick(Vector2I[] variants, int x, int y) =>
-        variants[Hash(x, y) % variants.Length];
-
-    // Deterministic per-cell scatter: the same map paints identically every load, and
-    // no two runs disagree about where the clover is.
-    private static int Hash(int x, int y)
-    {
-        unchecked
-        {
-            int h = x * 374761393 + y * 668265263;
-            h = (h ^ (h >> 13)) * 1274126177;
-            return (h ^ (h >> 16)) & 0x7fffffff;
-        }
-    }
 }

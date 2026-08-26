@@ -12,11 +12,12 @@ public static class TravelTests
     // must resolve to a real Marker2D, never the camera-center fallback.
     private static readonly Dictionary<string, string[]> DocumentedSpawns = new()
     {
-        [MapIds.Farm] = new[] { "default", "road", "house_door" },
+        [MapIds.Farm] = new[] { "default", "road", "house_door", "barn_door" },
         [MapIds.Town] = new[] { "from_farm", "from_hall", "from_store" },
         [MapIds.TownHall] = new[] { "entry" },
         [MapIds.FarmHouse] = new[] { "default", "entry" },
         [MapIds.GeneralStore] = new[] { "default", "entry" },
+        [MapIds.Barn] = new[] { "default", "entry" },
     };
 
     [SimTest]
@@ -274,8 +275,16 @@ public static class TravelTests
 
             // Farmhouse -> farm through the interior door: lands at 'house_door'.
             await EnterDoor(t, main, player, MapIds.Farm, "farmhouse door back to the farm");
-            t.AssertEqual(new Vector2(104, 136), player.GlobalPosition,
-                "arrived at the farm 'house_door' spawn, tile (6,8)");
+            t.AssertEqual(new Vector2(120, 136), player.GlobalPosition,
+                "arrived at the farm 'house_door' spawn, tile (7,8)");
+
+            // The barn across the yard is the same round trip on the same farm.
+            await EnterDoor(t, main, player, MapIds.Barn, "yard door into the barn");
+            AssertNearSpawn(t, player, new Vector2(136, 168),
+                "arrived at the barn 'entry' spawn, tile (8,10)");
+            await EnterDoor(t, main, player, MapIds.Farm, "barn door back to the yard");
+            t.AssertEqual(new Vector2(440, 168), player.GlobalPosition,
+                "arrived at the farm 'barn_door' spawn, tile (27,10)");
 
             // Over to town on the bus, then through the StoreDoor and back.
             t.Assert(WorldSim.Instance.RequestTravel(MapIds.Town, "from_farm"),

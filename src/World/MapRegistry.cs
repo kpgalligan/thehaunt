@@ -12,7 +12,7 @@ public static class MapRegistry
 {
     public static bool Contains(string mapId) =>
         mapId is MapIds.Farm or MapIds.Town or MapIds.TownHall
-            or MapIds.FarmHouse or MapIds.GeneralStore;
+            or MapIds.FarmHouse or MapIds.GeneralStore or MapIds.Barn;
 
     public static MapRoot Create(string mapId) => mapId switch
     {
@@ -21,6 +21,7 @@ public static class MapRegistry
         MapIds.TownHall => new TownHallMap(),
         MapIds.FarmHouse => new FarmHouseMap(),
         MapIds.GeneralStore => new GeneralStoreMap(),
+        MapIds.Barn => new BarnMap(),
         _ => throw new ArgumentException($"Unknown map id '{mapId}'.", nameof(mapId)),
     };
 }

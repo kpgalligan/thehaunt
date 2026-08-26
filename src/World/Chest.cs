@@ -14,6 +14,11 @@ public partial class Chest : Area2D, IInteractable
 {
     [Export] public string StorageId { get; set; } = StorageIds.FarmHouseChest;
 
+    /// <summary>Atlas region to draw; zero-size falls back to the procedural placeholder.</summary>
+    public Rect2 ArtSource { get; init; }
+
+    public string ArtPath { get; init; } = Furniture.TexturePath;
+
     public string PromptText => "Open";
 
     public bool CanInteract(Node2D interactor) =>
@@ -28,7 +33,11 @@ public partial class Chest : Area2D, IInteractable
         CollisionMask = 0;
         Monitorable = true;
 
-        AddChild(new Sprite2D { Texture = BuildTexture() });
+        // A 16x32 piece stands ON its tile and overhangs the row above, so the drawn
+        // art is lifted half a cell while the collision stays on the one tile.
+        AddChild(ArtSource.Size == Vector2.Zero
+            ? new Sprite2D { Texture = BuildTexture() }
+            : Prop.Cut(ArtPath, ArtSource, new Vector2(0, (MapRoot.TileSize - ArtSource.Size.Y) / 2f)));
 
         AddChild(new CollisionShape2D
         {

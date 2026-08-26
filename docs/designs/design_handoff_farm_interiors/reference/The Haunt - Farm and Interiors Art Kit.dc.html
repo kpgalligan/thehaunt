@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,300;0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  body { margin: 0; background: #e7e4db; }
+  a { color: #6b4560; text-decoration: underline; text-underline-offset: 2px; }
+  a:hover { color: #a4432f; }
+  img { image-rendering: pixelated; }
+</style>
+</helmet>
+
+<div style="min-height:100vh;background:#f1efe9;padding:56px 60px 90px;font-family:Newsreader,serif">
+<div style="max-width:1180px;margin:0 auto">
+
+  <div style="font:500 11px/1 'JetBrains Mono',monospace;letter-spacing:0.14em;text-transform:uppercase;color:#6b4560">The Haunt · Farm, Barn &amp; Interiors · Art Kit v2</div>
+  <h1 style="font:300 52px/1.04 Newsreader,serif;color:#1c1c1a;margin:16px 0 0;letter-spacing:-0.02em">The farm, and everything indoors</h1>
+  <p style="font:400 17px/1.62 Newsreader,serif;color:#3a3733;max-width:36em;margin:18px 0 0">Same palette, same rules, same 16px grid as the town kit. This pass covers tilled soil with real edges, all four crops at every growth stage, the derelict barn in three repair states, and a tile system that furnishes six interiors — including three rooms that do not exist in the code yet.</p>
+
+  <div style="display:flex;gap:34px;margin:30px 0 0;padding:18px 0 0;border-top:1px solid #1c1c1a26">
+    <div><div style="font:700 11px/1 'JetBrains Mono',monospace;letter-spacing:0.1em;color:#6b4560">NEW TILES</div><div style="font:400 26px/1.1 Newsreader,serif;color:#1c1c1a;margin-top:6px">128</div></div>
+    <div><div style="font:700 11px/1 'JetBrains Mono',monospace;letter-spacing:0.1em;color:#6b4560">CROP SPRITES</div><div style="font:400 26px/1.1 Newsreader,serif;color:#1c1c1a;margin-top:6px">20</div></div>
+    <div><div style="font:700 11px/1 'JetBrains Mono',monospace;letter-spacing:0.1em;color:#6b4560">FURNITURE</div><div style="font:400 26px/1.1 Newsreader,serif;color:#1c1c1a;margin-top:6px">34</div></div>
+    <div><div style="font:700 11px/1 'JetBrains Mono',monospace;letter-spacing:0.1em;color:#6b4560">ROOMS LAID OUT</div><div style="font:400 26px/1.1 Newsreader,serif;color:#1c1c1a;margin-top:6px">6</div></div>
+    <div><div style="font:700 11px/1 'JetBrains Mono',monospace;letter-spacing:0.1em;color:#6b4560">OFF-PALETTE</div><div style="font:400 26px/1.1 Newsreader,serif;color:#1c1c1a;margin-top:6px">0</div></div>
+  </div>
+
+  <h2 style="font:400 13px/1 'JetBrains Mono',monospace;letter-spacing:0.14em;text-transform:uppercase;color:#6b4560;margin:56px 0 6px">01 · Proposed farm layout</h2>
+  <p style="font:400 16px/1.6 Newsreader,serif;color:#2b2925;max-width:40em;margin:0 0 16px">The real 40 × 30 grid from <span style="font:400 14px/1 'JetBrains Mono',monospace">TestMap.cs</span>, at 640 × 480. Every tile here is a real asset — this is a layout proposal, not a painting.</p>
+  <img src="art/scene_farm.png" style="width:100%;display:block;border:1px solid #1c1c1a33" alt="Proposed farm layout">
+  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:20px 30px;margin:20px 0 0">
+    <div><div style="font:700 11px/1 'JetBrains Mono',monospace;letter-spacing:0.1em;color:#6b4560;margin-bottom:7px">THE READ</div><div style="font:400 15px/1.6 Newsreader,serif;color:#2b2925">House upper-left, barn upper-right, a single track between them running east to the town road. Plots sit below the track so the player crosses their own work every time they leave.</div></div>
+    <div><div style="font:700 11px/1 'JetBrains Mono',monospace;letter-spacing:0.1em;color:#6b4560;margin-bottom:7px">WHY TWO PLOTS</div><div style="font:400 15px/1.6 Newsreader,serif;color:#2b2925">One dry, one watered, so the soil-state difference is legible on sight from anywhere on the farm. The dry plot is the bigger one — most of a farm is waiting.</div></div>
+    <div><div style="font:700 11px/1 'JetBrains Mono',monospace;letter-spacing:0.1em;color:#6b4560;margin-bottom:7px">THE EXIT</div><div style="font:400 15px/1.6 Newsreader,serif;color:#2b2925">Road leaves east at rows 13–15 and the boundary is woods on all four sides. Same diegetic rule as town: the map limit is forest, never a wall.</div></div>
+  </div>
+
+  <h2 style="font:400 13px/1 'JetBrains Mono',monospace;letter-spacing:0.14em;text-transform:uppercase;color:#6b4560;margin:56px 0 6px">02 · Soil, with edges</h2>
+  <p style="font:400 16px/1.6 Newsreader,serif;color:#2b2925;max-width:40em;margin:0 0 16px">Today <span style="font:400 14px/1 'JetBrains Mono',monospace">FarmSoil</span> is two flat tiles, so a plot reads as a rectangle of mud. This adds a 16-config autotile for dry and wet, plus a furrow set that shows the hoe's direction.</p>
+  <div style="background:#ffffff;border:1px solid #1c1c1a33;padding:18px">
+    <img src="art/farm_terrain.png" style="width:100%;display:block" alt="Farm terrain atlas">
+  </div>
+  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:20px 28px;margin:18px 0 0">
+    <div><div style="font:700 11px/1 'JetBrains Mono',monospace;letter-spacing:0.1em;color:#6b4560;margin-bottom:7px">ROW 0</div><div style="font:400 14px/1.6 Newsreader,serif;color:#2b2925">2 dry soil, 2 wet soil, 4 furrow (dry/wet × horizontal/vertical), 2 pasture, 2 weeds, 2 rocks, stump, puddle</div></div>
+    <div><div style="font:700 11px/1 'JetBrains Mono',monospace;letter-spacing:0.1em;color:#6b4560;margin-bottom:7px">ROW 1</div><div style="font:400 14px/1.6 Newsreader,serif;color:#2b2925">Dry soil over grass, 16 configs. Same naming as the town dirt autotile, so one bitmask helper serves both.</div></div>
+    <div><div style="font:700 11px/1 'JetBrains Mono',monospace;letter-spacing:0.1em;color:#6b4560;margin-bottom:7px">ROW 2</div><div style="font:400 14px/1.6 Newsreader,serif;color:#2b2925">Wet soil over grass, 16 configs. Watering a plot edge should change its silhouette, not just its color.</div></div>
+    <div><div style="font:700 11px/1 'JetBrains Mono',monospace;letter-spacing:0.1em;color:#6b4560;margin-bottom:7px">ROW 3</div><div style="font:400 14px/1.6 Newsreader,serif;color:#2b2925">Fence rails, post, 4 corners, gate open/closed, 2 path, pasture, dead grass, flowers, log, hay scatter</div></div>
+  </div>
+  <p style="font:400 15px/1.6 Newsreader,serif;color:#2b2925;max-width:40em;margin:16px 0 0"><strong style="font-weight:600">Furrows are a cheap, high-value tell.</strong> A tile hoed north–south looks different from one hoed east–west, so a plot the player worked in rows reads as deliberate rather than sprayed. It needs one extra byte on the tile record, or it can be derived from neighbours at paint time.</p>
+
+  <h2 style="font:400 13px/1 'JetBrains Mono',monospace;letter-spacing:0.14em;text-transform:uppercase;color:#6b4560;margin:56px 0 6px">03 · Crops</h2>
+  <p style="font:400 16px/1.6 Newsreader,serif;color:#2b2925;max-width:40em;margin:0 0 18px">Four crops, five columns each: stages 0–3 plus the mature column, exactly matching <span style="font:400 14px/1 'JetBrains Mono',monospace">StageForDay</span>. Row order follows <span style="font:400 14px/1 'JetBrains Mono',monospace">CropDefs</span> — turnip, green bean, potato, cauliflower.</p>
+  <div style="display:grid;grid-template-columns:auto 1fr;gap:34px;align-items:start">
+    <div style="background:#7a5b3c;border:1px solid #1c1c1a33;padding:20px 24px">
+      <img src="art/crops.png" style="width:320px;display:block" alt="Crop growth stages">
+      <div style="font:700 10px/1.5 'JetBrains Mono',monospace;letter-spacing:0.1em;color:#ede3cb;margin-top:12px">STAGE 0 → MATURE, LEFT TO RIGHT</div>
+    </div>
+    <div>
+      <table style="width:100%;border-collapse:collapse;font:400 13px/1.5 'JetBrains Mono',monospace;color:#2b2925">
+        <thead><tr>
+          <th style="text-align:left;padding:8px 10px 8px 0;border-bottom:1.5px solid #1c1c1a;font-weight:700;font-size:11px;letter-spacing:0.08em;text-transform:uppercase">Row</th>
+          <th style="text-align:left;padding:8px 10px;border-bottom:1.5px solid #1c1c1a;font-weight:700;font-size:11px;letter-spacing:0.08em;text-transform:uppercase">Crop</th>
+          <th style="text-align:left;padding:8px 10px;border-bottom:1.5px solid #1c1c1a;font-weight:700;font-size:11px;letter-spacing:0.08em;text-transform:uppercase">Height</th>
+          <th style="text-align:left;padding:8px 0 8px 10px;border-bottom:1.5px solid #1c1c1a;font-weight:700;font-size:11px;letter-spacing:0.08em;text-transform:uppercase">Mature silhouette</th>
+        </tr></thead>
+        <tbody>
+          <tr><td style="padding:9px 10px 9px 0;border-bottom:1px solid #1c1c1a1f">0</td><td style="padding:9px 10px;border-bottom:1px solid #1c1c1a1f">turnip</td><td style="padding:9px 10px;border-bottom:1px solid #1c1c1a1f">in tile</td><td style="padding:9px 0 9px 10px;border-bottom:1px solid #1c1c1a1f">Leaf rosette with a plum shoulder breaking the soil</td></tr>
+          <tr><td style="padding:9px 10px 9px 0;border-bottom:1px solid #1c1c1a1f">1</td><td style="padding:9px 10px;border-bottom:1px solid #1c1c1a1f">greenbean</td><td style="padding:9px 10px;border-bottom:1px solid #1c1c1a1f">overhangs</td><td style="padding:9px 0 9px 10px;border-bottom:1px solid #1c1c1a1f">Twin stakes, dense vine, six hanging pods. Tallest thing on the farm.</td></tr>
+          <tr><td style="padding:9px 10px 9px 0;border-bottom:1px solid #1c1c1a1f">2</td><td style="padding:9px 10px;border-bottom:1px solid #1c1c1a1f">potato</td><td style="padding:9px 10px;border-bottom:1px solid #1c1c1a1f">in tile</td><td style="padding:9px 0 9px 10px;border-bottom:1px solid #1c1c1a1f">Broad low mound, five cream flowers, disturbed soil at the base</td></tr>
+          <tr><td style="padding:9px 10px 9px 0;border-bottom:1px solid #1c1c1a1f">3</td><td style="padding:9px 10px;border-bottom:1px solid #1c1c1a1f">cauliflower</td><td style="padding:9px 10px;border-bottom:1px solid #1c1c1a1f">overhangs</td><td style="padding:9px 0 9px 10px;border-bottom:1px solid #1c1c1a1f">Wide dark leaves cradling a cream head. The premium crop should look expensive.</td></tr>
+        </tbody>
+      </table>
+      <p style="font:400 15px/1.6 Newsreader,serif;color:#2b2925;margin:18px 0 0"><strong style="font-weight:600">Cells are 16 × 32, not 16 × 16.</strong> Short crops sit in the lower half; beans and cauliflower use the overhang. In Godot, set the Crops atlas <span style="font:400 13px/1 'JetBrains Mono',monospace">texture_region_size</span> to <span style="font:400 13px/1 'JetBrains Mono',monospace">(16, 32)</span> and <span style="font:400 13px/1 'JetBrains Mono',monospace">texture_origin</span> to <span style="font:400 13px/1 'JetBrains Mono',monospace">(0, -8)</span>. The cell-state function in the phase 2 spec is unchanged: row of CropId, column <span style="font:400 13px/1 'JetBrains Mono',monospace">StageForDay(GrowthDay)</span>.</p>
+      <p style="font:400 15px/1.6 Newsreader,serif;color:#2b2925;margin:14px 0 0">The Crops layer must draw <em>above</em> FarmSoil and below Obstacles — the existing order already does this. One caveat with overhang: a tall crop drawn on row Y overlaps row Y−1, so the layer needs its own Y-sort or the plot should never sit directly below something the player walks behind.</p>
+    </div>
+  </div>
+
+  <h2 style="font:400 13px/1 'JetBrains Mono',monospace;letter-spacing:0.14em;text-transform:uppercase;color:#6b4560;margin:56px 0 6px">04 · The barn, in three states</h2>
+  <p style="font:400 16px/1.6 Newsreader,serif;color:#2b2925;max-width:40em;margin:0 0 18px">Nothing in the codebase mentions a barn, so this is a proposal as much as an asset. It came with the farm, it is falling down, and the player fixes it. Board-and-batten siding, gambrel roof, 6 × 7 tiles with the bottom 5 rows as footprint.</p>
+  <div style="background:#5f9445;border:1px solid #1c1c1a33;padding:26px 30px 22px">
+    <img src="art/barn.png" style="width:100%;display:block" alt="Barn in three repair states">
+  </div>
+  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:26px;margin:18px 0 0">
+    <div style="border:1px solid #1c1c1a26;padding:16px 18px 18px">
+      <div style="display:flex;align-items:baseline;gap:10px;margin-bottom:9px"><span style="font:700 11px/1 'JetBrains Mono',monospace;letter-spacing:0.1em;color:#6b4560">STATE 0</span><span style="font:400 15px/1 Newsreader,serif;color:#1c1c1a;font-style:italic">Derelict</span></div>
+      <div style="font:400 15px/1.55 Newsreader,serif;color:#2b2925">Holes in the roof, missing boards, one collapsed corner, a single door hanging. Interior visible as darkness through every gap. Weeds at the base. Windows are black — no glass left.</div>
+    </div>
+    <div style="border:1px solid #1c1c1a26;padding:16px 18px 18px">
+      <div style="display:flex;align-items:baseline;gap:10px;margin-bottom:9px"><span style="font:700 11px/1 'JetBrains Mono',monospace;letter-spacing:0.1em;color:#6b4560">STATE 1</span><span style="font:400 15px/1 Newsreader,serif;color:#1c1c1a;font-style:italic">Weathertight</span></div>
+      <div style="font:400 15px/1.55 Newsreader,serif;color:#2b2925">Structurally sound and visibly unfinished: fresh pale patches on the roof, new doors hung, glass in the windows, unpainted siding. This is the state that should last longest.</div>
+    </div>
+    <div style="border:1px solid #1c1c1a26;padding:16px 18px 18px">
+      <div style="display:flex;align-items:baseline;gap:10px;margin-bottom:9px"><span style="font:700 11px/1 'JetBrains Mono',monospace;letter-spacing:0.1em;color:#6b4560">STATE 2</span><span style="font:400 15px/1 Newsreader,serif;color:#1c1c1a;font-style:italic">Restored</span></div>
+      <div style="font:400 15px/1.55 Newsreader,serif;color:#2b2925">Barn red with cream trim, slate roof, cupola vent, lit windows. The only saturated red mass in the game — which makes finishing it the most visible thing the player has ever done.</div>
+    </div>
+  </div>
+  <p style="font:400 15px/1.6 Newsreader,serif;color:#2b2925;max-width:40em;margin:18px 0 0"><strong style="font-weight:600">Two design notes.</strong> Repair should be a story flag, not a percentage — three states means three clean reads, and a slider would need art for every value. And the derelict barn is a natural home for an Act I dread tell: it is the one structure the player is invited to look at closely, which makes it the cheapest place to hide something that was always there.</p>
+
+  <h2 style="font:400 13px/1 'JetBrains Mono',monospace;letter-spacing:0.14em;text-transform:uppercase;color:#6b4560;margin:56px 0 6px">05 · The interior system</h2>
+  <p style="font:400 16px/1.6 Newsreader,serif;color:#2b2925;max-width:40em;margin:0 0 18px">Two atlases furnish every room in the game. Floors are deliberately quiet — low contrast, staggered joints — so furniture and characters carry the read. Walls are the loud surface.</p>
+  <div style="display:grid;grid-template-columns:1fr;gap:18px">
+    <div style="background:#ffffff;border:1px solid #1c1c1a33;padding:18px">
+      <img src="art/interior.png" style="width:100%;display:block" alt="Interior tile atlas">
+      <div style="font:700 10px/1.5 'JetBrains Mono',monospace;letter-spacing:0.1em;color:#6f6a63;margin-top:12px">INTERIOR.PNG — ROW 0 FLOORS · ROW 1 WALL LOWER + OPENINGS · ROW 2 WALL UPPER, CEILING, RAFTERS · ROW 3 HEARTH, COUNTER, SHELVES, STORAGE</div>
+    </div>
+    <div style="background:#453a2e;border:1px solid #1c1c1a33;padding:18px">
+      <img src="art/furniture.png" style="width:100%;display:block" alt="Furniture atlas">
+      <div style="font:700 10px/1.5 'JetBrains Mono',monospace;letter-spacing:0.1em;color:#ede3cb;margin-top:12px">FURNITURE.PNG — 16×32 UPRIGHTS · 16×16 SMALLS · 32×16 SURFACES · LARGER PIECES BELOW</div>
+    </div>
+  </div>
+  <p style="font:400 15px/1.6 Newsreader,serif;color:#2b2925;max-width:40em;margin:18px 0 0">The wall system is a single-thickness ring, matching <span style="font:400 14px/1 'JetBrains Mono',monospace">FarmHouseMap</span> exactly — no collision changes. The north wall uses a row-2 tile (dark band at top, reads as ceiling shadow); east, west and south use row 1. Windows and doors are drop-in replacements for a wall tile at the same coordinate.</p>
+
+  <h2 style="font:400 13px/1 'JetBrains Mono',monospace;letter-spacing:0.14em;text-transform:uppercase;color:#6b4560;margin:56px 0 6px">06 · Six rooms</h2>
+  <p style="font:400 16px/1.6 Newsreader,serif;color:#2b2925;max-width:40em;margin:0 0 20px">Three exist in code and are drawn at their real dimensions with furniture on the real coordinates. Three are proposals, with a suggested size.</p>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:30px 34px">
+    <div>
+      <div style="background:#0e0e12;border:1px solid #1c1c1a33;padding:0"><img src="art/room_farmhouse.png" style="width:100%;display:block" alt="Farmhouse interior"></div>
+      <div style="font:700 11px/1.5 'JetBrains Mono',monospace;letter-spacing:0.08em;color:#6b4560;margin-top:10px">FARMHOUSE · 14 × 10 · EXISTS</div>
+      <div style="font:400 15px/1.55 Newsreader,serif;color:#2b2925;margin-top:6px">Log walls, plank floor. Bed at (12,2)–(12,3), chest at (2,2), table at (6,4)–(7,4), door at (7,9) — every position matches <span style="font:400 13px/1 'JetBrains Mono',monospace">FarmHouseMap.cs</span>. Stove and hearth added; the hearth is what makes an interior feel warmer than outside at dusk.</div>
+    </div>
+    <div>
+      <div style="background:#0e0e12;border:1px solid #1c1c1a33;padding:0"><img src="art/room_store.png" style="width:100%;display:block" alt="General store interior"></div>
+      <div style="font:700 11px/1.5 'JetBrains Mono',monospace;letter-spacing:0.08em;color:#6b4560;margin-top:10px">GENERAL STORE · 14 × 10 · EXISTS</div>
+      <div style="font:400 15px/1.55 Newsreader,serif;color:#2b2925;margin-top:6px">Wainscot walls, counter across the middle with the till, seed bins on the shelf wall. The four shelf colors map to the four seed packets on the ratified shelf — turnip, potato, green bean, cauliflower — so stock is readable before the shop UI opens.</div>
+    </div>
+    <div>
+      <div style="background:#0e0e12;border:1px solid #1c1c1a33;padding:0"><img src="art/room_barn.png" style="width:100%;display:block" alt="Barn interior"></div>
+      <div style="font:700 11px/1.5 'JetBrains Mono',monospace;letter-spacing:0.08em;color:#6b4560;margin-top:10px">BARN INTERIOR · 16 × 12 · PROPOSED</div>
+      <div style="font:400 15px/1.55 Newsreader,serif;color:#2b2925;margin-top:6px">Dirt floor, hay scatter, hayloft edge along the north wall with a ladder up to it. Two stalls, workbench, tool rack, cart, crates. Drawn in the derelict state — cobwebs in the corners, stains on the floor. The restored version swaps the floor stains out and lights the lantern.</div>
+    </div>
+    <div>
+      <div style="background:#0e0e12;border:1px solid #1c1c1a33;padding:0"><img src="art/room_church.png" style="width:100%;display:block" alt="Church interior"></div>
+      <div style="font:700 11px/1.5 'JetBrains Mono',monospace;letter-spacing:0.08em;color:#6b4560;margin-top:10px">MEETING HOUSE · 16 × 14 · PROPOSED</div>
+      <div style="font:400 15px/1.55 Newsreader,serif;color:#2b2925;margin-top:6px">Plaster walls, board floor, a runner up the aisle, six pews, altar under two stained windows. The stained glass is the only place plum and lantern sit side by side — worth reserving for exactly one room, and worth remembering when the town's secrets need somewhere to have been kept.</div>
+    </div>
+    <div>
+      <div style="background:#0e0e12;border:1px solid #1c1c1a33;padding:0"><img src="art/room_neighbor.png" style="width:100%;display:block" alt="Neighbor home interior"></div>
+      <div style="font:700 11px/1.5 'JetBrains Mono',monospace;letter-spacing:0.08em;color:#6b4560;margin-top:10px">NEIGHBOR HOME · 12 × 9 · PROPOSED</div>
+      <div style="font:400 15px/1.55 Newsreader,serif;color:#2b2925;margin-top:6px">Deliberately smaller than the player's farmhouse. Bed, cradle, hearth, loom, one shuttered window. A template: change the furniture, keep the shell, and every resident gets a home for the cost of a layout function.</div>
+    </div>
+    <div>
+      <div style="font:700 11px/1.5 'JetBrains Mono',monospace;letter-spacing:0.08em;color:#6b4560;margin-bottom:10px">TOWN HALL · 40 × 23 · EXISTS</div>
+      <div style="font:400 15px/1.55 Newsreader,serif;color:#2b2925">The largest interior in the game by a wide margin, and the only one that needs stone. Checkered floor, stone walls, a long table on a runner, eight pews, clerks' desks at both ends, banners flanking the lectern. Shown below at full width.</div>
+    </div>
+  </div>
+  <div style="background:#0e0e12;border:1px solid #1c1c1a33;margin:20px 0 0"><img src="art/room_townhall.png" style="width:100%;display:block" alt="Town hall interior"></div>
+  <p style="font:400 15px/1.6 Newsreader,serif;color:#2b2925;max-width:40em;margin:14px 0 0">At 40 × 23 the hall is wider than the 30 × 17 viewport, so the player never sees all of it at once. That is worth keeping — it is the only interior with anything to walk toward.</p>
+
+  <h2 style="font:400 13px/1 'JetBrains Mono',monospace;letter-spacing:0.14em;text-transform:uppercase;color:#6b4560;margin:56px 0 6px">07 · Integration</h2>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:34px">
+    <div style="font:400 16px/1.66 Newsreader,serif;color:#2b2925">
+      <p style="margin:0 0 12px"><strong style="font-weight:600">FarmSoil</strong> goes from 2 tiles to 36: rows 1 and 2 of <span style="font:400 14px/1 'JetBrains Mono',monospace">farm_terrain.png</span> are the dry and wet autotile sets, and the cell-state function stays exactly as specified — none / dry / wet, with the config picked from the four neighbours.</p>
+      <p style="margin:0 0 12px"><strong style="font-weight:600">Crops</strong> keeps its one-row-per-CropDef layout; only the cell size changes, to 16 × 32 with an 8px upward origin.</p>
+      <p style="margin:0 0 12px"><strong style="font-weight:600">Interiors</strong> need no structural change. Swap the four procedural colors for atlas coordinates and keep the single-thickness ring, the near-black <span style="font:400 14px/1 'JetBrains Mono',monospace">Surround</span> ColorRect, and the Door-in-the-south-wall convention.</p>
+      <p style="margin:0"><strong style="font-weight:600">Barn</strong> needs a map, a footprint on the farm, a Door, and one story flag with three values. The interior can ship as a single state first; the exterior states are the part worth having early, because they are what the player sees from the yard every day.</p>
+    </div>
+    <div style="background:#1c1c1a;padding:20px 22px;border:1px solid #1c1c1a">
+      <div style="font:400 12.5px/1.75 'JetBrains Mono',monospace;color:#b8b5a5;white-space:pre">art/
+  farm_terrain.png    256×64   64 tiles
+  crops.png            80×128  20 @ 16×32
+  barn.png            288×112  3 × 6×7
+  farm_buildings.png  256×96   house, trees, bin
+  interior.png        256×64   64 tiles
+  furniture.png       256×128  34 pieces
+  scene_farm.png      640×480  layout mockup
+  room_farmhouse.png  14×10
+  room_store.png      14×10
+  room_townhall.png   40×23
+  room_barn.png       16×12    proposed
+  room_church.png     16×14    proposed
+  room_neighbor.png   12×9     proposed
+
+<span style="color:#f2b95c">Crops</span>   row = CropDefs order
+        col = StageForDay(GrowthDay)
+        cell 16×32, origin (0,-8)
+
+<span style="color:#f2b95c">Soil</span>    row 1 dry, row 2 wet
+        cols = iso n e s w ne se sw
+        nw c ns ew new sew nsw nse
+
+<span style="color:#f2b95c">Barn</span>    x0 derelict
+        x96 weathertight
+        x192 restored</div>
+    </div>
+  </div>
+
+  <p style="font:400 13px/1.7 'JetBrains Mono',monospace;color:#6f6a63;max-width:40em;margin:40px 0 0;padding-top:20px;border-top:1px solid #1c1c1a26">Still not drawn: tool-use animations, seasonal variants of the soil and pasture, animals of any kind, the barn interior's restored state, and the Act II / Act III variants of all of the above. The farmhouse exterior in <span style="color:#1c1c1a">farm_buildings.png</span> is new and has no footprint in the code yet — it needs one before the layout above can be built.</p>
+
+</div>
+</div>
+</x-dc>
+</body>
+</html>

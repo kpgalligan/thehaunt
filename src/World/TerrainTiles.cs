@@ -86,12 +86,20 @@ public static class TerrainTiles
         0,  // WSEN grass all round  -> dirt_iso
     };
 
-    /// <summary>Dirt-over-grass tile for a cell whose named sides still hold grass.</summary>
-    public static Vector2I DirtEdge(bool grassN, bool grassE, bool grassS, bool grassW)
+    /// <summary>
+    /// Column in a 16-configuration edge set for a cell whose named sides still hold
+    /// grass. The farm's soil sets are laid out in the same column order (farm handoff
+    /// §1), so both sheets index through this one table.
+    /// </summary>
+    public static int EdgeColumn(bool grassN, bool grassE, bool grassS, bool grassW)
     {
         int mask = (grassN ? 1 : 0) | (grassE ? 2 : 0) | (grassS ? 4 : 0) | (grassW ? 8 : 0);
-        return new Vector2I(DirtColumnByGrassMask[mask], 1);
+        return DirtColumnByGrassMask[mask];
     }
+
+    /// <summary>Dirt-over-grass tile for a cell whose named sides still hold grass.</summary>
+    public static Vector2I DirtEdge(bool grassN, bool grassE, bool grassS, bool grassW) =>
+        new(EdgeColumn(grassN, grassE, grassS, grassW), 1);
 
     /// <summary>
     /// Inner corners (row 2, cols 12-15): a cell with dirt on all four sides but grass
