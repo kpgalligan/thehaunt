@@ -56,6 +56,48 @@ public static class TileSetReloadTests
         }
     }
 
+    /// <summary>
+    /// The builders must never mutate the resource the rest of the process is holding.
+    ///
+    /// This is not hygiene. <c>GD.Load</c> returns the PROCESS-CACHED resource, and in the
+    /// editor that object belongs to the editor, which writes dirty resources back to
+    /// disk. Because every builder adds a custom data layer, mints a blocker tile and (for
+    /// the farm and interiors) grafts on a whole extra source, simply rendering a map in
+    /// the editor was enough to bake all of it into the shipped .tres — hand-listing the
+    /// walkable data that the art rules require be DERIVED, and committing a synthesized
+    /// texture into an artist's file. Observed once, on the farm and interior sets.
+    ///
+    /// So: assert the cached copy is untouched after every builder has run.
+    /// </summary>
+    [SimTest]
+    public static void TileSets_LeaveTheSharedResourceCacheUntouched(TestContext t)
+    {
+        // Force all three through their builders first.
+        TownTerrain.Get();
+        FarmTerrain.Get();
+        InteriorTerrain.Get();
+
+        var sets = new (string Name, string Path, int Sources, int CustomLayers)[]
+        {
+            // The counts the FILES carry — not the counts the builders produce.
+            ("TownTerrain", TownTerrain.TileSetPath, 1, 0),
+            ("FarmTerrain", FarmTerrain.TileSetPath, 1, 0),
+            ("InteriorTerrain", InteriorTerrain.TileSetPath, 1, 1),
+        };
+
+        foreach ((string name, string path, int sources, int layers) in sets)
+        {
+            // The default cache mode: the very instance an editor would hold and save.
+            var cached = GD.Load<TileSet>(path)
+                ?? throw new InvalidOperationException($"{name} missing at '{path}'.");
+
+            t.AssertEqual(sources, cached.GetSourceCount(),
+                $"{name}: the cached resource did not gain a grafted source");
+            t.AssertEqual(layers, cached.GetCustomDataLayersCount(),
+                $"{name}: the cached resource did not gain a derived custom data layer");
+        }
+    }
+
     private static TileSetAtlasSource Atlas(TileSet set, int sourceId) =>
         (TileSetAtlasSource)set.GetSource(sourceId);
 

@@ -32,7 +32,14 @@ public static class FarmTerrain
 
     private static TileSet Build()
     {
-        var tileSet = GD.Load<TileSet>(TileSetPath)
+        // CacheMode.Ignore, and it is load-bearing rather than tidy: GD.Load hands back the
+        // PROCESS-CACHED resource, which in the editor is the same object the editor owns
+        // and will happily write back to disk once something marks it dirty. Everything
+        // below mutates it. Running a map in the editor therefore baked the derived
+        // walkable data — and a whole synthesized source — into the shipped .tres, which
+        // is exactly the hand-listed collision data the art rules forbid. Build on a copy
+        // nobody else holds, and the shared cache stays pristine.
+        var tileSet = ResourceLoader.Load<TileSet>(TileSetPath, cacheMode: ResourceLoader.CacheMode.Ignore)
             ?? throw new InvalidOperationException($"Farm terrain TileSet missing at '{TileSetPath}'.");
 
         // The .tres comes back from Godot's process-wide resource cache, which outlives

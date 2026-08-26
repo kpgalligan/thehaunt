@@ -13,9 +13,9 @@ public partial class TestRunner : Node
 {
     // Guard against silent discovery breakage: the suite ships 116 tests
     // (63 phase-2/3 + 24 phase-3b + 1 economy invariant + 5 town art + 12 farm/interior
-    // art + 1 TileSet reload guard + 5 map recipe format + 2 map seed + 4 map editor + 2 source rules).
+    // art + 2 TileSet guards + 5 map recipe format + 2 map seed + 4 map editor + 2 source rules).
     // Re-pin to the exact count whenever tests ship.
-    private const int MinimumExpectedTests = 119;
+    private const int MinimumExpectedTests = 120;
 
     public override async void _Ready()
     {

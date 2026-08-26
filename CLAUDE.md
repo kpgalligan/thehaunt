@@ -155,10 +155,13 @@ redraw, scale or filter them.
   verified unnecessary in `src/World/`: the stage hand-instantiates the four autoloads in
   project.godot's order, so map code runs in the editor completely unmodified. If the editor
   misbehaves, fix the stage — never sprinkle guards through the World layer.
-- Anything that mutates a shared, process-cached resource must be IDEMPOTENT. The three TileSet
-  builders assemble their `.tres` at runtime behind a C# static, and a `dotnet build` with the editor
-  open reloads the assembly — clearing the static but NOT Godot's resource cache, so `Build` re-enters
-  an already-built set. `TileSetReloadTests` guards this.
+- The three TileSet builders assemble their `.tres` at runtime, and they must (a) build on a PRIVATE
+  copy (`CacheMode.Ignore`) and (b) be IDEMPOTENT. Both are load-bearing, and both were learned the
+  hard way. `GD.Load` returns the process-cached resource — in the editor, the object the editor owns
+  and writes back to disk — so mutating it baked the derived walkable data and a synthesized source
+  into the shipped art, which is precisely the hand-listed collision the art rules forbid. And a
+  `dotnet build` with the editor open reloads the assembly, clearing the C# static but NOT Godot's
+  resource cache, so `Build` re-enters an already-built set. `TileSetReloadTests` guards both.
 
 ## Conventions
 
