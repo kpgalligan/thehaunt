@@ -30,7 +30,7 @@ redraw, scale or filter them.
 ## Commands
 
 - Build (fast correctness check — run after every C# change): `dotnet build`
-- Full test suite (headless, 115 tests, exit code 0/1): `godot-mono --headless res://scenes/tests/TestRunner.tscn`
+- Full test suite (headless, 117 tests, exit code 0/1): `godot-mono --headless res://scenes/tests/TestRunner.tscn`
 - Re-import after adding/changing assets or scenes: `godot-mono --headless --import`
 - Run the game: `godot-mono --path .`
 - Screenshot for visual verification (opens a window briefly, saves PNG, quits): `godot-mono --path . -- --screenshot /path/out.png`
@@ -38,6 +38,10 @@ redraw, scale or filter them.
   instead of the map default, e.g. to frame a corner; `--screenshot-frames <n>` delays the
   capture, e.g. past a beat's staging timer; `--add-minutes <n>` advances the clock in-memory,
   e.g. into shop hours or dusk; `--open-ui <chest|shop|help>` pops a UI after boot)
+- Edit a map graphically: `godot-mono --path . --editor`, then open `scenes/editor/MapStage.tscn`
+  and select the MapStage node. The Haunt Mapper dock (right) picks the map and the time of day;
+  drag placements in the viewport, then press Save in the dock — Ctrl+S saves the SCENE, not the
+  map. `--screenshot` stays the in-game cross-check.
 
 ## Structure
 
@@ -59,6 +63,11 @@ redraw, scale or filter them.
 - `src/Story/` — StoryDirector (plain Node child of Main, NOT an autoload; runs the scripted beats)
 - `src/UI/` — Hud, InteractionPrompt, HotbarUi, StaminaBar, HelpPanel, DialogueUi, ChestUi, ShopUi, OvernightReportUi, PauseMenu, ScreenFade (each builds its own controls in _Ready)
 - `src/Tests/` — headless [SimTest] suite + TestRunner; scenes/tests/TestRunner.tscn
+- `src/EditorTools/` — MapStage (the [Tool] node that renders a live map in the Godot editor)
+  and the pure geometry the mapper needs, PlacementFootprint + PlacementHit (outside `#if TOOLS`
+  on purpose, so the headless suite can reach them)
+- `addons/haunt_mapper/` — the EditorPlugin: HauntMapper, MapperDock, MapperOverlay, OverlayLayers.
+  All of it inside `#if TOOLS`; enabled from project.godot's `[editor_plugins]`
 - `src/Main.cs` + `scenes/Main.tscn` — composition root: boot, map loading, sleep + travel flows
 - `assets/sprites/` — `character.png`, `lights.png`; `town/` (terrain + its TileSet, both
   facades, props); `farm/` (farm terrain + crops TileSets, farm buildings, barn);
@@ -142,6 +151,10 @@ redraw, scale or filter them.
   positions, because that is exactly what keeps `ForAct` wrapping every painted cell and `Prop.Anchor`
   owning every anchor. Unknown records round-trip verbatim, like unknown item ids. A map with no
   recipe falls back to its C# literals, so every map stays constructible with no file present.
+- `Engine.IsEditorHint()` and `[Tool]` may appear ONLY in `src/EditorTools/` and `addons/`. They are
+  verified unnecessary in `src/World/`: the stage hand-instantiates the four autoloads in
+  project.godot's order, so map code runs in the editor completely unmodified. If the editor
+  misbehaves, fix the stage — never sprinkle guards through the World layer.
 - Anything that mutates a shared, process-cached resource must be IDEMPOTENT. The three TileSet
   builders assemble their `.tres` at runtime behind a C# static, and a `dotnet build` with the editor
   open reloads the assembly — clearing the static but NOT Godot's resource cache, so `Build` re-enters

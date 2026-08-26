@@ -35,6 +35,10 @@ window/stretch/aspect="keep"
 
 project/assembly_name="TheHaunt"
 
+[editor_plugins]
+
+enabled=PackedStringArray("res://addons/haunt_mapper/plugin.cfg")
+
 [gui]
 
 ; Scales the built-in theme (fonts, paddings, stylebox borders) with the
