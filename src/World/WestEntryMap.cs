@@ -1,5 +1,6 @@
 using Godot;
 using TheHaunt.Core;
+using TheHaunt.Systems;
 
 namespace TheHaunt.World;
 
@@ -38,6 +39,7 @@ public partial class WestEntryMap : ExteriorMap
     private const int StripLeft = 8, StripRight = 25;
     private const int WalkRow = 8, WalkLeft = 2, WalkRight = 27;
     private const int LotTop = 9, LotBottom = 13, LotLeft = 7, LotRight = 26;
+    private const int CarRow = 11;   // guest cars' base row, mid-lot, backed up to the walk
     private const int OfficeDoorX = 6;
     private static readonly int[] RoomDoorX = { 8, 13, 17, 21 };
     private static readonly Vector2I SignFoot = new(4, 13);
@@ -61,6 +63,15 @@ public partial class WestEntryMap : ExteriorMap
         base._EnterTree();
     }
 
+    // One car per occupied room, keyed by room, diffed by ApplyState like every
+    // other model-derived view. Muted flats from the pre-art town's range; Pell's
+    // slate sedan sits under room 3's lit window.
+    private static readonly Color[] CarPaints =
+    {
+        new("6d6a58"), new("7a5a4c"), new("5c6a76"), new("6e5e68"),
+    };
+    private readonly Dictionary<int, GuestCar> _cars = new();
+
     public override void _Ready()
     {
         BuildSurfaces();
@@ -75,6 +86,47 @@ public partial class WestEntryMap : ExteriorMap
         BuildSpawns();
         BuildInteractables();
         BuildTravel();
+    }
+
+    /// <summary>
+    /// The west entry's model-derived staging: the guest cars. Occupancy is story
+    /// state (<see cref="MotelRules.OccupiedRooms"/>), and this runs on hydrate,
+    /// every flag change and every dawn — so a guest checking in or out someday
+    /// changes the lot with no new plumbing.
+    /// </summary>
+    public override void ApplyState(MapState state)
+    {
+        IReadOnlyList<int> occupied = MotelRules.OccupiedRooms(SaveService.Instance.Current);
+
+        List<int>? departed = null;
+        foreach (int room in _cars.Keys)
+        {
+            if (!occupied.Contains(room))
+                (departed ??= new()).Add(room);
+        }
+        if (departed != null)
+        {
+            foreach (int room in departed)
+            {
+                _cars[room].QueueFree();
+                _cars.Remove(room);
+            }
+        }
+
+        foreach (int room in occupied)
+        {
+            if (_cars.ContainsKey(room))
+                continue;
+            var car = new GuestCar
+            {
+                Name = $"GuestCar{room}",
+                Paint = CarPaints[(room - 1) % CarPaints.Length],
+                // In the stall under the guest's own door, three tiles wide.
+                Position = Prop.Anchor(RoomDoorX[room - 1] - 1, CarRow, 3),
+            };
+            _cars[room] = car;
+            AddChild(car);
+        }
     }
 
     private void BuildSurfaces()

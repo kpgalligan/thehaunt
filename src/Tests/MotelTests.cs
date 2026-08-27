@@ -44,6 +44,71 @@ public static class MotelTests
     }
 
     [SimTest]
+    public static async Task Motel_GuestCarsMatchOccupancy(TestContext t)
+    {
+        // A guest at a roadside motel arrived in something: the lot parks exactly one
+        // car per occupied room, derived from the model on ApplyState like every other
+        // story-state view — never baked into the build.
+        SaveService.Instance.NewGame();
+        MapRoot? map = null;
+        try
+        {
+            IReadOnlyList<int> occupied = MotelRules.OccupiedRooms(SaveService.Instance.Current);
+            t.AssertEqual(1, occupied.Count, "Act I: one guest");
+            t.AssertEqual(3, occupied[0], "Pell, in room three");
+
+            map = MapRegistry.Create(MapIds.WestEntry);
+            t.Host.AddChild(map);
+            await t.WaitFrames(1);
+            t.Assert(map.GetNodeOrNull<GuestCar>("GuestCar3") == null,
+                "no cars before hydrate — they are model-derived, not geometry");
+
+            map.ApplyState(SaveService.Instance.Current.GetMap(MapIds.WestEntry));
+            await t.WaitFrames(1);
+            t.AssertEqual(occupied.Count, CountCars(map), "one car per guest");
+
+            var car = map.GetNodeOrNull<GuestCar>("GuestCar3");
+            t.Assert(car != null, "Pell's car parks under its own name");
+            // Base-anchored mid-lot, three tiles wide, in the stall under room 3's
+            // door column (x=17).
+            t.AssertEqual(new Vector2(16 * 16 + 24, 12 * 16), car!.Position,
+                "in the stall under room 3's door");
+
+            map.ApplyState(SaveService.Instance.Current.GetMap(MapIds.WestEntry));
+            await t.WaitFrames(1);
+            t.AssertEqual(occupied.Count, CountCars(map), "a resync parks no duplicates");
+
+            bool solid = false;
+            foreach (Node child in car.GetChildren())
+            {
+                if (child is StaticBody2D body)
+                    solid = body.CollisionLayer == 1;
+            }
+            t.Assert(solid, "the car is solid on the world layer, like the parked scooter");
+        }
+        finally
+        {
+            if (map != null && GodotObject.IsInstanceValid(map))
+            {
+                map.Free();
+            }
+            await t.WaitFrames(1);
+            SaveService.Instance.NewGame();
+        }
+    }
+
+    private static int CountCars(Node map)
+    {
+        int cars = 0;
+        foreach (Node child in map.GetChildren())
+        {
+            if (child is GuestCar && !child.IsQueuedForDeletion())
+                cars++;
+        }
+        return cars;
+    }
+
+    [SimTest]
     public static void Motel_SignsLitDuskToDawn(TestContext t)
     {
         // Hard cut at the dusk key (18:00 = 720), holding through the dawn tail
@@ -138,7 +203,7 @@ public static class MotelTests
             // and never reaches the travel bus; the unlocked one rides it.
             GameState.Instance.TransitionTo(GameState.Phase.Playing);
             var requests = new List<(string MapId, string SpawnId)>();
-            void OnTravel(string mapId, string spawnId) => requests.Add((mapId, spawnId));
+            void OnTravel(string mapId, string spawnId, Vector2 offset) => requests.Add((mapId, spawnId));
             WorldSim.Instance.TravelRequested += OnTravel;
             try
             {

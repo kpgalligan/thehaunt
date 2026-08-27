@@ -233,27 +233,31 @@ public static class RoadWrapTests
                     && GameState.Instance.Current == GameState.Phase.Playing, 10),
                 "standing at the west entry");
 
-            // Walk out the west edge: the road out of town.
-            player.GlobalPosition = new Vector2(8, 15 * 16 + 8); // west exit tile centre
+            // Walk out the west edge in the TOP lane (row 14 — NOT the marker's
+            // row 15, so a dead carry that fell back to the marker would fail here).
+            player.GlobalPosition = new Vector2(8, 14 * 16 + 8); // west exit, top lane
             t.Assert(await t.WaitUntil(
                 () => SaveService.Instance.Current.Player.MapId == MapIds.EastEntry
                     && GameState.Instance.Current == GameState.Phase.Playing, 10),
                 "leaving west wrapped around to the east entry");
             MapRoot? east = FindCurrentMap(main);
             t.Assert(east != null, "east entry instanced under MapHost");
-            t.AssertEqual(east!.GetSpawn(RoadWrap.ArrivalSpawn), player.GlobalPosition,
-                "arrived at the east entry's wrap marker — rolling in from the east");
+            // The marker's column; the ROW is carried from where the body crossed.
+            Vector2 eastMarker = east!.GetSpawn(RoadWrap.ArrivalSpawn);
+            t.AssertEqual(new Vector2(eastMarker.X, 14 * 16 + 8), player.GlobalPosition,
+                "arrived at the east entry's wrap marker, still in the top lane");
 
-            // And out the east edge: the other road out. Same answer.
-            player.GlobalPosition = new Vector2(47 * 16 + 8, 15 * 16 + 8);
+            // And out the east edge, top lane again. Same answer.
+            player.GlobalPosition = new Vector2(47 * 16 + 8, 14 * 16 + 8);
             t.Assert(await t.WaitUntil(
                 () => SaveService.Instance.Current.Player.MapId == MapIds.WestEntry
                     && GameState.Instance.Current == GameState.Phase.Playing, 10),
                 "leaving east wrapped around to the west entry");
             MapRoot? west = FindCurrentMap(main);
             t.Assert(west != null, "west entry instanced under MapHost");
-            t.AssertEqual(west!.GetSpawn(RoadWrap.ArrivalSpawn), player.GlobalPosition,
-                "arrived at the west entry's wrap marker — rolling in from the west");
+            Vector2 westMarker = west!.GetSpawn(RoadWrap.ArrivalSpawn);
+            t.AssertEqual(new Vector2(westMarker.X, 14 * 16 + 8), player.GlobalPosition,
+                "arrived at the west entry's wrap marker, still in the top lane");
         }
         finally
         {
@@ -289,15 +293,19 @@ public static class RoadWrapTests
                     && GameState.Instance.Current == GameState.Phase.Playing, 10),
                 "standing at the fork's north mouth");
 
-            player.GlobalPosition = new Vector2(19 * 16 + 8, 8); // inside the north mouth
+            // Cross in the EAST lane (column 20 — NOT the farm marker's column 36,
+            // so a dead carry that fell back to the marker would fail here).
+            player.GlobalPosition = new Vector2(20 * 16 + 8, 8); // inside the north mouth
             t.Assert(await t.WaitUntil(
                 () => SaveService.Instance.Current.Player.MapId == MapIds.Farm
                     && GameState.Instance.Current == GameState.Phase.Playing, 10),
                 "walking north reached the farm");
             MapRoot? farm = FindCurrentMap(main);
             t.Assert(farm != null, "farm instanced under MapHost");
-            t.AssertEqual(farm!.GetSpawn("road"), player.GlobalPosition,
-                "arrived on the farm's road marker");
+            // The marker's row; the COLUMN is carried from where the body crossed
+            // the fork's wide north mouth — east lane there, east lane here.
+            t.AssertEqual(new Vector2(37 * 16 + 8, farm!.GetSpawn("road").Y), player.GlobalPosition,
+                "arrived at the farm's south mouth, still in the east lane");
         }
         finally
         {

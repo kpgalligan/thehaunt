@@ -30,7 +30,10 @@ public partial class WorldSim : Node
     public event Action<string, long>? StoryFlagSet;
 
     /// <summary>(mapId, spawnId) — Main subscribes once and owns the fade/swap flow.</summary>
-    public event Action<string, string>? TravelRequested;
+    // (mapId, spawnId, arrivalOffset) — the offset is the travelling body's position
+    // relative to the exit zone it walked into, so the arrival can keep the player's
+    // place across the seam (MapRoot.GetArrival). Zero for door/scripted travel.
+    public event Action<string, string, Vector2>? TravelRequested;
 
     /// <summary>Mounted, dismounted, or the parked record moved.</summary>
     public event Action? ScooterChanged;
@@ -292,14 +295,16 @@ public partial class WorldSim : Node
         return true;
     }
 
-    /// <summary>Gate: player control + known map. True means <see cref="TravelRequested"/> fired.</summary>
-    public bool RequestTravel(string mapId, string spawnId)
+    /// <summary>Gate: player control + known map. True means <see cref="TravelRequested"/> fired.
+    /// <paramref name="arrivalOffset"/> is where the body stood relative to the exit zone
+    /// it entered (MapExit passes it; doors and scripted travel leave it zero).</summary>
+    public bool RequestTravel(string mapId, string spawnId, Vector2 arrivalOffset = default)
     {
         if (!GameState.Instance.PlayerHasControl || !MapRegistry.Contains(mapId))
         {
             return false;
         }
-        TravelRequested?.Invoke(mapId, spawnId);
+        TravelRequested?.Invoke(mapId, spawnId, arrivalOffset);
         return true;
     }
 

@@ -824,10 +824,10 @@ public static class IntegrationTests
         }
     }
 
-    // Debris blockade cells frozen by phase3-spec §6.
+    // Debris blockade cells — phase3-spec §6, amended 2026-08-27: the road leaves south.
     private static readonly Vector2I[] RoadBlockCells =
     {
-        new(36, 14), new(36, 15), new(37, 14), new(37, 15),
+        new(36, 26), new(36, 27), new(37, 26), new(37, 27),
     };
 
     private static void AssertBlockade(TestContext t, Node main, bool present, string label)

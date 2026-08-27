@@ -162,7 +162,7 @@ public static class NpcTests
         // intro-flag combination — and never staged on farm/town/town_hall, so the
         // intro staging is untouched.
         NpcDef shopkeeper = NpcDefs.All["shopkeeper"];
-        var behindCounter = new NpcPlacement(MapIds.GeneralStore, 6, 3, 0);
+        var behindCounter = new NpcPlacement(MapIds.GeneralStore, 6, 3, 0, Ambit: 1);
         string[] introFlags =
         {
             StoryKeys.FirstPlanting, StoryKeys.RoadCleared,

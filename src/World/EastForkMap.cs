@@ -139,7 +139,9 @@ public partial class EastForkMap : ExteriorMap
     {
         AddRoadExit("WestExit", MapIds.Town, "from_east_fork", 0, RoadTop);
         AddRoadExit("EastExit", MapIds.EastEntry, "from_east_fork", Width - 1, RoadTop);
+        // 2x1, wider than deep, like every north-south mouth: the shape is how
+        // GetArrival knows which axis carries an entering player's lane.
         AddRoadExit("SouthExit", MapIds.DriveIn, "from_road",
-            TheaterDriveLeft, Height - 2, widthTiles: 2);
+            TheaterDriveLeft, Height - 2, widthTiles: 2, heightTiles: 1);
     }
 }

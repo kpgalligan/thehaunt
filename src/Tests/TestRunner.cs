@@ -11,12 +11,12 @@ namespace TheHaunt.Tests;
 /// </summary>
 public partial class TestRunner : Node
 {
-    // Guard against silent discovery breakage: the suite ships 140 tests
+    // Guard against silent discovery breakage: the suite ships 145 tests
     // (63 phase-2/3 + 24 phase-3b + 1 economy invariant + 5 town art + 12 farm/interior
     // art + 2 TileSet guards + 5 map recipe format + 2 map seed + 4 map editor + 2 source
-    // rules + 5 road strip/wrap + 3 road cast + 5 motel/signage + 7 scooter). Re-pin to the exact
-    // count whenever tests ship.
-    private const int MinimumExpectedTests = 140;
+    // rules + 5 road strip/wrap + 6 road cast + 6 motel/signage + 7 scooter + 1 travel
+    // carry). Re-pin to the exact count whenever tests ship.
+    private const int MinimumExpectedTests = 145;
 
     public override async void _Ready()
     {

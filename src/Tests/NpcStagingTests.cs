@@ -76,6 +76,135 @@ public static class NpcStagingTests
     }
 
     [SimTest]
+    public static void Npc_AmbitFollowsTheRole(TestContext t)
+    {
+        // The amble radius is characterisation, and some of it is a rule: Gloria
+        // stays where she is (Kevin), the bar's patrons sit out their shifts while
+        // Billie works the room, and every flag-BOUNDED staging row (ForbidsFlag —
+        // the intro beats' static tableaux) holds perfectly still.
+        foreach (ScheduleEntry entry in NpcDefs.Get("gloria").Schedule)
+        {
+            t.AssertEqual(0, entry.Placement.Ambit, "Gloria stays where she is");
+        }
+        foreach (NpcDef def in NpcDefs.All.Values)
+        {
+            foreach (ScheduleEntry entry in def.Schedule)
+            {
+                if (entry.ForbidsFlag != null)
+                {
+                    t.AssertEqual(0, entry.Placement.Ambit,
+                        $"'{def.Id}' beat staging holds still");
+                }
+                if (entry.Placement.MapId == MapIds.BilliesBar && def.Id != "billie")
+                {
+                    t.AssertEqual(0, entry.Placement.Ambit, $"'{def.Id}' sits out the shift");
+                }
+                t.Assert(entry.Placement.Ambit is >= 0 and <= 3,
+                    $"'{def.Id}' ambit {entry.Placement.Ambit} stays inside a room's scale");
+            }
+        }
+        foreach (string keeper in new[] { "billie", "shopkeeper", "dennis", "sam", "walt" })
+        {
+            t.Assert(NpcDefs.Get(keeper).Schedule[0].Placement.Ambit > 0,
+                $"'{keeper}' moves around at work");
+        }
+    }
+
+    [SimTest]
+    public static async Task Npc_ResyncKeepsTheWanderer(TestContext t)
+    {
+        // The ten-minute resync re-derives staging and re-states the same anchor;
+        // that must NOT yank an ambling view home — only a CHANGED slot teleports.
+        // No awaits between the syncs, so the harness clock cannot restage mid-test.
+        SaveService.Instance.NewGame();
+        MapRoot? map = null;
+        try
+        {
+            map = MapRegistry.Create(MapIds.BilliesBar);
+            t.Host.AddChild(map);
+            await t.WaitFrames(1);
+
+            var billie = (NpcDefs.Get("billie"),
+                new NpcPlacement(MapIds.BilliesBar, 2, 4, 2, Ambit: 3));
+            map.SyncNpcs(new[] { billie });
+            NpcView? view = map.GetNpcView("billie");
+            t.Assert(view != null, "billie staged");
+            t.AssertEqual(new Vector2(2 * 16 + 8, 4 * 16 + 8), view!.Position, "at her anchor");
+
+            view.Position = new Vector2(4 * 16 + 8, 6 * 16 + 8);   // mid-amble, simulated
+            map.SyncNpcs(new[] { billie });
+            t.AssertEqual(new Vector2(4 * 16 + 8, 6 * 16 + 8), view.Position,
+                "the same staging re-stated leaves the amble alone");
+
+            map.SyncNpcs(new[]
+            {
+                (NpcDefs.Get("billie"), new NpcPlacement(MapIds.BilliesBar, 8, 7, 1, Ambit: 3)),
+            });
+            t.AssertEqual(new Vector2(8 * 16 + 8, 7 * 16 + 8), view.Position,
+                "a changed slot teleports, as static staging always did");
+        }
+        finally
+        {
+            if (map != null && GodotObject.IsInstanceValid(map))
+            {
+                map.Free();
+            }
+            await t.WaitFrames(1);
+            SaveService.Instance.NewGame();
+        }
+    }
+
+    [SimTest]
+    public static async Task Npc_AmbleWalksTheRoom(TestContext t)
+    {
+        // The behaviour itself, on the real schedule: stage the bar in open hours and
+        // Billie walks her room on her own — within her ambit, on standable floor.
+        // Physics (and so the amble's clock) runs at real-time 60/s headless, hence
+        // the wall-clock waits.
+        SaveService service = SaveService.Instance;
+        MapRoot? map = null;
+        try
+        {
+            service.NewGame();
+            GameState.Instance.TransitionTo(GameState.Phase.Playing);
+            Clock.Instance.AdvanceMinutes(300);   // 11:00 AM — bar hours
+
+            map = MapRegistry.Create(MapIds.BilliesBar);
+            t.Host.AddChild(map);
+            await t.WaitFrames(1);
+            WorldSim.Instance.SyncNpcsNow();
+
+            NpcView? view = map.GetNpcView("billie");
+            t.Assert(view != null, "billie staged in open hours");
+            var anchor = new Vector2(2 * 16 + 8, 4 * 16 + 8);
+            t.AssertEqual(anchor, view!.Position, "at her anchor to start");
+
+            t.Assert(await t.WaitUntil(() => view.Position != anchor, 12),
+                "she moves on her own inside a dozen seconds");
+            for (int i = 0; i < 5; i++)
+            {
+                await t.WaitFrames(10);
+                Vector2 offset = view.Position - anchor;
+                t.Assert(Mathf.Abs(offset.X) <= 3 * 16 && Mathf.Abs(offset.Y) <= 3 * 16,
+                    $"the amble stays within her ambit (at {view.Position})");
+            }
+            var tile = new Vector2I(
+                Mathf.FloorToInt(view.Position.X / 16), Mathf.FloorToInt(view.Position.Y / 16));
+            t.Assert(map.IsStandable(tile), $"she stands on open floor ({tile})");
+        }
+        finally
+        {
+            if (map != null && GodotObject.IsInstanceValid(map))
+            {
+                map.Free();
+            }
+            await t.WaitFrames(1);
+            service.NewGame();
+            GameState.Instance.TransitionTo(GameState.Phase.Playing);
+        }
+    }
+
+    [SimTest]
     public static void Npc_AmbientSelectorResolves(TestContext t)
     {
         // Sweep: whatever the selector returns for any role, at any sampled hour, in

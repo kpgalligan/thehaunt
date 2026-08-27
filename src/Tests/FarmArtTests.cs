@@ -323,14 +323,16 @@ public static class FarmArtTests
             {
                 t.Assert(!map.IsStandable(edge), $"woods border {edge} blocks");
             }
-            t.Assert(map.IsStandable(new Vector2I(39, 14)) && map.IsStandable(new Vector2I(39, 15)),
-                "the east road mouth stays open for the town exit");
+            t.Assert(map.IsStandable(new Vector2I(36, 28)) && map.IsStandable(new Vector2I(37, 29)),
+                "the south road mouth stays open for the town exit");
+            t.Assert(!map.IsStandable(new Vector2I(39, 14)) && !map.IsStandable(new Vector2I(39, 15)),
+                "the old east mouth is sealed woods again");
 
             // The storm blockade is debris, and it is there until the road clears.
-            t.Assert(!map.IsStandable(new Vector2I(36, 14)) && !map.IsStandable(new Vector2I(37, 15)),
+            t.Assert(!map.IsStandable(new Vector2I(36, 26)) && !map.IsStandable(new Vector2I(37, 27)),
                 "fallen timber and rock still close the road");
             WorldSim.Instance.SetStoryFlag(StoryKeys.RoadCleared);
-            t.Assert(map.IsStandable(new Vector2I(36, 14)) && map.IsStandable(new Vector2I(37, 15)),
+            t.Assert(map.IsStandable(new Vector2I(36, 26)) && map.IsStandable(new Vector2I(37, 27)),
                 "and the crew hauls it away");
 
             // The pen is solid rails with one way in.
@@ -360,8 +362,8 @@ public static class FarmArtTests
             t.Assert(!map.IsTillable(9, 26), "the pen's gateway is the one cell of it that would take soil");
 
             // Hiding the blockade sign has to take its collider with it — a StaticBody2D
-            // under a hidden parent keeps colliding, and (36,13) is a tile the player
-            // crosses on every trip to town.
+            // under a hidden parent keeps colliding, and (35,26) sits beside the road
+            // the player rides on every trip to town.
             await t.WaitFrames(1);
             var sign = map.GetNodeOrNull<Sign>("Interactables/BlockadeSign");
             t.Assert(sign != null && !sign.Visible, "the sign went with the debris");

@@ -218,7 +218,7 @@ monitorable.
 
 ### 2.6 Spawns (existing `GetSpawn(id)` contract — Marker2Ds under `Spawns/`)
 
-- farm: `default` (existing), `road` — west of the blockade line, **≥1 tile clear of the exit area**
+- farm: `default` (existing), `road` — north of the blockade line, **≥1 tile clear of the exit area** *(amended 2026-08-27: the farm road leaves SOUTH — the farm sits north of the fork)*
 - town: `from_farm`, `from_hall`
 - town_hall: `entry`
 
@@ -524,12 +524,16 @@ pattern (Cutscene framing, Dialogue conversation) is what Phase 5 extends.
   speckle), walkable=false, full-square collision — config identical to Water/Stone.
 - Road surface: the water border ring opens at rows y=14–15, x=38–39 (dirt ground, no
   obstacle); a dirt strip connects the field east to the edge.
-- `private static readonly Vector2I[] RoadBlockCells = { (36,14),(36,15),(37,14),(37,15) };`
-- Road + blockade cells (x36..39 × y14..15) join `_reservedTiles` (never tillable).
-- A `MapExit` over (38–39, 14–15) → `town`/`from_farm`, with
+  *(Amended 2026-08-27, farm north of the fork: the wagon road now bends SOUTH at
+  columns x=36–37 and opens the south border at (36–37, 28–29); the coordinates below
+  moved with it.)*
+- `private static readonly Vector2I[] RoadBlockCells = { (36,26),(36,27),(37,26),(37,27) };`
+  *(as amended; originally rows 14–15)*
+- Road + blockade cells (x36..37 × y26..29, as amended) join `_reservedTiles` (never tillable).
+- A `MapExit` over (36–37, 28), 2×1 → `fork`/`from_farm`, with
   `IsEnabled = () => SaveService.Instance.Current.HasFlag(StoryKeys.RoadCleared)` — belt
   (tile collision) and suspenders (disabled exit): even a clipped-through player cannot
-  transition early. Spawn `road` at tile (35,15) center.
+  transition early. Spawn `road` at tile (36,24) center (as amended).
 - A `Sign` at the blockade: `[KEVIN]` "The storm brought half the hillside down. No
   getting through today." (canon restatement only).
 

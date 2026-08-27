@@ -109,7 +109,15 @@
   morning no matter where it was left. No battery, no recall, no minimap pin — losing
   track of it until morning is the point. Open handoff questions for Kevin: how it is
   acquired mid-game once the seam closes, whether residents react to it, and whether
-  the dread acts touch it. Still remaining:
+  the dread acts touch it. Game-dynamics pass (2026-08-27, per Kevin): the farm map's
+  road now leaves SOUTH into the fork's north mouth (the map finally agrees with the
+  geography — the blockade, sign, spawn and exit all moved with it); map transitions
+  keep the traveller's lane (the crossing offset carries to the destination mouth,
+  clamped — a smaller mouth pins to its edge); the motor court parks one guest car per
+  occupied room (MotelRules.OccupiedRooms — room 3, Pell's slate sedan, today); and
+  NPCs amble around their staging anchors by role (NpcPlacement.Ambit) — proprietors
+  putter, seated bar patrons sit, Gloria at the fireworks stand never moves. Still
+  remaining:
   connections/relationship mechanics, enlarging the town centre (clinic, Stumble Inn,
   homes, fountain square), shop catalogs for the gas station and fireworks stand,
   haircuts, motel room unlock stories, the drive-in restoration arc.

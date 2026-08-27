@@ -8,8 +8,10 @@ namespace TheHaunt.World;
 /// The farm, 40x30 tiles, painted from the farm art handoff's sheets
 /// (docs/designs/design_handoff_farm_interiors). Pasture — rougher and darker than the
 /// town's grass, so the two maps never read as the same field — with a woods edge for the
-/// map limit, a track from the farmhouse door east to the road out, the barn across the
-/// yard, and a fenced pen in the south-west.
+/// map limit, a track from the farmhouse door east to the wagon road — which bends south
+/// at the yard's east end and leaves through the south treeline for the fork (the farm
+/// sits NORTH of the fork; docs/story/README.md) — the barn across the yard, and a
+/// fenced pen in the south-west.
 ///
 /// Layer child order = draw order: Ground, FarmSoil, Crops, Obstacles. Ground carries
 /// everything flat AND the tiles that block by themselves (woods, rocks, stumps, fences);
@@ -57,6 +59,10 @@ public partial class TestMap : MapRoot
     private const int RoadTop = 14, RoadBottom = 15;
     private const int RoadWest = 25;          // west of this the road is a farm track
 
+    // The southbound leg: at the yard's east end the wagon road turns and runs out
+    // through the south border toward the fork's north mouth.
+    private const int SouthRoadLeft = 36, SouthRoadRight = 37;
+
     // The fenced pen. Solid rails all round bar the gate, which is drawn and painted open.
     private const int PenLeft = 4, PenRight = 15, PenTop = 23, PenBottom = 26;
     private const int PenGateX = 9;
@@ -99,7 +105,7 @@ public partial class TestMap : MapRoot
     private static readonly (int X, int Y, bool Bare)[] DefaultTrees =
     {
         (2, 12, false), (16, 9, false), (12, 5, true), (33, 12, false), (21, 20, false),
-        (30, 22, false), (5, 19, false), (35, 20, false), (25, 26, false),
+        (30, 22, false), (5, 19, false), (33, 20, false), (25, 26, false),
     };
 
     // Storm blockade cells: fallen timber and rock until intro.road_cleared, toggled in
@@ -110,8 +116,8 @@ public partial class TestMap : MapRoot
     // one blockade.
     private static readonly (Vector2I Cell, Vector2I Tile)[] RoadBlock =
     {
-        (new(36, 14), FarmTiles.Log), (new(37, 14), FarmTiles.RockLarge),
-        (new(36, 15), FarmTiles.RockLarge), (new(37, 15), FarmTiles.Log),
+        (new(36, 26), FarmTiles.Log), (new(37, 26), FarmTiles.RockLarge),
+        (new(36, 27), FarmTiles.RockLarge), (new(37, 27), FarmTiles.Log),
     };
 
     // The recipe this build is reading, and the two tables resolved out of it. Resolved
@@ -269,9 +275,10 @@ public partial class TestMap : MapRoot
         }
 
         recipe.Add(PlacementKinds.Spawn, "default", 20, 15);
-        // West of the blockade line, >= 1 tile clear of the exit area (spawn-clearance
-        // rule, asserted by test).
-        recipe.Add(PlacementKinds.Spawn, "road", 35, 15);
+        // North of the blockade line, >= 1 tile clear of the exit area
+        // (spawn-clearance rule, asserted by test) — and a full tile clear of the
+        // debris row, so the feet collider never spawns clipped into it.
+        recipe.Add(PlacementKinds.Spawn, "road", 36, 24);
         // One tile south of each door cell — arrival from the building.
         recipe.Add(PlacementKinds.Spawn, "house_door", HouseDoorX, HouseDoorY + 1);
         recipe.Add(PlacementKinds.Spawn, "barn_door", BarnDoorX, BarnDoorY + 1);
@@ -285,17 +292,21 @@ public partial class TestMap : MapRoot
         // (8,8)/(8,9) are plain tillable pasture now.
         recipe.Add(PlacementKinds.Sign, "Sign", 12, 8)
             .SetText(PlacementFields.Text, "Placeholder sign. Real text comes later.");
-        // [KEVIN] placeholder copy — canon restatement only.
-        recipe.Add(PlacementKinds.Sign, BlockadeSignId, 36, 13)
+        // [KEVIN] placeholder copy — canon restatement only. Beside the southbound
+        // leg, one column west of the debris.
+        recipe.Add(PlacementKinds.Sign, BlockadeSignId, 35, 26)
             .SetText(PlacementFields.Text,
                 "The storm brought half the hillside down. No getting through today.");
 
         recipe.Add(PlacementKinds.ShippingBin, FarmBuildings.BinId, 10, 8);
 
-        MapPlacement road = recipe.Add(PlacementKinds.Exit, MapIds.Fork, 38, 14);
+        // The south mouth's first border row. One row deep on purpose: the mouth is
+        // WIDER than deep, which is how GetArrival knows the cross axis to carry an
+        // entering player's position along.
+        MapPlacement road = recipe.Add(PlacementKinds.Exit, MapIds.Fork, 36, 28);
         road.SetText(PlacementFields.Spawn, "from_farm");
         road.SetInt(PlacementFields.Width, 2);
-        road.SetInt(PlacementFields.Height, 2);
+        road.SetInt(PlacementFields.Height, 1);
 
         return recipe;
     }
@@ -311,7 +322,7 @@ public partial class TestMap : MapRoot
         if (_roadExit == null)
         {
             throw new MapRecipeException(_recipeSource,
-                $"has no '{PlacementKinds.Exit}' to '{MapIds.Fork}'; the road east is how the farm is left.");
+                $"has no '{PlacementKinds.Exit}' to '{MapIds.Fork}'; the road south is how the farm is left.");
         }
         if (_blockadeSign == null)
         {
@@ -342,19 +353,23 @@ public partial class TestMap : MapRoot
             {
                 bool border = x < BorderThickness || x >= Width - BorderThickness
                     || y < BorderThickness || y >= Height - BorderThickness;
-                // The woods open where the road leaves for town.
-                bool roadMouth = x >= Width - BorderThickness && y is RoadTop or RoadBottom;
+                // The woods open where the road leaves for town — through the SOUTH
+                // treeline, because the farm sits north of the fork.
+                bool roadMouth = y >= Height - BorderThickness
+                    && x is >= SouthRoadLeft and <= SouthRoadRight;
                 _surface[x, y] = border && !roadMouth ? Surface.Woods : Surface.Pasture;
             }
         }
 
-        // The wagon road, drawn from the same sheet as the road strip's rows 14-15 —
-        // it curves south out of frame and comes into the fork from the north.
-        for (int x = RoadWest; x < Width; x++)
+        // The wagon road, drawn from the same sheet as the road strip's rows 14-15:
+        // east along the yard, then the bend — south out of frame, into the fork's
+        // north mouth. The map now shows the curve the story always described.
+        for (int x = RoadWest; x <= SouthRoadRight; x++)
         {
             _surface[x, RoadTop] = Surface.Road;
             _surface[x, RoadBottom] = Surface.Road;
         }
+        Fill(SouthRoadLeft, RoadBottom + 1, SouthRoadRight, Height - 1, Surface.Road);
 
         // The farm's own track: out of the front door, south to the road line, then east
         // until it meets the road. The player crosses their own yard on every trip to town.
@@ -813,7 +828,7 @@ public partial class TestMap : MapRoot
                 // The farm has one way out by road, and the enabled-until-cleared rule
                 // below belongs to THAT exit. A second one would silently inherit it.
                 throw new MapRecipeException(_recipeSource,
-                    $"has more than one '{PlacementKinds.Exit}'; the farm's only exit is the road east.");
+                    $"has more than one '{PlacementKinds.Exit}'; the farm's only exit is the road south.");
             }
 
             var size = new Vector2(
@@ -844,8 +859,8 @@ public partial class TestMap : MapRoot
     /// </summary>
     private void ReserveRoadCorridor()
     {
-        for (int x = 36; x <= 39; x++)
-            for (int y = RoadTop; y <= RoadBottom; y++)
+        for (int x = SouthRoadLeft; x <= SouthRoadRight; x++)
+            for (int y = 26; y <= Height - 1; y++)
                 _reservedTiles.Add(new Vector2I(x, y));
     }
 

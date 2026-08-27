@@ -165,7 +165,9 @@ public partial class DriveInMap : ExteriorMap
 
     private void BuildTravel()
     {
-        AddRoadExit("NorthExit", MapIds.EastFork, "from_drive_in", DriveLeft, 0, widthTiles: 2);
+        // 2x1, wider than deep — see EastForkMap.SouthExit.
+        AddRoadExit("NorthExit", MapIds.EastFork, "from_drive_in", DriveLeft, 0,
+            widthTiles: 2, heightTiles: 1);
     }
 
     // ------------------------------------------------------------------

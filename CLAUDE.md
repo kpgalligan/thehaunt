@@ -73,7 +73,10 @@ and flip for LEFT — mirrored from character.png's left-facing convention.
   on it (all programmatic), IInteractable,
   Bed, Sign, ShippingBin, Chest, ShopCounter, Scooter (parked view of GameData.Scooter;
   MapRoot.SyncScooter diffs it), MapExit, Door (flag-lockable: RequiredFlag +
-  LockedMessage — a locked handle answers with a line), NpcView, PlaceholderSprites,
+  LockedMessage — a locked handle answers with a line), NpcView (ambles around its
+  schedule anchor when the placement grants an Ambit), GuestCar (one per occupied
+  motel room, synced by WestEntryMap.ApplyState from MotelRules.OccupiedRooms),
+  PlaceholderSprites,
   PlaceholderBuilding/RoadBarrier/PitCover/DriveInScreen/DriveInSpeaker (code-built
   stand-ins for buildings with no art yet, chained-off roads, the pit, and the dead
   drive-in);
@@ -127,6 +130,22 @@ and flip for LEFT — mirrored from character.png's left-facing convention.
   (ItemDefs/StarterKit/NewGame). A drift guard failing (Save_MigratedKitMatchesNewGame,
   Save_MigratedStoryMatchesNewGame) means: make a conscious decision — never edit a
   frozen migration.
+- Travel keeps the player's lane: MapExit passes the body's offset inside the mouth it
+  entered, and `MapRoot.GetArrival` re-applies it along the destination mouth's LONG
+  axis (the nearest exit zone to the spawn marker), clamped inside the mouth — a
+  smaller mouth pins to its edge. Zero offset (doors, scripted travel, tests) lands
+  exactly on the marker. A road mouth must therefore be longer across the road than
+  deep (e.g. the farm's south exit is 2x1), or the carry cannot tell its axes apart.
+- NPC staging: `NpcPlacement.Ambit` is the view-side amble radius in tiles (0 = a
+  fixture). The amble is VOLATILE view state in NpcView — gated on `ClockRuns`, bounded
+  by IsStandable plus a physics probe (other bodies), never model state — and
+  `SyncNpcs`/`SetAnchor` only teleports when the scheduled anchor CHANGES, so the
+  ten-minute resync never yanks a wanderer home. Rules with names on them: Gloria and
+  the seated bar patrons stay Ambit 0 (Kevin); every flag-BOUNDED row (ForbidsFlag —
+  the intro beats' tableaux) stays 0.
+- Motel occupancy grows flags, never ints: `MotelRules.OccupiedRooms` (like LitRoom) is
+  the derivation, and the west entry parks one `GuestCar` per occupied room in the stall
+  under that room's door — diffed in ApplyState, never baked into the build.
 - Story flags are monotone day-stamped entries in GameData.StoryFlags (no unset; absence
   = false; unknown keys preserved). All flag writes go through WorldSim.SetStoryFlag.
 - Story beats start ONLY via StoryDirector's CallDeferred check — never synchronously

@@ -18,21 +18,21 @@
     {"kind": "scatter", "id": "rock_large", "x": 5, "y": 12},
     {"kind": "prop", "id": "tree_leafy", "x": 33, "y": 12},
     {"kind": "scatter", "id": "rock_large", "x": 13, "y": 13},
-    {"kind": "sign", "id": "BlockadeSign", "x": 36, "y": 13, "text": "The storm brought half the hillside down. No getting through today."},
-    {"kind": "exit", "id": "fork", "x": 38, "y": 14, "h": 2, "spawn": "from_farm", "w": 2},
     {"kind": "spawn", "id": "default", "x": 20, "y": 15},
-    {"kind": "spawn", "id": "road", "x": 35, "y": 15},
     {"kind": "scatter", "id": "rock_large", "x": 10, "y": 18},
     {"kind": "prop", "id": "tree_leafy", "x": 5, "y": 19},
     {"kind": "scatter", "id": "rock_large", "x": 28, "y": 19},
     {"kind": "scatter", "id": "stump", "x": 3, "y": 20},
     {"kind": "scatter", "id": "stump", "x": 15, "y": 20},
     {"kind": "prop", "id": "tree_leafy", "x": 21, "y": 20},
-    {"kind": "prop", "id": "tree_leafy", "x": 35, "y": 20},
+    {"kind": "prop", "id": "tree_leafy", "x": 33, "y": 20},
     {"kind": "scatter", "id": "stump", "x": 25, "y": 22},
     {"kind": "prop", "id": "tree_leafy", "x": 30, "y": 22},
+    {"kind": "spawn", "id": "road", "x": 36, "y": 24},
     {"kind": "scatter", "id": "log", "x": 17, "y": 25},
     {"kind": "scatter", "id": "rock_large", "x": 33, "y": 25},
-    {"kind": "prop", "id": "tree_leafy", "x": 25, "y": 26}
+    {"kind": "prop", "id": "tree_leafy", "x": 25, "y": 26},
+    {"kind": "sign", "id": "BlockadeSign", "x": 35, "y": 26, "text": "The storm brought half the hillside down. No getting through today."},
+    {"kind": "exit", "id": "fork", "x": 36, "y": 28, "h": 1, "spawn": "from_farm", "w": 2}
   ]
 }

@@ -101,13 +101,13 @@ public partial class Main : Node2D
             _ = RunSleepFlow();
     }
 
-    private void OnTravelRequested(string mapId, string spawnId)
+    private void OnTravelRequested(string mapId, string spawnId, Vector2 arrivalOffset)
     {
         if (!_travelRunning)
-            _ = RunTravel(mapId, spawnId);
+            _ = RunTravel(mapId, spawnId, arrivalOffset);
     }
 
-    private async Task RunTravel(string mapId, string spawnId)
+    private async Task RunTravel(string mapId, string spawnId, Vector2 arrivalOffset = default)
     {
         _travelRunning = true;
         GameState.Instance.TransitionTo(GameState.Phase.Cutscene);   // clock + player frozen; tree NOT paused
@@ -132,7 +132,7 @@ public partial class Main : Node2D
             map.ApplyState(SaveService.Instance.Current.GetMap(map.MapId));
             _lighting.SetMap(map);                                   // interior/exterior key, set while black
             WorldSim.Instance.CompleteTravel(map.MapId);             // model write via the bus + NPC sync
-            _player.GlobalPosition = map.GetSpawn(spawnId);          // node-owned volatile state, set while black
+            _player.GlobalPosition = map.GetArrival(spawnId, arrivalOffset);   // node-owned volatile state, set while black
             _player.ApplyCameraLimits(map.GetCameraLimits());
             await _fade.FadeIn(0.25);
         }
@@ -200,6 +200,10 @@ public partial class Main : Node2D
             {
                 SaveService.Instance.Current.Player.MapId = args[i + 1];
                 SaveService.Instance.Current.Player.HasPosition = false;
+                // The dev teleport skips the door flow, so it re-applies the load
+                // repair itself: never mounted indoors — the scooter goes home.
+                if (MapIds.IsInterior(args[i + 1]) && SaveService.Instance.Current.Scooter.Mounted)
+                    SaveService.Instance.Current.Scooter = ScooterData.AtHome();
             }
 
             // Dev-only: land the boot on a named spawn marker instead of the map's
