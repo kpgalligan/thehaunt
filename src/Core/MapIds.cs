@@ -47,6 +47,20 @@ public static class MapIds
         _ => throw new ArgumentOutOfRangeException(nameof(room), room, "The motel has rooms 1-4."),
     };
 
+    // Which maps are interiors — mirrors each map class's IsInterior, and the drift
+    // guard (Scooter_InteriorTableMatchesTheMaps) fails if a new map forgets to keep
+    // them in step. Core needs this because the scooter's never-ridden-indoors rule
+    // is enforced at load repair, where no map node exists to ask.
+    private static readonly HashSet<string> Interiors = new()
+    {
+        TownHall, FarmHouse, GeneralStore, Barn,
+        Motel, GasStation, BilliesBar, Salon,
+        MotelRoom1, MotelRoom2, MotelRoom3, MotelRoom4,
+    };
+
+    /// <summary>False for unknown ids — outdoors is the safe default for a map this build cannot name.</summary>
+    public static bool IsInterior(string mapId) => Interiors.Contains(mapId);
+
     public static readonly IReadOnlyList<string> All = new[]
     {
         Farm, Town, TownHall, FarmHouse, GeneralStore, Barn,

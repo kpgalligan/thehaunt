@@ -99,7 +99,17 @@
   every driveway, worn centre line — with cobra-head street lights on cold mercury
   vapour replacing the fire lanterns town-wide (the motel's east head is dead by
   design); amber is now strictly interior, and roads turn to dirt past the town line
-  (the fork's farm branch stays unsealed). Still remaining:
+  (the fork's farm branch stays unsealed). 2026-08-27, from
+  `docs/designs/design_handoff_scooter`: the electric scooter — the one modern object
+  in town — ships with both production sheets wired in: ridden at 2x walk speed with
+  the six-column wheel cycle, parked anywhere with E (three parked views by dismount
+  facing), auto-parked at the door of any interior. Kevin's amendments over the
+  handoff: the player has it from day one (the mid-game acquisition, and whether it
+  arrives scuffed, is an open seam), and it returns to the farmhouse frontage every
+  morning no matter where it was left. No battery, no recall, no minimap pin — losing
+  track of it until morning is the point. Open handoff questions for Kevin: how it is
+  acquired mid-game once the seam closes, whether residents react to it, and whether
+  the dread acts touch it. Still remaining:
   connections/relationship mechanics, enlarging the town centre (clinic, Stumble Inn,
   homes, fountain square), shop catalogs for the gas station and fireworks stand,
   haircuts, motel room unlock stories, the drive-in restoration arc.

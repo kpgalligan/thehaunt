@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,300;6..72,400;6..72,600&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  body { margin: 0; background: #e7e4db; }
+  a { color: #6b4560; text-decoration: underline; text-underline-offset: 2px; }
+  a:hover { color: #a4432f; }
+  img { image-rendering: pixelated; }
+</style>
+</helmet>
+
+<div style="max-width:1180px;margin:0 auto;padding:52px 40px 90px;font-family:Newsreader,serif">
+
+  <div style="font:500 11px/1 'JetBrains Mono',monospace;letter-spacing:0.14em;text-transform:uppercase;color:#6b4560">The Haunt · Item · Electric Scooter · mid-game</div>
+  <h1 style="font:300 52px/1.04 Newsreader,serif;color:#1c1c1a;margin:16px 0 0;letter-spacing:-0.02em">The only new thing<br>in a town built in 1958</h1>
+  <p style="font:400 17px/1.62 Newsreader,serif;color:#3a3733;max-width:36em;margin:18px 0 0">Every surface in this game is chalked enamel, worn asphalt, or faded paint. The scooter is injection-moulded plastic and it is the wrong colour for everywhere it goes. That is the point — it's the player's object, not the town's, and it should never once look like it belongs.</p>
+
+  <h2 style="font:400 13px/1 'JetBrains Mono',monospace;letter-spacing:0.14em;text-transform:uppercase;color:#6b4560;margin:56px 0 6px">01 · Riding sprites</h2>
+  <p style="font:400 16px/1.6 Newsreader,serif;color:#2b2925;max-width:40em;margin:0 0 18px">Same sheet geometry as <span style="font-family:'JetBrains Mono',monospace;font-size:13px">character.png</span> — 96 × 96, six columns × three rows, 16 × 32 cells, rows in the existing order: facing camera, profile, facing away. It drops into whatever <span style="font-family:'JetBrains Mono',monospace;font-size:13px">AnimatedSprite2D</span> setup the walk cycle already uses; only the texture swaps.</p>
+  <div style="border:1px solid #1c1c1a33"><img src="art/scooter_rider_zoom.png" style="width:100%;display:block" alt="Scooter riding sprite sheet, 5x"></div>
+  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:20px 30px;margin:16px 0 0">
+    <div><div style="font:700 11px/1 'JetBrains Mono',monospace;letter-spacing:0.1em;color:#6b4560;margin-bottom:7px">THE RIDER IS UNCHANGED</div><div style="font:400 15px/1.6 Newsreader,serif;color:#2b2925">Same coat, same hat, same palette, lifted 6 px so the feet land on the deck. No new character art, so the scooter can never drift out of sync with the walk cycle.</div></div>
+    <div><div style="font:700 11px/1 'JetBrains Mono',monospace;letter-spacing:0.1em;color:#6b4560;margin-bottom:7px">PROFILE IS THE HERO</div><div style="font:400 15px/1.6 Newsreader,serif;color:#2b2925">Both wheels, deck, stem and handlebar all read side-on, and the wheels actually rotate — a hub spoke advances 60° per frame across the six columns.</div></div>
+    <div><div style="font:700 11px/1 'JetBrains Mono',monospace;letter-spacing:0.1em;color:#6b4560;margin-bottom:7px">FRONT AND BACK ARE MINIMAL</div><div style="font:400 15px/1.6 Newsreader,serif;color:#2b2925">A 27 px rider in a 16 px cell hides most of a scooter head-on, so those rows carry only what's unambiguous: handlebar, stem, green deck, wheel below. A 1 px vertical bob sells the motion instead of spokes.</div></div>
+  </div>
+
+  <h2 style="font:400 13px/1 'JetBrains Mono',monospace;letter-spacing:0.14em;text-transform:uppercase;color:#6b4560;margin:56px 0 6px">02 · On the road</h2>
+  <p style="font:400 16px/1.6 Newsreader,serif;color:#2b2925;max-width:40em;margin:0 0 18px">The profile cycle over the new asphalt. Green against grey is the whole reason this colour was chosen — it holds up over road, grass, and concrete alike.</p>
+  <div style="border:1px solid #1c1c1a33"><img src="art/scooter_onroad.png" style="width:100%;display:block" alt="Scooter profile cycle over asphalt"></div>
+
+  <h2 style="font:400 13px/1 'JetBrains Mono',monospace;letter-spacing:0.14em;text-transform:uppercase;color:#6b4560;margin:56px 0 6px">03 · Parked</h2>
+  <p style="font:400 16px/1.6 Newsreader,serif;color:#2b2925;max-width:40em;margin:0 0 18px">The player can leave it anywhere, so the parked form is a world object the player will see far more often than the riding sprite. Three views, 16 × 32 cells, standing on a kickstand.</p>
+  <div style="border:1px solid #1c1c1a33"><img src="art/scooter_parked_zoom.png" style="width:100%;display:block" alt="Parked scooter, three views, 8x"></div>
+  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:20px;margin:14px 0 0;font:400 14px/1.55 Newsreader,serif;color:#2b2925">
+    <div><span style="font:700 11px 'JetBrains Mono',monospace;color:#6b4560">SIDE · CELL 0</span><br>Default. Use this unless there's a reason not to — it's the only view that reads instantly at 1×.</div>
+    <div><span style="font:700 11px 'JetBrains Mono',monospace;color:#6b4560">FRONT · CELL 1</span><br>For scooters left facing down a path or against a wall.</div>
+    <div><span style="font:700 11px 'JetBrains Mono',monospace;color:#6b4560">THREE-QUARTER · CELL 2</span><br>The one to place by hand in a composed scene, where a flat side view would look staged.</div>
+  </div>
+  <p style="font:400 15px/1.6 Newsreader,serif;color:#2b2925;max-width:40em;margin:16px 0 0">Which view is drawn should follow the direction the player was facing when they dismounted. Cheap, and it makes the world remember what they did.</p>
+
+  <h2 style="font:400 13px/1 'JetBrains Mono',monospace;letter-spacing:0.14em;text-transform:uppercase;color:#6b4560;margin:56px 0 6px">04 · Behaviour</h2>
+  <div style="border:1px solid #1c1c1a26">
+    <div style="display:grid;grid-template-columns:1fr 2.2fr;background:#1c1c1a;color:#ede3cb;font:700 11px/1 'JetBrains Mono',monospace;letter-spacing:0.08em;padding:11px 14px;gap:14px">
+      <div>RULE</div><div>SPEC</div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 2.2fr;gap:14px;padding:11px 14px;font:400 14px/1.5 'JetBrains Mono',monospace;color:#2b2925;border-bottom:1px solid #1c1c1a1a">
+      <div>Speed</div><div>{{ speedLine }}</div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 2.2fr;gap:14px;padding:11px 14px;font:400 14px/1.5 'JetBrains Mono',monospace;color:#2b2925;border-bottom:1px solid #1c1c1a1a">
+      <div>Animation rate</div><div>Frame rate scales with speed — same 6 frames, played 2× faster</div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 2.2fr;gap:14px;padding:11px 14px;font:400 14px/1.5 'JetBrains Mono',monospace;color:#2b2925;border-bottom:1px solid #1c1c1a1a">
+      <div>Mount</div><div>Interact with a parked scooter. Player sprite swaps texture, no cutscene</div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 2.2fr;gap:14px;padding:11px 14px;font:400 14px/1.5 'JetBrains Mono',monospace;color:#2b2925;border-bottom:1px solid #1c1c1a1a">
+      <div>Dismount</div><div>Same key. Scooter spawns on the tile the player is standing on</div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 2.2fr;gap:14px;padding:11px 14px;font:400 14px/1.5 'JetBrains Mono',monospace;color:#2b2925;border-bottom:1px solid #1c1c1a1a">
+      <div>Persistence</div><div>Map id + tile coords + facing, saved. It stays exactly where it was left, across saves</div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 2.2fr;gap:14px;padding:11px 14px;font:400 14px/1.5 'JetBrains Mono',monospace;color:#2b2925;border-bottom:1px solid #1c1c1a1a">
+      <div>Collision</div><div>Parked: walkable-blocking, interactable. Ridden: identical to the walking player</div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 2.2fr;gap:14px;padding:11px 14px;font:400 14px/1.5 'JetBrains Mono',monospace;color:#2b2925">
+      <div>Interiors</div><div>Auto-dismount at the door. It parks itself outside — never ridden indoors</div>
+    </div>
+  </div>
+  <p style="font:400 15px/1.6 Newsreader,serif;color:#2b2925;max-width:40em;margin:16px 0 0">One consequence worth designing for on purpose: a player who leaves the scooter at the far end of the map has to walk back to it. Losing track of it should be a real, mild inconvenience, not something the game rescues them from.</p>
+
+  <h2 style="font:400 13px/1 'JetBrains Mono',monospace;letter-spacing:0.14em;text-transform:uppercase;color:#6b4560;margin:56px 0 6px">05 · Palette additions</h2>
+  <p style="font:400 16px/1.6 Newsreader,serif;color:#2b2925;max-width:40em;margin:0 0 20px">Three new slots. The town's greens are all desaturated and yellow-leaning so they read as vegetation; these are deliberately cooler and far more saturated than anything growing in it. Placed on grass, the scooter still separates.</p>
+  <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:14px">
+    <div><div style="height:64px;background:#74d98a;border:1px solid #1c1c1a33"></div><div style="font:700 11px/1.5 'JetBrains Mono',monospace;color:#2b2925;margin-top:6px">#74D98A<br><span style="font-weight:400;color:#6b4560">scooter-light</span></div></div>
+    <div><div style="height:64px;background:#45bf62;border:1px solid #1c1c1a33"></div><div style="font:700 11px/1.5 'JetBrains Mono',monospace;color:#2b2925;margin-top:6px">#45BF62<br><span style="font-weight:400;color:#6b4560">scooter-base</span></div></div>
+    <div><div style="height:64px;background:#2d8c46;border:1px solid #1c1c1a33"></div><div style="font:700 11px/1.5 'JetBrains Mono',monospace;color:#2b2925;margin-top:6px">#2D8C46<br><span style="font-weight:400;color:#6b4560">scooter-dark</span></div></div>
+    <div><div style="height:64px;background:#4a7c3a;border:1px solid #1c1c1a33"></div><div style="font:700 11px/1.5 'JetBrains Mono',monospace;color:#2b2925;margin-top:6px">#4A7C3A<br><span style="font-weight:400;color:#6b4560">grass, for contrast</span></div></div>
+    <div><div style="height:64px;background:#b8b5a5;border:1px solid #1c1c1a33"></div><div style="font:700 11px/1.5 'JetBrains Mono',monospace;color:#2b2925;margin-top:6px">#B8B5A5<br><span style="font-weight:400;color:#6b4560">chrome (existing)</span></div></div>
+    <div><div style="height:64px;background:#171310;border:1px solid #1c1c1a33"></div><div style="font:700 11px/1.5 'JetBrains Mono',monospace;color:#2b2925;margin-top:6px">#171310<br><span style="font-weight:400;color:#6b4560">tire (existing)</span></div></div>
+  </div>
+  <p style="font:400 15px/1.6 Newsreader,serif;color:#2b2925;max-width:40em;margin:20px 0 0">Chrome and tire black come from slots already in the palette. Only the three greens are new.</p>
+  <p style="font:400 15px/1.6 Newsreader,serif;color:#2b2925;max-width:40em;margin:14px 0 0"><strong style="font-weight:600">The headlamp is cold, not amber.</strong> Amber <span style="font-family:'JetBrains Mono',monospace;font-size:13px">#f2b95c</span> is reserved for incandescent interiors, and a modern scooter has a white LED anyway — so the lamp is a chrome housing with a cream <span style="font-family:'JetBrains Mono',monospace;font-size:13px">#ede3cb</span> lens. It also keeps the object outside the town's warm light entirely, which is the right instinct for the one thing here that isn't from 1958. It appears only on the profile and parked views; head-on there is nothing to see but the housing, so it's omitted.</p>
+
+  <h2 style="font:400 13px/1 'JetBrains Mono',monospace;letter-spacing:0.14em;text-transform:uppercase;color:#6b4560;margin:56px 0 6px">06 · Files and open questions</h2>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:26px">
+    <div style="background:#1c1c1a;padding:20px 22px;border:1px solid #1c1c1a">
+      <div style="font:400 13px/1.85 'JetBrains Mono',monospace;color:#ede3cb;white-space:pre">scooter_rider.png    96×96   6×3 cells
+scooter_parked.png   48×32   3 cells
+
+scooter_rider_zoom.png    5× view
+scooter_parked_zoom.png   8× view
+scooter_onroad.png        6× view</div>
+      <div style="font:400 12px/1.6 'JetBrains Mono',monospace;color:#9a9a8a;margin-top:14px">The two unsuffixed sheets are the game assets. The zooms are for this document only.</div>
+    </div>
+    <div style="font:400 15px/1.62 Newsreader,serif;color:#2b2925">
+      <p style="margin:0 0 12px"><strong style="font-weight:600">Where is it acquired?</strong> "Mid-game" is all I have. Found, bought, or given by a resident all imply different art — a found scooter should probably be scuffed.</p>
+      <p style="margin:0 0 12px"><strong style="font-weight:600">Is there a battery?</strong> Nothing here assumes one. A charge meter is a real design decision with UI attached, and I'd rather not invent it.</p>
+      <p style="margin:0 0 12px"><strong style="font-weight:600">Does the town react?</strong> It's the only modern object in a 1958 town. Residents noticing it is free characterisation, if you want it.</p>
+      <p style="margin:0"><strong style="font-weight:600">Does dread touch it?</strong> Later acts swap tile variants elsewhere. A scooter found somewhere the player did not leave it would cost one sprite and no new art.</p>
+    </div>
+  </div>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;speedMultiplier&quot;:{&quot;editor&quot;:&quot;int&quot;,&quot;default&quot;:2,&quot;min&quot;:1,&quot;max&quot;:4,&quot;step&quot;:1,&quot;tsType&quot;:&quot;number&quot;,&quot;section&quot;:&quot;Behaviour&quot;}}">
+class Component extends DCLogic {
+  renderVals() {
+    const m = this.props.speedMultiplier ?? 2;
+    return { speedLine: m + "× walking speed while mounted" };
+  }
+}
+</script>
+</body>
+</html>

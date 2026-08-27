@@ -111,6 +111,11 @@ public partial class Main : Node2D
     {
         _travelRunning = true;
         GameState.Instance.TransitionTo(GameState.Phase.Cutscene);   // clock + player frozen; tree NOT paused
+        // Where the rider stood when the door was used — captured before the fade
+        // frees the map, for the interior auto-dismount below.
+        string fromMapId = SaveService.Instance.Current.Player.MapId;
+        Vector2I fromTile = _player.FeetTile();
+        int fromFacing = _player.Facing;
         try
         {
             // MapExit.BodyEntered fires during the physics flush — the awaited fade
@@ -118,6 +123,10 @@ public partial class Main : Node2D
             await _fade.FadeOut(0.25);
             _currentMap?.QueueFree();               // FindRegisteredMap's IsQueuedForDeletion guard covers the same-frame window
             var map = MapRegistry.Create(mapId);
+            // Never ridden indoors (scooter handoff): entering an interior parks the
+            // scooter outside, at the doorstep the rider just left. No-op unless mounted.
+            if (map.IsInterior)
+                WorldSim.Instance.ParkScooterAt(fromMapId, fromTile, fromFacing);
             _currentMap = map;
             _mapHost.AddChild(map);
             map.ApplyState(SaveService.Instance.Current.GetMap(map.MapId));
@@ -212,7 +221,17 @@ public partial class Main : Node2D
             if (args[i] == "--open-ui")
                 CallDeferred(nameof(OpenUiForScreenshot), args[i + 1]);
         }
+
+        // Dev-only (flag, no value): mount the scooter after boot so --screenshot can
+        // capture the riding sprite. Refused by the bus unless the boot map holds it.
+        foreach (string arg in args)
+        {
+            if (arg == "--ride")
+                CallDeferred(nameof(MountScooterForScreenshot));
+        }
     }
+
+    private void MountScooterForScreenshot() => WorldSim.Instance.MountScooter();
 
     // Deferred so the boot's LoadMap/phase state has fully settled first.
     private void OpenUiForScreenshot(string which)

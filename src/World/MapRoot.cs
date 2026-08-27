@@ -129,6 +129,40 @@ public partial class MapRoot : Node2D
     private readonly Dictionary<string, NpcView> _npcViews = new();
 
     /// <summary>
+    /// Diffs the parked scooter into (at most) one child <see cref="Scooter"/> view.
+    /// Null means no scooter here — not on this map, or under the player. The view is
+    /// freed and respawned rather than moved when the record changes: a fresh node
+    /// re-runs the blocker warm-up, which is exactly what a re-park needs.
+    /// </summary>
+    public void SyncScooter(ScooterData? record)
+    {
+        bool valid = _scooterView != null && IsInstanceValid(_scooterView)
+            && !_scooterView.IsQueuedForDeletion();
+        if (record == null)
+        {
+            if (valid)
+                _scooterView!.QueueFree();
+            _scooterView = null;
+            return;
+        }
+
+        var position = new Vector2(
+            record.TileX * TileSize + 8, record.TileY * TileSize + 8);
+        if (valid && _scooterView!.Position == position)
+        {
+            _scooterView.ApplyFacing(record.Facing);
+            return;
+        }
+
+        if (valid)
+            _scooterView!.QueueFree();
+        _scooterView = new Scooter { Name = "Scooter", ParkedFacing = record.Facing, Position = position };
+        AddChild(_scooterView);
+    }
+
+    private Scooter? _scooterView;
+
+    /// <summary>
     /// Whether a saved player position on this tile is physically valid: walkable
     /// ground, no obstacle cell, no Door blocker. Main's boot guard uses this to
     /// bounce positions that new geometry (e.g. the 3b building facades) has since

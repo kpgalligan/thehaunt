@@ -1,4 +1,5 @@
 using Godot;
+using TheHaunt.Core;
 
 namespace TheHaunt.World;
 
@@ -24,6 +25,7 @@ public partial class CharacterSprite : Node2D
     private Color _tunic = new("4a6ab0");
     private int _facing;
     private bool _moving;
+    private bool _riding;
     private float _elapsed;
     private int _frame;
 
@@ -35,7 +37,7 @@ public partial class CharacterSprite : Node2D
         {
             _tunic = value;
             if (_sprite != null)
-                _sprite.Texture = CharacterSprites.Sheet(_tunic);
+                _sprite.Texture = CurrentSheet();
         }
     }
 
@@ -43,7 +45,7 @@ public partial class CharacterSprite : Node2D
     {
         _sprite = new Sprite2D
         {
-            Texture = CharacterSprites.Sheet(_tunic),
+            Texture = CurrentSheet(),
             RegionEnabled = true,
             Offset = CellOffset,
         };
@@ -53,8 +55,20 @@ public partial class CharacterSprite : Node2D
 
     public override void _Process(double delta)
     {
-        float secondsPerFrame = _moving ? WalkSecondsPerFrame : IdleSecondsPerFrame;
-        int frameCount = _moving ? CharacterSprites.WalkFrames : CharacterSprites.IdleFrames;
+        // Riding + still holds one frame: the six riding columns are a WHEEL cycle
+        // (scooter handoff — the hub spoke advances 60° per column), and a spinning
+        // wheel under a stationary scooter is wrong in a way the idle breath is not.
+        if (_riding && !_moving)
+        {
+            ApplyFrame();
+            return;
+        }
+
+        float secondsPerFrame = _riding
+            ? WalkSecondsPerFrame / ScooterRules.SpeedMultiplier
+            : _moving ? WalkSecondsPerFrame : IdleSecondsPerFrame;
+        int frameCount = _riding ? CharacterSprites.RiderFrames
+            : _moving ? CharacterSprites.WalkFrames : CharacterSprites.IdleFrames;
 
         _elapsed += (float)delta;
         while (_elapsed >= secondsPerFrame)
@@ -85,12 +99,37 @@ public partial class CharacterSprite : Node2D
         ApplyFrame();
     }
 
+    /// <summary>
+    /// Texture-swaps between the walk and riding sheets (scooter handoff: mounting
+    /// has no ceremony — this and the speed change are the whole mount). Riding runs
+    /// the six-column wheel cycle at 2x the walk rate while moving, and holds
+    /// column 0 while still.
+    /// </summary>
+    public void SetRiding(bool riding)
+    {
+        if (riding == _riding)
+            return;
+        _riding = riding;
+        _elapsed = 0f;
+        _frame = 0;
+        if (_sprite != null)
+            _sprite.Texture = CurrentSheet();
+        ApplyFrame();
+    }
+
     private void ApplyFrame()
     {
         if (_sprite == null)
             return;
-        int column = _moving ? CharacterSprites.IdleFrames + _frame : _frame;
+        // Riding columns ARE the cycle (0-5); on the walk sheet the cycle frames sit
+        // after the two idle columns.
+        int column = _riding ? (_moving ? _frame : 0)
+            : _moving ? CharacterSprites.IdleFrames + _frame : _frame;
         _sprite.RegionRect = CharacterSprites.Region(_facing, column);
-        _sprite.FlipH = CharacterSprites.FlipH(_facing);
+        _sprite.FlipH = _riding
+            ? CharacterSprites.RiderFlipH(_facing) : CharacterSprites.FlipH(_facing);
     }
+
+    private Texture2D CurrentSheet() =>
+        _riding ? CharacterSprites.RiderSheet(_tunic) : CharacterSprites.Sheet(_tunic);
 }

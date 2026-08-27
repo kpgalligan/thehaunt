@@ -29,6 +29,14 @@ authored IN CODE from its pixel-exact spec tables (MotelFacade, MotelSign, the
 *Sign nodes, PixelFont, RoadsideTerrain). It also spends the palette's two reserved
 neon slots (aqua `#5fb9b0`, red `#e05a3f`) and fixes the one 3x5 pixel typeface every
 sign uses.
+`design_handoff_scooter/` (2026-08-27) ships PRODUCTION sheets again: `scooter_rider.png`
+(96x96, drop-in grid twin of character.png) and `scooter_parked.png` (48x32, three views)
+are shipped assets in `assets/sprites/`; the `*_zoom`/`_onroad` PNGs are doc-only. Its
+behaviour spec is proposal-grade and Kevin amended it: the player has the scooter from
+the START (acquisition seam deliberately unbuilt), and it is parked outside the
+farmhouse every morning regardless of where it was left (overriding the handoff's
+"stays where left forever"). CAUTION: both scooter sheets are authored facing RIGHT
+and flip for LEFT — mirrored from character.png's left-facing convention.
 
 ## Toolchain
 
@@ -45,7 +53,8 @@ sign uses.
   (dev flags: `--start-map <id>` boots into a map; `--spawn <marker>` lands on a named spawn
   instead of the map default, e.g. to frame a corner; `--screenshot-frames <n>` delays the
   capture, e.g. past a beat's staging timer; `--add-minutes <n>` advances the clock in-memory,
-  e.g. into shop hours or dusk; `--open-ui <chest|shop|help>` pops a UI after boot)
+  e.g. into shop hours or dusk; `--open-ui <chest|shop|help>` pops a UI after boot;
+  `--ride` mounts the scooter after boot, for capturing the riding sprite)
 - Edit a map graphically: `godot-mono --path . --editor`, then open `scenes/editor/MapStage.tscn`
   and select the MapStage node. The Haunt Mapper dock (right) picks the map and the time of day;
   drag placements in the viewport, then press Save in the dock — Ctrl+S saves the SCENE, not the
@@ -53,8 +62,8 @@ sign uses.
 
 ## Structure
 
-- `src/Core/` — PURE C# (no `using Godot`, test-enforced): GameTime/calendar, ClockModel, GameData + save DTOs, migrations, item/crop defs (code registries), InventoryData, FarmActions, OvernightSim + ShippedLine; storage: StackOps/StorageData/StorageIds; shop: ShopCatalog (+ ShopEntry/BuyResult)/ShopHours; story: StoryKeys/IntroRules/BarnRules/MotelRules/MapIds/RoadWrap, DialogueDef(s)/DialogueSession/DialogueSelector, NpcDef(s)/NpcSchedules
-- `src/Systems/` — the four autoloads, in registration order: GameState, Clock, SaveService, WorldSim (the single gameplay-mutation bus — all model writes flow through it, incl. story flags, travel requests, the dialogue session, chest/shop Menu sessions, transfers, and purchases; UI subscribes to its events)
+- `src/Core/` — PURE C# (no `using Godot`, test-enforced): GameTime/calendar, ClockModel, GameData + save DTOs, migrations, item/crop defs (code registries), InventoryData, FarmActions, OvernightSim + ShippedLine; storage: StackOps/StorageData/StorageIds; scooter: ScooterData/ScooterRules; shop: ShopCatalog (+ ShopEntry/BuyResult)/ShopHours; story: StoryKeys/IntroRules/BarnRules/MotelRules/MapIds/RoadWrap, DialogueDef(s)/DialogueSession/DialogueSelector, NpcDef(s)/NpcSchedules
+- `src/Systems/` — the four autoloads, in registration order: GameState, Clock, SaveService, WorldSim (the single gameplay-mutation bus — all model writes flow through it, incl. story flags, travel requests, the dialogue session, chest/shop Menu sessions, transfers, purchases, and scooter mount/park; UI subscribes to its events)
 - `src/World/` — MapRoot base (owns NPC views + IsStandable + IsInterior + the shared
   scatter hash), MapRegistry, the exteriors TestMap (farm) and the ExteriorMap base
   (surface grid + shared town-sheet painters) carrying TownMap and the road strip
@@ -62,7 +71,8 @@ sign uses.
   InteriorMap base with TownHallMap/FarmHouseMap/GeneralStoreMap/BarnMap/MotelMap/
   GasStationMap/BilliesBarMap/SalonMap/MotelRoomMap (one class, four registered room ids)
   on it (all programmatic), IInteractable,
-  Bed, Sign, ShippingBin, Chest, ShopCounter, MapExit, Door (flag-lockable: RequiredFlag +
+  Bed, Sign, ShippingBin, Chest, ShopCounter, Scooter (parked view of GameData.Scooter;
+  MapRoot.SyncScooter diffs it), MapExit, Door (flag-lockable: RequiredFlag +
   LockedMessage — a locked handle answers with a line), NpcView, PlaceholderSprites,
   PlaceholderBuilding/RoadBarrier/PitCover/DriveInScreen/DriveInSpeaker (code-built
   stand-ins for buildings with no art yet, chained-off roads, the pit, and the dead
@@ -182,6 +192,16 @@ sign uses.
   - The barn's three drawn states are two monotone flags through `BarnRules`, never an int
     in one flag — a flag's value in this model is the day it was stamped, not a level.
     Nothing advances them yet; that seam is deliberately empty.
+  - Exactly ONE scooter exists: `GameData.Scooter` is either parked (map + tile + facing)
+    or mounted — never both. All writes go through WorldSim (MountScooter /
+    DismountScooter / ParkScooterAt); the parked `Scooter` node is a view MapRoot syncs,
+    like NPCs. OvernightSim parks it home (farmhouse frontage) on DayEnded — never
+    stolen, never lost. Riding is 2x walk speed, never indoors (Main's travel flow
+    auto-parks at the door, and load repair re-parks impossible interior states home
+    via `MapIds.IsInterior` — a table with a drift guard against each map's
+    IsInterior); mounting has NO ceremony (texture swap + speed, no fade).
+    Do not add a recall button, a minimap pin, or an auto-return beyond the overnight
+    one (handoff design intent: losing track of it is the player's problem).
 - Map recipes (`data/maps/*.json`) are CONTENT, not save state — the same bucket as ItemDefs and
   CropDefs, never GameData. Read at map build time, never written at runtime; the editor is the only
   writer. A recipe stores tile coordinates and NAMES, never atlas coordinates and never pixel
@@ -221,7 +241,8 @@ sign uses.
   `gui/theme/default_theme_scale` carries the built-in theme, and explicit font sizes and
   widget constants are tuned by hand. Re-check every UI screenshot if the viewport changes.
 - Characters are 16x32 with feet on the bottom row (one tile of floor, one tile of overhang).
-  Right is a horizontal flip of left; the sheet holds down/left/up only. Furniture and crops
+  Right is a horizontal flip of left; the sheet holds down/left/up only. EXCEPTION: the two
+  scooter sheets are authored facing right and flip for left (`RiderFlipH`/`ParkedFlipH`). Furniture and crops
   follow the same rule: a 16x32 piece stands on its cell and overhangs the one above it.
 - A drawn doorway sits one tile ABOVE the facade's bottom row (the bottom row is its stone
   plinth), but the Door node stays on the bottom row: the player walks up to the ground in

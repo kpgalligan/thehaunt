@@ -9,6 +9,7 @@ public sealed class GameData
     public List<ItemStackRecord> ShippingBin { get; set; } = new();
     public Dictionary<string, long> StoryFlags { get; set; } = new();   // flag id -> DayIndex stamped
     public Dictionary<string, StorageData> Storages { get; set; } = new();   // storage id -> slots
+    public ScooterData Scooter { get; set; } = ScooterData.AtHome();   // absent in pre-scooter saves -> home
 
     public MapState GetMap(string mapId)
     {
