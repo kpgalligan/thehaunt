@@ -26,6 +26,9 @@ public partial class EastEntryMap : ExteriorMap
     private const int HardwareLeft = 22, HardwareTop = 9, HardwareRight = 28, HardwareBottom = 11;
     private const int SalonLeft = 32, SalonTop = 18, SalonRight = 36, SalonBottom = 20;
 
+    // The salon's door cell, on the face's bottom row under the drawn doorway.
+    private const int SalonDoorX = 34;
+
     private static readonly Vector2I Lamp = new(17, 12);
 
     public override void _EnterTree()
@@ -68,7 +71,7 @@ public partial class EastEntryMap : ExteriorMap
         var obstacles = new TileMapLayer { Name = "Obstacles", TileSet = tileSet };
         Block(obstacles, PoliceLeft, PoliceTop, PoliceRight, PoliceBottom);
         Block(obstacles, HardwareLeft, HardwareTop, HardwareRight, HardwareBottom);
-        Block(obstacles, SalonLeft, SalonTop, SalonRight, SalonBottom);
+        Block(obstacles, SalonLeft, SalonTop, SalonRight, SalonBottom, SalonDoorX, SalonBottom);
         obstacles.SetCell(Lamp, 0, TerrainTiles.Blocker);
         AddChild(obstacles);
     }
@@ -111,6 +114,7 @@ public partial class EastEntryMap : ExteriorMap
         spawns.AddChild(SpawnMarker("default", 24, 15));
         spawns.AddChild(SpawnMarker("from_east_fork", 2, 15));
         spawns.AddChild(SpawnMarker(RoadWrap.ArrivalSpawn, 45, 15));
+        spawns.AddChild(SpawnMarker("from_salon", SalonDoorX, SalonBottom + 1));
         AddChild(spawns);
     }
 
@@ -133,8 +137,9 @@ public partial class EastEntryMap : ExteriorMap
         {
             Name = "SalonSign",
             // South of the footprint: a sign north of a south-of-road building lands
-            // inside its drawn face and Y-sorts invisible.
-            Position = new Vector2(34 * TileSize + 8, 21 * TileSize + 8),
+            // inside its drawn face and Y-sorts invisible. West of the doorway so the
+            // door approach stays clear.
+            Position = new Vector2(32 * TileSize + 8, 21 * TileSize + 8),
             Message = "Salon.",
         });
     }
@@ -144,5 +149,16 @@ public partial class EastEntryMap : ExteriorMap
         AddRoadExit("WestExit", MapIds.EastFork, "from_east_entry", 0, RoadTop);
         // The road out. It goes exactly where the story says it goes.
         AddRoadExit("EastExit", RoadWrap.PastTheEastEdgeMap, RoadWrap.ArrivalSpawn, Width - 1, RoadTop);
+
+        // The doorway is drawn into the placeholder face, so the Door node
+        // contributes its blocker and its prompt only.
+        AddChild(new Door
+        {
+            Name = "SalonDoor",
+            TargetMapId = MapIds.Salon,
+            TargetSpawnId = "entry",
+            DrawPlaceholder = false,
+            Position = new Vector2(SalonDoorX * TileSize + 8, SalonBottom * TileSize + 8),
+        });
     }
 }

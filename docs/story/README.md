@@ -88,3 +88,5 @@ East of the fork is the east entry.
 ## Other Areas
 
 Early game is restricted. We'll be adding many more maps as the story progresses.
+
+See also: [cast.md](cast.md) — the road-strip cast (names and voices proposed 2026-08-27, pending review).

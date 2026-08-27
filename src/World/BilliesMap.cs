@@ -22,6 +22,10 @@ public partial class BilliesMap : ExteriorMap
 
     private const int BarLeft = 14, BarTop = 8, BarRight = 21, BarBottom = 11;
 
+    // The bar's door cell, on the face's bottom row under the drawn doorway (the
+    // placeholder draws its door centred, straddling x17/x18).
+    private const int BarDoorX = 17;
+
     // The pit's cover, and the chain strung across its approach from the road.
     private const int PitLeft = 26, PitTop = 20, PitRight = 28, PitBottom = 21;
     private const int ChainLeft = 25, ChainRight = 29, ChainRow = 19;
@@ -59,6 +63,9 @@ public partial class BilliesMap : ExteriorMap
 
         Fill(BarLeft, BarTop, BarRight, BarBottom + 1, Surface.Gravel);
 
+        // The door path down to the road, two tiles wide under the drawn double door.
+        Fill(BarDoorX, BarBottom + 1, BarDoorX + 1, 13, Surface.Dirt);
+
         // Bare ground around the pit — grass does not grow back over that.
         Fill(PitLeft - 1, ChainRow, PitRight + 1, PitBottom + 1, Surface.Dirt);
     }
@@ -66,7 +73,7 @@ public partial class BilliesMap : ExteriorMap
     private void BuildObstacles(TileSet tileSet)
     {
         var obstacles = new TileMapLayer { Name = "Obstacles", TileSet = tileSet };
-        Block(obstacles, BarLeft, BarTop, BarRight, BarBottom);
+        Block(obstacles, BarLeft, BarTop, BarRight, BarBottom, BarDoorX, BarBottom);
         Block(obstacles, PitLeft, PitTop, PitRight, PitBottom);
         Block(obstacles, ChainLeft, ChainRow, ChainRight, ChainRow);
         obstacles.SetCell(Lamp, 0, TerrainTiles.Blocker);
@@ -106,6 +113,7 @@ public partial class BilliesMap : ExteriorMap
         spawns.AddChild(SpawnMarker("default", 20, 15));
         spawns.AddChild(SpawnMarker("from_west_entry", 2, 15));
         spawns.AddChild(SpawnMarker("from_fork", 37, 15));
+        spawns.AddChild(SpawnMarker("from_bar", BarDoorX, BarBottom + 1));
         AddChild(spawns);
     }
 
@@ -131,5 +139,16 @@ public partial class BilliesMap : ExteriorMap
     {
         AddRoadExit("WestExit", MapIds.WestEntry, "from_billies", 0, RoadTop);
         AddRoadExit("EastExit", MapIds.Fork, "from_billies", Width - 1, RoadTop);
+
+        // The doorway is drawn into the placeholder face, so the Door node
+        // contributes its blocker and its prompt only.
+        AddChild(new Door
+        {
+            Name = "BarDoor",
+            TargetMapId = MapIds.BilliesBar,
+            TargetSpawnId = "entry",
+            DrawPlaceholder = false,
+            Position = new Vector2(BarDoorX * TileSize + 8, BarBottom * TileSize + 8),
+        });
     }
 }

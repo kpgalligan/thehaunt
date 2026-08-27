@@ -14,7 +14,8 @@ public static class MapRegistry
         mapId is MapIds.Farm or MapIds.Town or MapIds.TownHall
             or MapIds.FarmHouse or MapIds.GeneralStore or MapIds.Barn
             or MapIds.WestEntry or MapIds.Billies or MapIds.Fork
-            or MapIds.EastFork or MapIds.EastEntry;
+            or MapIds.EastFork or MapIds.EastEntry
+            or MapIds.Motel or MapIds.GasStation or MapIds.BilliesBar or MapIds.Salon;
 
     public static MapRoot Create(string mapId) => mapId switch
     {
@@ -29,6 +30,10 @@ public static class MapRegistry
         MapIds.Fork => new ForkMap(),
         MapIds.EastFork => new EastForkMap(),
         MapIds.EastEntry => new EastEntryMap(),
+        MapIds.Motel => new MotelMap(),
+        MapIds.GasStation => new GasStationMap(),
+        MapIds.BilliesBar => new BilliesBarMap(),
+        MapIds.Salon => new SalonMap(),
         _ => throw new ArgumentException($"Unknown map id '{mapId}'.", nameof(mapId)),
     };
 }

@@ -448,6 +448,10 @@ public static class FarmArtTests
             (MapIds.GeneralStore, new(7, 9), new(7, 8), new(7, 6), MapIds.Town, "from_store"),
             (MapIds.TownHall, new(20, 22), new(20, 21), new(20, 19), MapIds.Town, "from_hall"),
             (MapIds.Barn, new(8, 11), new(8, 10), new(7, 7), MapIds.Farm, "barn_door"),
+            (MapIds.Motel, new(7, 9), new(7, 8), new(7, 6), MapIds.WestEntry, "from_motel"),
+            (MapIds.GasStation, new(5, 8), new(5, 7), new(5, 5), MapIds.WestEntry, "from_gas"),
+            (MapIds.BilliesBar, new(7, 11), new(7, 10), new(7, 7), MapIds.Billies, "from_bar"),
+            (MapIds.Salon, new(6, 8), new(6, 7), new(6, 5), MapIds.EastEntry, "from_salon"),
         };
 
         foreach (var (mapId, door, threshold, inside, target, spawn) in rooms)
@@ -539,6 +543,11 @@ public static class FarmArtTests
             (MapIds.GeneralStore, new(7, 8), new Rect2I(1, 1, 12, 3)),
             (MapIds.TownHall, new(20, 21), new Rect2I(0, 0, 0, 0)),
             (MapIds.Barn, new(8, 10), new Rect2I(0, 0, 0, 0)),
+            (MapIds.Motel, new(7, 8), new Rect2I(0, 0, 0, 0)),
+            (MapIds.GasStation, new(5, 7), new Rect2I(0, 0, 0, 0)),
+            // The back bar is sealed by construction, the store's precedent.
+            (MapIds.BilliesBar, new(7, 10), new Rect2I(1, 1, 8, 2)),
+            (MapIds.Salon, new(6, 7), new Rect2I(0, 0, 0, 0)),
         };
 
         foreach (var (mapId, from, sealedByDesign) in rooms)

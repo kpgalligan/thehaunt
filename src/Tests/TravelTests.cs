@@ -18,11 +18,17 @@ public static class TravelTests
         [MapIds.FarmHouse] = new[] { "default", "entry" },
         [MapIds.GeneralStore] = new[] { "default", "entry" },
         [MapIds.Barn] = new[] { "default", "entry" },
-        [MapIds.WestEntry] = new[] { "default", RoadWrap.ArrivalSpawn, "from_billies" },
-        [MapIds.Billies] = new[] { "default", "from_west_entry", "from_fork" },
+        [MapIds.WestEntry] = new[]
+            { "default", RoadWrap.ArrivalSpawn, "from_billies", "from_motel", "from_gas" },
+        [MapIds.Billies] = new[] { "default", "from_west_entry", "from_fork", "from_bar" },
         [MapIds.Fork] = new[] { "default", "from_billies", "from_town", "from_farm" },
         [MapIds.EastFork] = new[] { "default", "from_town", "from_east_entry" },
-        [MapIds.EastEntry] = new[] { "default", "from_east_fork", RoadWrap.ArrivalSpawn },
+        [MapIds.EastEntry] = new[]
+            { "default", "from_east_fork", RoadWrap.ArrivalSpawn, "from_salon" },
+        [MapIds.Motel] = new[] { "default", "entry" },
+        [MapIds.GasStation] = new[] { "default", "entry" },
+        [MapIds.BilliesBar] = new[] { "default", "entry" },
+        [MapIds.Salon] = new[] { "default", "entry" },
     };
 
     [SimTest]

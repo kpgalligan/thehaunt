@@ -59,8 +59,11 @@
 4. Calendar events (festivals? malevolence-driven "bad nights"?). TBD later. The periodic
    tribute demand (now canon) will need a cadence and a cost.
 5. Names: the town and the malevolence itself stay unnamed — do not invent. `docs/story/README.md`
-   (Kevin, 2026-08-26) is the expanding lore doc and now names some cast (Jane, Billie, Bud, Sam,
-   Abe) and the road-strip locations; anything not named there is still TBD.
+   (Kevin, 2026-08-26) is the expanding lore doc and names Jane, Billie, Bud, Sam, Abe;
+   `docs/story/cast.md` (2026-08-27, written under Kevin's fill-in-the-blanks commission)
+   proposes the rest of the road-strip cast (Walt, Dennis, Gloria, Mr. Pell, the bar
+   shifts) — pending Kevin's review. The intro cast (mayor, foreman, crew, shopkeeper)
+   remains role-labeled and unnamed.
 
 ## Systems roadmap
 
@@ -77,9 +80,13 @@
   strip from `docs/story/README.md` — west_entry, billies (+ the covered pit), fork,
   east_fork (Abe's shack, chained mansion drive), east_entry — as placeholder-art maps,
   the farm rerouted through the fork, and the leave-town wrap (west edge ⇄ east edge)
-  implemented and walk-tested. Still remaining: connections/relationship mechanics,
-  enlarging the town centre (clinic, Stumble Inn, homes, fountain square), interiors and
-  NPCs for the new frames.
+  implemented and walk-tested. 2026-08-27 (Kevin's fill-in-the-blanks commission): the
+  road-strip cast — 14 ambient NPCs with schedules, flag/time-aware dialogue, and four
+  interiors (Billie's bar room with the three drunk shifts, the motel lobby, the gas
+  station shop, Sam's salon); names/voices proposed in `docs/story/cast.md`, pending
+  review. Still remaining: connections/relationship mechanics, enlarging the town centre
+  (clinic, Stumble Inn, homes, fountain square), shop catalogs for the gas station and
+  fireworks stand, haircuts.
 - **Phase 4 — Mining & fishing**: plus the unique specialties (design with Kevin first).
 - **Phase 5 — The malevolence**: entity manifestations, combat, weapons/special items,
   quest framework, escalation, endgame.

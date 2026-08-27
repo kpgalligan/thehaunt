@@ -29,6 +29,10 @@ public partial class WestEntryMap : ExteriorMap
     private const int GasLeft = 24, GasTop = 18, GasRight = 29, GasBottom = 20;
     private const int StandLeft = 33, StandTop = 10, StandRight = 35, StandBottom = 11;
 
+    // Door cells sit on each face's bottom row, under the drawn doorway (the
+    // placeholder draws its door centred, straddling these columns).
+    private const int MotelDoorX = 12, GasDoorX = 26;
+
     private static readonly Vector2I Lamp = new(18, 12);
 
     public override void _EnterTree()
@@ -66,13 +70,17 @@ public partial class WestEntryMap : ExteriorMap
         Fill(MotelLeft, MotelTop, MotelRight, MotelBottom + 1, Surface.Gravel);
         Fill(GasLeft, GasTop, GasRight, GasBottom + 1, Surface.Gravel);
         Fill(StandLeft, StandTop, StandRight, StandBottom + 1, Surface.Gravel);
+
+        // The motel's door path down to the road; the drawn double door straddles
+        // x12/x13, so the path is two tiles wide (the town hall's precedent).
+        Fill(MotelDoorX, MotelBottom + 1, MotelDoorX + 1, 13, Surface.Dirt);
     }
 
     private void BuildObstacles(TileSet tileSet)
     {
         var obstacles = new TileMapLayer { Name = "Obstacles", TileSet = tileSet };
-        Block(obstacles, MotelLeft, MotelTop, MotelRight, MotelBottom);
-        Block(obstacles, GasLeft, GasTop, GasRight, GasBottom);
+        Block(obstacles, MotelLeft, MotelTop, MotelRight, MotelBottom, MotelDoorX, MotelBottom);
+        Block(obstacles, GasLeft, GasTop, GasRight, GasBottom, GasDoorX, GasBottom);
         Block(obstacles, StandLeft, StandTop, StandRight, StandBottom);
         obstacles.SetCell(Lamp, 0, TerrainTiles.Blocker);
         AddChild(obstacles);
@@ -116,6 +124,8 @@ public partial class WestEntryMap : ExteriorMap
         spawns.AddChild(SpawnMarker("default", 24, 15));
         spawns.AddChild(SpawnMarker(RoadWrap.ArrivalSpawn, 2, 15));
         spawns.AddChild(SpawnMarker("from_billies", 45, 15));
+        spawns.AddChild(SpawnMarker("from_motel", MotelDoorX, MotelBottom + 1));
+        spawns.AddChild(SpawnMarker("from_gas", GasDoorX, GasBottom + 1));
         AddChild(spawns);
     }
 
@@ -132,8 +142,9 @@ public partial class WestEntryMap : ExteriorMap
         {
             Name = "GasSign",
             // South of the footprint: a sign north of a south-of-road building lands
-            // inside its drawn face and Y-sorts invisible.
-            Position = new Vector2(26 * TileSize + 8, 21 * TileSize + 8),
+            // inside its drawn face and Y-sorts invisible. East of the doorway so the
+            // door approach stays clear.
+            Position = new Vector2(28 * TileSize + 8, 21 * TileSize + 8),
             Message = "Gas.",
         });
         AddChild(new Sign
@@ -149,5 +160,24 @@ public partial class WestEntryMap : ExteriorMap
         // The road out. It goes exactly where the story says it goes.
         AddRoadExit("WestExit", RoadWrap.PastTheWestEdgeMap, RoadWrap.ArrivalSpawn, 0, RoadTop);
         AddRoadExit("EastExit", MapIds.Billies, "from_west_entry", Width - 1, RoadTop);
+
+        // Both doorways are drawn into their placeholder faces, so the Door nodes
+        // contribute their blocker and their prompt only.
+        AddChild(new Door
+        {
+            Name = "MotelDoor",
+            TargetMapId = MapIds.Motel,
+            TargetSpawnId = "entry",
+            DrawPlaceholder = false,
+            Position = new Vector2(MotelDoorX * TileSize + 8, MotelBottom * TileSize + 8),
+        });
+        AddChild(new Door
+        {
+            Name = "GasDoor",
+            TargetMapId = MapIds.GasStation,
+            TargetSpawnId = "entry",
+            DrawPlaceholder = false,
+            Position = new Vector2(GasDoorX * TileSize + 8, GasBottom * TileSize + 8),
+        });
     }
 }
