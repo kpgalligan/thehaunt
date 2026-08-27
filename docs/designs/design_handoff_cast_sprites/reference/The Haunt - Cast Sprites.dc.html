@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,400;6..72,600&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  body{margin:0;background:#f4efe4}
+  a{color:#6b4560}
+  a:hover{color:#a4432f}
+  @keyframes walkD{from{background-position-x:-128px}to{background-position-x:-384px}}
+  @keyframes idleD{from{background-position-x:0}to{background-position-x:-128px}}
+</style>
+</helmet>
+
+<div style="max-width:1060px;margin:0 auto;padding:56px 40px 96px;font-family:Newsreader,serif">
+
+  <div style="font:400 13px/1 'JetBrains Mono',monospace;letter-spacing:0.14em;text-transform:uppercase;color:#6b4560;margin:0 0 10px">Character art · pass 2 · built against docs/story/cast.md</div>
+  <h1 style="font:400 42px/1.1 Newsreader,serif;color:#1c1c1a;margin:0 0 14px;letter-spacing:-0.015em">The cast, dressed for now</h1>
+  <p style="font:400 17px/1.62 Newsreader,serif;color:#2b2925;max-width:36em;margin:0 0 8px">The town looks like 1958 because nothing new has been built in it. The people don't. Every sprite here wears something you could buy this year, cheap and off a rack: tees, jeans, ball caps, a hoodie, a cardigan, a hi-vis vest, a work apron. No waistcoats, no long aprons, no bonnets.</p>
+  <p style="font:400 17px/1.62 Newsreader,serif;color:#2b2925;max-width:36em;margin:0 0 40px">Spec is unchanged: 16×32 cells, feet on the bottom row, full <span style="font:400 15px/1 'JetBrains Mono',monospace">ink-700</span> outline, three directions with right mirrored from left, 2-frame idle at 1.5fps and 4-frame walk at 8fps. Nothing in the engine changes — these are file drops.</p>
+
+  <div style="background:#4a7c3a;border:1px solid #1c1c1a33;padding:34px 36px 30px;margin:0 0 12px">
+    <div style="font:700 11px/1 'JetBrains Mono',monospace;letter-spacing:0.12em;color:#ede3cb;margin:0 0 22px">JANE — PLAYER · art/character.png</div>
+    <div style="display:flex;gap:44px;align-items:flex-end;flex-wrap:wrap">
+      <div style="text-align:center">
+        <div style="width:64px;height:128px;background-image:url(art/character.png);background-size:384px 384px;background-repeat:no-repeat;background-position:0 0;image-rendering:pixelated;animation:idleD 1.34s steps(2) infinite"></div>
+        <div style="font:700 10px/1 'JetBrains Mono',monospace;letter-spacing:0.1em;color:#ede3cb;margin-top:14px">IDLE</div>
+      </div>
+      <div style="text-align:center">
+        <div style="width:64px;height:128px;background-image:url(art/character.png);background-size:384px 384px;background-repeat:no-repeat;background-position:0 0;image-rendering:pixelated;animation:walkD 0.5s steps(4) infinite"></div>
+        <div style="font:700 10px/1 'JetBrains Mono',monospace;letter-spacing:0.1em;color:#ede3cb;margin-top:14px">DOWN</div>
+      </div>
+      <div style="text-align:center">
+        <div style="width:64px;height:128px;background-image:url(art/character.png);background-size:384px 384px;background-repeat:no-repeat;background-position:0 -128px;image-rendering:pixelated;animation:walkD 0.5s steps(4) infinite"></div>
+        <div style="font:700 10px/1 'JetBrains Mono',monospace;letter-spacing:0.1em;color:#ede3cb;margin-top:14px">LEFT</div>
+      </div>
+      <div style="text-align:center">
+        <div style="width:64px;height:128px;background-image:url(art/character.png);background-size:384px 384px;background-repeat:no-repeat;background-position:0 -128px;image-rendering:pixelated;transform:scaleX(-1);animation:walkD 0.5s steps(4) infinite"></div>
+        <div style="font:700 10px/1 'JetBrains Mono',monospace;letter-spacing:0.1em;color:#ede3cb;margin-top:14px">RIGHT · MIRRORED</div>
+      </div>
+      <div style="text-align:center">
+        <div style="width:64px;height:128px;background-image:url(art/character.png);background-size:384px 384px;background-repeat:no-repeat;background-position:0 -256px;image-rendering:pixelated;animation:walkD 0.5s steps(4) infinite"></div>
+        <div style="font:700 10px/1 'JetBrains Mono',monospace;letter-spacing:0.1em;color:#ede3cb;margin-top:14px">UP</div>
+      </div>
+      <div style="text-align:center">
+        <div style="width:288px;height:288px;background-image:url(art/character.png);background-size:288px 288px;image-rendering:pixelated"></div>
+        <div style="font:700 10px/1 'JetBrains Mono',monospace;letter-spacing:0.1em;color:#ede3cb;margin-top:14px">FULL SHEET · 3×</div>
+      </div>
+    </div>
+  </div>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:0 0 56px">
+    <div style="border:1px solid #1c1c1a26;padding:18px 20px 20px">
+      <div style="font:400 20px/1.2 Newsreader,serif;color:#1c1c1a;margin-bottom:8px">What Jane wears, and why</div>
+      <div style="font:400 15px/1.55 Newsreader,serif;color:#2b2925">A cream tee under an open olive chore shirt, straight jeans, dark boots. Nothing she bought for the farm — this is what a laid-off city woman packs into a trailer, and it happens to be what she grew up working in. Narrow build: shoulders two pixels inside the cell, one narrower than the men, so she reads slighter than the crowd at Billie's.</div>
+    </div>
+    <div style="border:1px solid #1c1c1a26;padding:18px 20px 20px">
+      <div style="font:400 20px/1.2 Newsreader,serif;color:#1c1c1a;margin-bottom:8px">The ponytail is the silhouette</div>
+      <div style="font:400 15px/1.55 Newsreader,serif;color:#2b2925">Auburn, low, and drawn on all three facings — from behind it runs down the jacket, in profile it clears the collar. A player spends most of the game looking at her back. Cream at the chest is the value anchor; the olive keeps her out of a fight with the grass; jeans are her only saturated block.</div>
+    </div>
+  </div>
+
+  <h2 style="font:400 13px/1 'JetBrains Mono',monospace;letter-spacing:0.14em;text-transform:uppercase;color:#6b4560;margin:0 0 6px">West entry — the strangers' frame</h2>
+  <p style="font:400 16px/1.6 Newsreader,serif;color:#2b2925;max-width:36em;margin:0 0 20px">art/cast_west.png · 384×96 · blocks at x = 0, 96, 192, 288</p>
+  <div style="background:#3e4241;border:1px solid #1c1c1a33;padding:30px 34px 26px;margin:0 0 44px">
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:28px">
+      <div style="text-align:center">
+        <div style="width:64px;height:128px;margin:0 auto;background-image:url(art/cast_walt.png);background-size:384px 384px;background-repeat:no-repeat;image-rendering:pixelated;animation:walkD 0.5s steps(4) infinite"></div>
+        <div style="font:700 10px/1.5 'JetBrains Mono',monospace;letter-spacing:0.08em;color:#ede3cb;margin-top:14px">WALT · MOTEL</div>
+        <div style="font:400 13px/1.45 Newsreader,serif;color:#b8b5a5;margin-top:4px">Grey and thinning, brown windbreaker never taken off, pale shirt, dark slacks. Weathered skin tone and a one-pixel stoop — the only two things doing the drinking.</div>
+      </div>
+      <div style="text-align:center">
+        <div style="width:64px;height:128px;margin:0 auto;background-image:url(art/cast_dennis.png);background-size:384px 384px;background-repeat:no-repeat;image-rendering:pixelated;animation:walkD 0.5s steps(4) infinite"></div>
+        <div style="font:700 10px/1.5 'JetBrains Mono',monospace;letter-spacing:0.08em;color:#ede3cb;margin-top:14px">DENNIS · GAS STATION</div>
+        <div style="font:400 13px/1.45 Newsreader,serif;color:#b8b5a5;margin-top:4px">Slim, grey zip hoodie over a dark tee, dark jeans, a mop of unwashed hair wider than his head. The only sprite in town wearing this decade on purpose.</div>
+      </div>
+      <div style="text-align:center">
+        <div style="width:64px;height:128px;margin:0 auto;background-image:url(art/cast_gloria.png);background-size:384px 384px;background-repeat:no-repeat;image-rendering:pixelated;animation:walkD 0.5s steps(4) infinite"></div>
+        <div style="font:700 10px/1.5 'JetBrains Mono',monospace;letter-spacing:0.08em;color:#ede3cb;margin-top:14px">GLORIA · FIREWORKS</div>
+        <div style="font:400 13px/1.45 Newsreader,serif;color:#b8b5a5;margin-top:4px">Silver braid down her back, rust cardigan over cream, denim skirt, boots. The braid is her read from behind; the rust is the warmest colour on the road and she is the only one allowed it.</div>
+      </div>
+      <div style="text-align:center">
+        <div style="width:64px;height:128px;margin:0 auto;background-image:url(art/cast_pell.png);background-size:384px 384px;background-repeat:no-repeat;image-rendering:pixelated;animation:walkD 0.5s steps(4) infinite"></div>
+        <div style="font:700 10px/1.5 'JetBrains Mono',monospace;letter-spacing:0.08em;color:#ede3cb;margin-top:14px">MR. PELL · MOTEL GUEST</div>
+        <div style="font:400 13px/1.45 Newsreader,serif;color:#b8b5a5;margin-top:4px">Charcoal sport coat, white shirt, dark tie, neat part. Three weeks into a one-night stay and not one pixel is rumpled. That is the tell — no dread accent on him at all.</div>
+      </div>
+    </div>
+  </div>
+
+  <h2 style="font:400 13px/1 'JetBrains Mono',monospace;letter-spacing:0.14em;text-transform:uppercase;color:#6b4560;margin:0 0 6px">Billie's — the locals' frame</h2>
+  <p style="font:400 16px/1.6 Newsreader,serif;color:#2b2925;max-width:36em;margin:0 0 20px">art/cast_billies.png · 768×96 · eight blocks, order as below. The shifts blur at the edges, so no two adjacent drinkers share a head shape or a torso colour.</p>
+  <div style="background:#2b241d;border:1px solid #1c1c1a33;padding:30px 34px 26px;margin:0 0 12px">
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:28px">
+      <div style="text-align:center">
+        <div style="width:64px;height:128px;margin:0 auto;background-image:url(art/cast_billie.png);background-size:384px 384px;background-repeat:no-repeat;image-rendering:pixelated;animation:walkD 0.5s steps(4) infinite"></div>
+        <div style="font:700 10px/1.5 'JetBrains Mono',monospace;letter-spacing:0.08em;color:#ede3cb;margin-top:14px">BILLIE · OWNER</div>
+        <div style="font:400 13px/1.45 Newsreader,serif;color:#b8b5a5;margin-top:4px">Dark tee, grey bar apron, black trousers, stoop. The patch is a 2×2 block over his left eye with a one-pixel strap — visible at 1× without turning his face into a smear.</div>
+      </div>
+      <div style="text-align:center">
+        <div style="width:64px;height:128px;margin:0 auto;background-image:url(art/cast_bud.png);background-size:384px 384px;background-repeat:no-repeat;image-rendering:pixelated;animation:walkD 0.5s steps(4) infinite"></div>
+        <div style="font:700 10px/1.5 'JetBrains Mono',monospace;letter-spacing:0.08em;color:#ede3cb;margin-top:14px">BUD · END OF THE BAR</div>
+        <div style="font:400 13px/1.45 Newsreader,serif;color:#b8b5a5;margin-top:4px">Dark green ball cap, white beard, rust flannel over a pale shirt, jeans. The cap has no insignia and never will — the war stays unnamed in the art too.</div>
+      </div>
+      <div style="text-align:center">
+        <div style="width:64px;height:128px;margin:0 auto;background-image:url(art/cast_pete.png);background-size:384px 384px;background-repeat:no-repeat;image-rendering:pixelated;animation:walkD 0.5s steps(4) infinite"></div>
+        <div style="font:700 10px/1.5 'JetBrains Mono',monospace;letter-spacing:0.08em;color:#ede3cb;margin-top:14px">PETE · MORNING</div>
+        <div style="font:400 13px/1.45 Newsreader,serif;color:#b8b5a5;margin-top:4px">Bald with a grey fringe, wire glasses, pale cardigan over a blue shirt, khakis. Retired-postman tidy.</div>
+      </div>
+      <div style="text-align:center">
+        <div style="width:64px;height:128px;margin:0 auto;background-image:url(art/cast_moody.png);background-size:384px 384px;background-repeat:no-repeat;image-rendering:pixelated;animation:walkD 0.5s steps(4) infinite"></div>
+        <div style="font:700 10px/1.5 'JetBrains Mono',monospace;letter-spacing:0.08em;color:#ede3cb;margin-top:14px">MOODY · MORNING</div>
+        <div style="font:400 13px/1.45 Newsreader,serif;color:#b8b5a5;margin-top:4px">Brown mop, green polo, brown work trousers. Broadest torso of the morning shift and the friendliest palette — gone by three.</div>
+      </div>
+      <div style="text-align:center">
+        <div style="width:64px;height:128px;margin:0 auto;background-image:url(art/cast_lyle.png);background-size:384px 384px;background-repeat:no-repeat;image-rendering:pixelated;animation:walkD 0.5s steps(4) infinite"></div>
+        <div style="font:700 10px/1.5 'JetBrains Mono',monospace;letter-spacing:0.08em;color:#ede3cb;margin-top:14px">LYLE · AFTERNOON</div>
+        <div style="font:400 13px/1.45 Newsreader,serif;color:#b8b5a5;margin-top:4px">White brimmed cap, tan work shirt, jeans. Odd-jobs man dressed for a job he may or may not have today.</div>
+      </div>
+      <div style="text-align:center">
+        <div style="width:64px;height:128px;margin:0 auto;background-image:url(art/cast_harriet.png);background-size:384px 384px;background-repeat:no-repeat;image-rendering:pixelated;animation:walkD 0.5s steps(4) infinite"></div>
+        <div style="font:700 10px/1.5 'JetBrains Mono',monospace;letter-spacing:0.08em;color:#ede3cb;margin-top:14px">HARRIET · AFTERNOON</div>
+        <div style="font:400 13px/1.45 Newsreader,serif;color:#b8b5a5;margin-top:4px">Grey hair pinned up, glasses, navy blouse under a grey cardigan, dark skirt. Dressed as though the school still expects her.</div>
+      </div>
+      <div style="text-align:center">
+        <div style="width:64px;height:128px;margin:0 auto;background-image:url(art/cast_ray.png);background-size:384px 384px;background-repeat:no-repeat;image-rendering:pixelated;animation:walkD 0.5s steps(4) infinite"></div>
+        <div style="font:700 10px/1.5 'JetBrains Mono',monospace;letter-spacing:0.08em;color:#ede3cb;margin-top:14px">RAY · EVENING</div>
+        <div style="font:400 13px/1.45 Newsreader,serif;color:#b8b5a5;margin-top:4px">Cropped hair, dust-grey tee, tan work trousers, boots. Deliberately no hi-vis — he takes the vest off before he comes in.</div>
+      </div>
+      <div style="text-align:center">
+        <div style="width:64px;height:128px;margin:0 auto;background-image:url(art/cast_nora.png);background-size:384px 384px;background-repeat:no-repeat;image-rendering:pixelated;animation:walkD 0.5s steps(4) infinite"></div>
+        <div style="font:700 10px/1.5 'JetBrains Mono',monospace;letter-spacing:0.08em;color:#ede3cb;margin-top:14px">NORA · EVENING</div>
+        <div style="font:400 13px/1.45 Newsreader,serif;color:#b8b5a5;margin-top:4px">Loose brown hair past the shoulders, pale green blouse, jeans, light sneakers. The one person in the room who came for company, and the palette says so.</div>
+      </div>
+    </div>
+  </div>
+  <p style="font:400 14px/1.6 'JetBrains Mono',monospace;color:#6f6a63;margin:0 0 44px">billie · bud · pete · moody · lyle · harriet · ray · nora</p>
+
+  <h2 style="font:400 13px/1 'JetBrains Mono',monospace;letter-spacing:0.14em;text-transform:uppercase;color:#6b4560;margin:0 0 6px">East entry and the fork</h2>
+  <p style="font:400 16px/1.6 Newsreader,serif;color:#2b2925;max-width:36em;margin:0 0 20px">art/cast_east.png · 192×96 · sam, abe</p>
+  <div style="background:#575a58;border:1px solid #1c1c1a33;padding:30px 34px 26px;margin:0 0 44px">
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:28px">
+      <div style="text-align:center">
+        <div style="width:64px;height:128px;margin:0 auto;background-image:url(art/cast_sam.png);background-size:384px 384px;background-repeat:no-repeat;image-rendering:pixelated;animation:walkD 0.5s steps(4) infinite"></div>
+        <div style="font:700 10px/1.5 'JetBrains Mono',monospace;letter-spacing:0.08em;color:#ede3cb;margin-top:14px">SAM · SALON</div>
+        <div style="font:400 13px/1.45 Newsreader,serif;color:#171310;margin-top:4px">A grey cutting smock to the hip, cropped black hair, dark trousers. Built to refuse the question: narrow frame, no waist, no chest line, no hair length. The smock is the whole silhouette.</div>
+      </div>
+      <div style="text-align:center">
+        <div style="width:64px;height:128px;margin:0 auto;background-image:url(art/cast_abe.png);background-size:384px 384px;background-repeat:no-repeat;image-rendering:pixelated;animation:walkD 0.5s steps(4) infinite"></div>
+        <div style="font:700 10px/1.5 'JetBrains Mono',monospace;letter-spacing:0.08em;color:#ede3cb;margin-top:14px">ABE · THE SHACK</div>
+        <div style="font:400 13px/1.45 Newsreader,serif;color:#171310;margin-top:4px">Brown watch cap, white beard, dark green coat over a tan shirt, brown trousers. Layered but square and clean — twenty years outside and not one thing about him is ragged.</div>
+      </div>
+    </div>
+  </div>
+
+  <h2 style="font:400 13px/1 'JetBrains Mono',monospace;letter-spacing:0.14em;text-transform:uppercase;color:#6b4560;margin:0 0 6px">Town centre — the five roles already in code</h2>
+  <p style="font:400 16px/1.6 Newsreader,serif;color:#2b2925;max-width:36em;margin:0 0 20px">art/cast_town.png · 480×96 · the ids in <span style="font:400 14px/1 'JetBrains Mono',monospace">src/Core/NpcDefs.cs</span>, in <span style="font:400 14px/1 'JetBrains Mono',monospace">All</span> order. These are the phase-3 beat roles, not road-strip cast — they have no names in cast.md and none here.</p>
+  <div style="background:#3e4241;border:1px solid #1c1c1a33;padding:30px 34px 26px;margin:0 0 12px">
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(155px,1fr));gap:26px">
+      <div style="text-align:center">
+        <div style="width:64px;height:128px;margin:0 auto;background-image:url(art/cast_mayor.png);background-size:384px 384px;background-repeat:no-repeat;image-rendering:pixelated;animation:walkD 0.5s steps(4) infinite"></div>
+        <div style="font:700 10px/1.5 'JetBrains Mono',monospace;letter-spacing:0.08em;color:#ede3cb;margin-top:14px">MAYOR</div>
+        <div style="font:400 13px/1.45 Newsreader,serif;color:#b8b5a5;margin-top:4px">Navy polo, khakis, grey hair. A notch above everyone, and only a notch.</div>
+      </div>
+      <div style="text-align:center">
+        <div style="width:64px;height:128px;margin:0 auto;background-image:url(art/cast_foreman.png);background-size:384px 384px;background-repeat:no-repeat;image-rendering:pixelated;animation:walkD 0.5s steps(4) infinite"></div>
+        <div style="font:700 10px/1.5 'JetBrains Mono',monospace;letter-spacing:0.08em;color:#ede3cb;margin-top:14px">FOREMAN</div>
+        <div style="font:400 13px/1.45 Newsreader,serif;color:#b8b5a5;margin-top:4px">White hard hat, hi-vis over grey. The hat is his read at distance.</div>
+      </div>
+      <div style="text-align:center">
+        <div style="width:64px;height:128px;margin:0 auto;background-image:url(art/cast_crew_worker_a.png);background-size:384px 384px;background-repeat:no-repeat;image-rendering:pixelated;animation:walkD 0.5s steps(4) infinite"></div>
+        <div style="font:700 10px/1.5 'JetBrains Mono',monospace;letter-spacing:0.08em;color:#ede3cb;margin-top:14px">REPAIR WORKER A</div>
+        <div style="font:400 13px/1.45 Newsreader,serif;color:#b8b5a5;margin-top:4px">Ball cap, blue tee, grey work pants.</div>
+      </div>
+      <div style="text-align:center">
+        <div style="width:64px;height:128px;margin:0 auto;background-image:url(art/cast_crew_worker_b.png);background-size:384px 384px;background-repeat:no-repeat;image-rendering:pixelated;animation:walkD 0.5s steps(4) infinite"></div>
+        <div style="font:700 10px/1.5 'JetBrains Mono',monospace;letter-spacing:0.08em;color:#ede3cb;margin-top:14px">REPAIR WORKER B</div>
+        <div style="font:400 13px/1.45 Newsreader,serif;color:#b8b5a5;margin-top:4px">Woman, hair in a bun, hi-vis over green. Same crew, different silhouette.</div>
+      </div>
+      <div style="text-align:center">
+        <div style="width:64px;height:128px;margin:0 auto;background-image:url(art/cast_shopkeeper.png);background-size:384px 384px;background-repeat:no-repeat;image-rendering:pixelated;animation:walkD 0.5s steps(4) infinite"></div>
+        <div style="font:700 10px/1.5 'JetBrains Mono',monospace;letter-spacing:0.08em;color:#ede3cb;margin-top:14px">SHOPKEEPER</div>
+        <div style="font:400 13px/1.45 Newsreader,serif;color:#b8b5a5;margin-top:4px">Button-down, canvas work apron, dark trousers.</div>
+      </div>
+    </div>
+  </div>
+  <p style="font:400 14px/1.6 'JetBrains Mono',monospace;color:#6f6a63;margin:0 0 56px">mayor · foreman · crew_worker_a · crew_worker_b · shopkeeper</p>
+
+  <h2 style="font:400 13px/1 'JetBrains Mono',monospace;letter-spacing:0.14em;text-transform:uppercase;color:#6b4560;margin:0 0 14px">Rules this pass established</h2>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:0 0 40px">
+    <div style="border:1px solid #1c1c1a26;padding:18px 20px 20px">
+      <div style="font:400 19px/1.25 Newsreader,serif;color:#1c1c1a;margin-bottom:8px">One head shape per character</div>
+      <div style="font:400 15px/1.55 Newsreader,serif;color:#2b2925">At 16px wide the head is the only reliable identifier: ponytail, braid, bun, long, mop, cropped, bald, brimmed cap, watch cap, hard hat, hood. Twenty characters, no repeats within a frame.</div>
+    </div>
+    <div style="border:1px solid #1c1c1a26;padding:18px 20px 20px">
+      <div style="font:400 19px/1.25 Newsreader,serif;color:#1c1c1a;margin-bottom:8px">Two garment colours per torso</div>
+      <div style="font:400 15px/1.55 Newsreader,serif;color:#2b2925">A shirt plus one layer — jacket, cardigan, vest, apron or smock — and a shade step. A third colour turns to noise the moment the sprite moves.</div>
+    </div>
+    <div style="border:1px solid #1c1c1a26;padding:18px 20px 20px">
+      <div style="font:400 19px/1.25 Newsreader,serif;color:#1c1c1a;margin-bottom:8px">No new palette slots</div>
+      <div style="font:400 15px/1.55 Newsreader,serif;color:#2b2925">Denim is <span style="font:400 13px/1 'JetBrains Mono',monospace">water-mid</span>/<span style="font:400 13px/1 'JetBrains Mono',monospace">water-deep</span>, hi-vis is <span style="font:400 13px/1 'JetBrains Mono',monospace">lantern</span>, flannel and cardigans are <span style="font:400 13px/1 'JetBrains Mono',monospace">barn-red</span>, auburn is <span style="font:400 13px/1 'JetBrains Mono',monospace">hair-stock</span> with a warm light step. Two slots stay reserved.</div>
+    </div>
+    <div style="border:1px solid #1c1c1a26;padding:18px 20px 20px">
+      <div style="font:400 19px/1.25 Newsreader,serif;color:#1c1c1a;margin-bottom:8px">Dread accents stay off people</div>
+      <div style="font:400 15px/1.55 Newsreader,serif;color:#2b2925"><span style="font:400 13px/1 'JetBrains Mono',monospace">plum</span>, <span style="font:400 13px/1 'JetBrains Mono',monospace">bile-green</span> and <span style="font:400 13px/1 'JetBrains Mono',monospace">bone</span> appear on no garment in Act I, Pell included. The first character to wear one is the reveal.</div>
+    </div>
+  </div>
+
+  <div style="border-left:2px solid #6b4560;padding:6px 0 6px 20px;margin:0 0 48px">
+    <div style="font:400 16px/1.62 Newsreader,serif;color:#2b2925;max-width:36em">Two deliberate omissions. The police station and hardware store are cast-empty per canon, so no sprites exist for them. The drive-in has no cast either. Nothing here spends a dread accent, and nothing here draws the pit.</div>
+  </div>
+
+  <h2 style="font:400 13px/1 'JetBrains Mono',monospace;letter-spacing:0.14em;text-transform:uppercase;color:#6b4560;margin:0 0 14px">Files</h2>
+  <pre style="font:400 14px/1.85 'JetBrains Mono',monospace;color:#2b2925;background:#1c1c1a0a;border:1px solid #1c1c1a1a;padding:20px 22px;margin:0;overflow-x:auto">art/character.png     96×96   Jane — replaces the old sheet in place
+art/cast_west.png     384×96  walt, dennis, gloria, pell
+art/cast_billies.png  768×96  billie, bud, pete, moody, lyle, harriet, ray, nora
+art/cast_east.png     192×96  sam, abe
+art/cast_town.png     480×96  mayor, foreman, crew_worker_a, crew_worker_b, shopkeeper
+art/cast_&lt;id&gt;.png     96×96   every character also shipped standalone (19 files)
+art/gen_cast.js       —       the generator: palette, part library, one spec per character</pre>
+  <p style="font:400 15px/1.6 Newsreader,serif;color:#2b2925;max-width:36em;margin:18px 0 0">Import settings unchanged: filter off, mipmaps off, no compression. Same cell grid, same facing encoding, same timings. Every sprite is generated from <span style="font:400 14px/1 'JetBrains Mono',monospace">gen_cast.js</span>, so a wardrobe change is a spec edit and a re-run, not a repaint.</p>
+
+</div>
+</x-dc>
+</body>
+</html>
