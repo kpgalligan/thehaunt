@@ -55,6 +55,11 @@ public static class OvernightSim
         // 3. Rest.
         data.Player.Stamina = data.Player.MaxStamina;
 
+        // 4. The scooter comes home (Kevin, 2026-08-27): wherever it was left — any
+        //    map, any tile, even mid-ride in a hand-edited save — it is parked outside
+        //    the farmhouse by morning. Never stolen, never lost overnight.
+        data.Scooter = ScooterData.AtHome();
+
         return new OvernightReport(cropsGrown, proceeds, sales);
     }
 }

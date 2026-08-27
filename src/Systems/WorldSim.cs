@@ -32,6 +32,9 @@ public partial class WorldSim : Node
     /// <summary>(mapId, spawnId) — Main subscribes once and owns the fade/swap flow.</summary>
     public event Action<string, string>? TravelRequested;
 
+    /// <summary>Mounted, dismounted, or the parked record moved.</summary>
+    public event Action? ScooterChanged;
+
     public event Action<DialogueSession>? DialogueStarted;
 
     /// <summary>After any non-finishing state change (advance or choice).</summary>
@@ -305,6 +308,76 @@ public partial class WorldSim : Node
     {
         SaveService.Instance.Current.Player.MapId = mapId;
         SyncNpcsNow();
+        SyncScooterNow();
+    }
+
+    public bool ScooterMounted => SaveService.Instance.Current.Scooter.Mounted;
+
+    /// <summary>
+    /// Mounts the parked scooter (handoff §Interactions: no ceremony — the caller
+    /// swaps nothing but position; the texture and speed follow the model). Gate:
+    /// player control, not already mounted, and the scooter is on the player's map.
+    /// True means the parked world object is gone and the player is riding.
+    /// </summary>
+    public bool MountScooter()
+    {
+        GameData data = SaveService.Instance.Current;
+        if (!GameState.Instance.PlayerHasControl || data.Scooter.Mounted
+            || data.Scooter.MapId != data.Player.MapId)
+        {
+            return false;
+        }
+        data.Scooter.Mounted = true;
+        SyncScooterNow();
+        ScooterChanged?.Invoke();
+        return true;
+    }
+
+    /// <summary>
+    /// Parks the ridden scooter on <paramref name="tile"/> of the player's current
+    /// map — the tile the rider is standing on (handoff: dismount spawns it there).
+    /// Safe no-op when not mounted.
+    /// </summary>
+    public bool DismountScooter(Vector2I tile, int facing) =>
+        ParkScooterAt(SaveService.Instance.Current.Player.MapId, tile, facing);
+
+    /// <summary>
+    /// The interior rule's entry point (handoff: never ridden indoors): Main parks the
+    /// scooter at the door the rider just walked through — on the OUTSIDE map — before
+    /// the interior loads. Refused when not mounted: only the rider parks it.
+    /// </summary>
+    public bool ParkScooterAt(string mapId, Vector2I tile, int facing)
+    {
+        GameData data = SaveService.Instance.Current;
+        if (!data.Scooter.Mounted)
+        {
+            return false;
+        }
+        data.Scooter.MapId = mapId;
+        data.Scooter.TileX = tile.X;
+        data.Scooter.TileY = tile.Y;
+        data.Scooter.Facing = Math.Clamp(facing, 0, 3);
+        data.Scooter.Mounted = false;
+        SyncScooterNow();
+        ScooterChanged?.Invoke();
+        return true;
+    }
+
+    /// <summary>
+    /// Pushes the scooter record to every live registered map: the map it is parked
+    /// on shows the view, every other map (and every map while mounted) shows none.
+    /// </summary>
+    public void SyncScooterNow()
+    {
+        ScooterData scooter = SaveService.Instance.Current.Scooter;
+        foreach (MapRoot map in _maps)
+        {
+            if (!map.IsQueuedForDeletion())
+            {
+                map.SyncScooter(
+                    !scooter.Mounted && scooter.MapId == map.MapId ? scooter : null);
+            }
+        }
     }
 
     public bool IsMapActive(string mapId) => FindRegisteredMap(mapId) != null;
@@ -608,8 +681,10 @@ public partial class WorldSim : Node
         InventoryChanged?.Invoke();
 
         // 4) AdvanceToDayStart fires no ten-minute ticks — dawn staging would otherwise
-        //    be stale until 6:10.
+        //    be stale until 6:10. The scooter restages too: OvernightSim just parked
+        //    it back home.
         SyncNpcsNow();
+        SyncScooterNow();
 
         // 5) Listeners (StoryDirector) see a fully repainted, restaged world.
         foreach (string flagId in newFlags)
@@ -656,6 +731,7 @@ public partial class WorldSim : Node
         }
 
         SyncNpcsNow();
+        SyncScooterNow();
     }
 
     private MapRoot? FindRegisteredMap(string mapId)

@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,300;0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  body { margin: 0; background: #e7e4db; }
+  a { color: #6b4560; text-decoration: underline; text-underline-offset: 2px; }
+  a:hover { color: #a4432f; }
+  img { image-rendering: pixelated; }
+  @keyframes walkDown { from { background-position: -128px 0px; } to { background-position: -384px 0px; } }
+  @keyframes walkSide { from { background-position: -128px -128px; } to { background-position: -384px -128px; } }
+  @keyframes walkUp { from { background-position: -128px -256px; } to { background-position: -384px -256px; } }
+  @keyframes idleDown { from { background-position: 0px 0px; } to { background-position: -128px 0px; } }
+  @keyframes flame { from { background-position: -384px 0px; } to { background-position: -640px 0px; } }
+</style>
+</helmet>
+
+<div style="min-height:100vh;background:#f1efe9;padding:56px 60px 90px;font-family:Newsreader,serif">
+<div style="max-width:1180px;margin:0 auto">
+
+  <div style="font:500 11px/1 'JetBrains Mono',monospace;letter-spacing:0.14em;text-transform:uppercase;color:#6b4560">The Haunt · Placeholder Art Kit · v1</div>
+  <h1 style="font:300 52px/1.04 Newsreader,serif;color:#1c1c1a;margin:16px 0 0;letter-spacing:-0.02em">Free art, in the game today</h1>
+  <p style="font:400 17px/1.62 Newsreader,serif;color:#3a3733;max-width:36em;margin:18px 0 0">Every pixel here is authored against the thirty-color palette from the art direction bible. Native 16px, no scaling, no off-palette colors. It is placeholder work — the silhouettes are simple and the buildings are plain — but it is <em>palette-correct</em> placeholder work, which means the commissioned art will drop in beside it without a re-lay, and anything you replace is a visible upgrade rather than a rewrite.</p>
+
+  <div style="display:flex;gap:34px;margin:30px 0 0;padding:18px 0 0;border-top:1px solid #1c1c1a26">
+    <div><div style="font:700 11px/1 'JetBrains Mono',monospace;letter-spacing:0.1em;color:#6b4560">TILES</div><div style="font:400 26px/1.1 Newsreader,serif;color:#1c1c1a;margin-top:6px">55</div></div>
+    <div><div style="font:700 11px/1 'JetBrains Mono',monospace;letter-spacing:0.1em;color:#6b4560">SPRITES</div><div style="font:400 26px/1.1 Newsreader,serif;color:#1c1c1a;margin-top:6px">27</div></div>
+    <div><div style="font:700 11px/1 'JetBrains Mono',monospace;letter-spacing:0.1em;color:#6b4560">CHAR FRAMES</div><div style="font:400 26px/1.1 Newsreader,serif;color:#1c1c1a;margin-top:6px">18</div></div>
+    <div><div style="font:700 11px/1 'JetBrains Mono',monospace;letter-spacing:0.1em;color:#6b4560">OFF-PALETTE</div><div style="font:400 26px/1.1 Newsreader,serif;color:#1c1c1a;margin-top:6px">0</div></div>
+    <div><div style="font:700 11px/1 'JetBrains Mono',monospace;letter-spacing:0.1em;color:#6b4560">COST</div><div style="font:400 26px/1.1 Newsreader,serif;color:#1c1c1a;margin-top:6px">$0</div></div>
+  </div>
+
+  <h2 style="font:400 13px/1 'JetBrains Mono',monospace;letter-spacing:0.14em;text-transform:uppercase;color:#6b4560;margin:56px 0 14px">Assembled — 480 × 270, the recommended viewport</h2>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:22px">
+    <div>
+      <img src="art/scene_day.png" style="width:100%;display:block;border:1px solid #1c1c1a33" alt="Town at midday">
+      <div style="font:400 13px/1.5 'JetBrains Mono',monospace;color:#6f6a63;margin-top:8px">Midday — reference state, no tint</div>
+    </div>
+    <div>
+      <img src="art/scene_dusk.png" style="width:100%;display:block;border:1px solid #1c1c1a33" alt="Town at dusk">
+      <div style="font:400 13px/1.5 'JetBrains Mono',monospace;color:#6f6a63;margin-top:8px">18:00 — #c4703f multiply 44%, additive lantern falloff</div>
+    </div>
+  </div>
+  <p style="font:400 16px/1.6 Newsreader,serif;color:#2b2925;max-width:40em;margin:16px 0 0">Same tiles, same sprites, one tint layer and six light sprites between them. That difference is the whole §04 lighting model, and it is the cheapest atmosphere the game will ever buy.</p>
+
+  <h2 style="font:400 13px/1 'JetBrains Mono',monospace;letter-spacing:0.14em;text-transform:uppercase;color:#6b4560;margin:56px 0 14px">Character — 16 × 32, 4-frame walk at 8fps</h2>
+  <div style="display:flex;gap:40px;align-items:flex-end;background:#4a7c3a;border:1px solid #1c1c1a33;padding:28px 34px 24px">
+    <div style="text-align:center">
+      <div style="width:64px;height:128px;background-image:url(art/character.png);background-size:384px 384px;background-repeat:no-repeat;image-rendering:pixelated;animation:walkDown 0.5s steps(4) infinite"></div>
+      <div style="font:700 10px/1 'JetBrains Mono',monospace;letter-spacing:0.1em;color:#ede3cb;margin-top:12px">DOWN</div>
+    </div>
+    <div style="text-align:center">
+      <div style="width:64px;height:128px;background-image:url(art/character.png);background-size:384px 384px;background-repeat:no-repeat;image-rendering:pixelated;animation:walkSide 0.5s steps(4) infinite"></div>
+      <div style="font:700 10px/1 'JetBrains Mono',monospace;letter-spacing:0.1em;color:#ede3cb;margin-top:12px">LEFT</div>
+    </div>
+    <div style="text-align:center">
+      <div style="width:64px;height:128px;background-image:url(art/character.png);background-size:384px 384px;background-repeat:no-repeat;image-rendering:pixelated;animation:walkSide 0.5s steps(4) infinite;transform:scaleX(-1)"></div>
+      <div style="font:700 10px/1 'JetBrains Mono',monospace;letter-spacing:0.1em;color:#ede3cb;margin-top:12px">RIGHT · MIRRORED</div>
+    </div>
+    <div style="text-align:center">
+      <div style="width:64px;height:128px;background-image:url(art/character.png);background-size:384px 384px;background-repeat:no-repeat;image-rendering:pixelated;animation:walkUp 0.5s steps(4) infinite"></div>
+      <div style="font:700 10px/1 'JetBrains Mono',monospace;letter-spacing:0.1em;color:#ede3cb;margin-top:12px">UP</div>
+    </div>
+    <div style="text-align:center">
+      <div style="width:64px;height:128px;background-image:url(art/character.png);background-size:384px 384px;background-repeat:no-repeat;image-rendering:pixelated;animation:idleDown 1.34s steps(2) infinite"></div>
+      <div style="font:700 10px/1 'JetBrains Mono',monospace;letter-spacing:0.1em;color:#ede3cb;margin-top:12px">IDLE · 1.5FPS</div>
+    </div>
+    <div style="text-align:center;margin-left:6px">
+      <div style="width:64px;height:64px;background-image:url(art/lights.png);background-size:640px 256px;background-repeat:no-repeat;image-rendering:pixelated;animation:flame 0.67s steps(4) infinite"></div>
+      <div style="font:700 10px/1 'JetBrains Mono',monospace;letter-spacing:0.1em;color:#ede3cb;margin-top:12px">FLAME</div>
+    </div>
+  </div>
+  <p style="font:400 16px/1.6 Newsreader,serif;color:#2b2925;max-width:40em;margin:16px 0 0">Right is a horizontal flip of left, so the sheet holds three directions. The silhouette carries the read at this size — brim, coat, boots — exactly as §06 specifies, and the walk uses contact / pass / contact / pass with feet planted and a 1px body bob on the pass frames. It is a serviceable cycle, not a good one; this is the first asset to commission.</p>
+
+  <h2 style="font:400 13px/1 'JetBrains Mono',monospace;letter-spacing:0.14em;text-transform:uppercase;color:#6b4560;margin:56px 0 14px">Terrain atlas — art/terrain.png</h2>
+  <div style="background:#ffffff;border:1px solid #1c1c1a33;padding:20px">
+    <img src="art/terrain.png" style="width:100%;display:block" alt="Terrain tile atlas">
+  </div>
+  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:20px 28px;margin:18px 0 0">
+    <div><div style="font:700 11px/1 'JetBrains Mono',monospace;letter-spacing:0.1em;color:#6b4560;margin-bottom:7px">ROW 0 · GROUND</div><div style="font:400 14px/1.6 Newsreader,serif;color:#2b2925">4 grass base, 3 grass detail (clover, stones, bare), 3 dirt, 2 wheel rut, 2 gravel, 2 woods</div></div>
+    <div><div style="font:700 11px/1 'JetBrains Mono',monospace;letter-spacing:0.1em;color:#6b4560;margin-bottom:7px">ROW 1 · DIRT AUTOTILE</div><div style="font:400 14px/1.6 Newsreader,serif;color:#2b2925">16 dirt-over-grass configurations, irregular 2–4px edge. Wire as a Godot terrain set or index by bitmask.</div></div>
+    <div><div style="font:700 11px/1 'JetBrains Mono',monospace;letter-spacing:0.1em;color:#6b4560;margin-bottom:7px">ROW 2 · PLAZA</div><div style="font:400 14px/1.6 Newsreader,serif;color:#2b2925">3 cobble incl. the worn centre, 8 kerb edges with the hard 1px stone-dark line, 4 inner-corner dirt</div></div>
+    <div><div style="font:700 11px/1 'JetBrains Mono',monospace;letter-spacing:0.1em;color:#6b4560;margin-bottom:7px">ROW 3 · BOUNDARY</div><div style="font:400 14px/1.6 Newsreader,serif;color:#2b2925">3 woods mass, 4 woods corners. Blocking. Replaces the stone border ring — the map limit becomes forest.</div></div>
+  </div>
+
+  <h2 style="font:400 13px/1 'JetBrains Mono',monospace;letter-spacing:0.14em;text-transform:uppercase;color:#6b4560;margin:56px 0 14px">Buildings and props</h2>
+  <div style="display:grid;grid-template-columns:auto auto 1fr;gap:26px;align-items:flex-end;background:#5f9445;border:1px solid #1c1c1a33;padding:26px 30px">
+    <div style="text-align:center">
+      <img src="art/building_townhall.png" style="width:256px;display:block" alt="Town hall facade">
+      <div style="font:700 10px/1.5 'JetBrains Mono',monospace;letter-spacing:0.1em;color:#ede3cb;margin-top:10px">TOWN HALL · 8×8, BOTTOM 6 = x20–27, y6–11</div>
+    </div>
+    <div style="text-align:center">
+      <img src="art/building_store.png" style="width:336px;display:block" alt="General store, open and closed">
+      <div style="font:700 10px/1.5 'JetBrains Mono',monospace;letter-spacing:0.1em;color:#ede3cb;margin-top:10px">STORE · OPEN / CLOSED · 7×6, BOTTOM 4 = x8–14, y8–11</div>
+    </div>
+    <div></div>
+  </div>
+  <div style="background:#4a7c3a;border:1px solid #1c1c1a33;border-top:none;padding:22px 30px 26px">
+    <img src="art/props.png" style="width:512px;display:block" alt="Props atlas">
+    <div style="font:700 10px/1.5 'JetBrains Mono',monospace;letter-spacing:0.1em;color:#ede3cb;margin-top:10px">WELL · 2 BENCHES · NOTICE BOARD · 3 PLANTERS · LAMP POST · 3 WINDOW STATES</div>
+  </div>
+  <p style="font:400 16px/1.6 Newsreader,serif;color:#2b2925;max-width:40em;margin:16px 0 0">Both facades sit on the existing footprints without moving a collision cell — they are drawn taller than their footprint and overhang upward, per the elevation rule in §03. The store's two variants are the same sprite with the doorway and windows swapped, so <span style="font:400 14px/1 'JetBrains Mono',monospace">ShopHours</span> can drive the open/closed read directly.</p>
+
+  <h2 style="font:400 13px/1 'JetBrains Mono',monospace;letter-spacing:0.14em;text-transform:uppercase;color:#6b4560;margin:56px 0 14px">Dropping it into Godot</h2>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:34px">
+    <div>
+      <div style="font:400 16px/1.66 Newsreader,serif;color:#2b2925">
+        <p style="margin:0 0 12px">Copy the <span style="font:400 14px/1 'JetBrains Mono',monospace">art/</span> folder to <span style="font:400 14px/1 'JetBrains Mono',monospace">res://art/</span>. In the import dock set every PNG to <strong style="font-weight:600">Filter: Nearest</strong> and <strong style="font-weight:600">Mipmaps: off</strong> — one wrong filter setting is the difference between pixel art and mush.</p>
+        <p style="margin:0 0 12px"><span style="font:400 14px/1 'JetBrains Mono',monospace">art/thehaunt_terrain.tres</span> is a Godot 4 TileSet with all 55 tiles registered at 16×16 and a physics layer with box collision already on the woods tiles. Assign it to a TileMapLayer and the boundary ring is solid with no code.</p>
+        <p style="margin:0">The one manual step is the terrain set for the dirt autotile: add a terrain set in the TileSet inspector, then paint the 16 row-1 tiles with their matching peering bits. Two minutes in the editor, and much easier there than in a resource file.</p>
+      </div>
+    </div>
+    <div style="background:#1c1c1a;padding:20px 22px;border:1px solid #1c1c1a">
+      <div style="font:400 12.5px/1.75 'JetBrains Mono',monospace;color:#b8b5a5;white-space:pre">art/
+  terrain.png            256×64
+  building_townhall.png  128×128
+  building_store.png     224×96
+  props.png              256×64
+  lights.png             160×64
+  character.png          96×96
+  thehaunt_terrain.tres
+
+<span style="color:#f2b95c">Lights</span>  falloff 32px @ (0,16)
+        falloff 64px @ (32,0)
+        flame 4× 16px @ (96..159,0)
+
+<span style="color:#f2b95c">Char</span>    col 0–1 idle, 2–5 walk
+        row 0 down, 1 left, 2 up
+        right = flip row 1</div>
+    </div>
+  </div>
+
+  <h2 style="font:400 13px/1 'JetBrains Mono',monospace;letter-spacing:0.14em;text-transform:uppercase;color:#6b4560;margin:56px 0 14px">Where this saves you money</h2>
+  <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:28px">
+    <div style="border:1px solid #1c1c1a26;padding:18px 20px 20px">
+      <div style="font:400 20px/1.2 Newsreader,serif;color:#1c1c1a;margin-bottom:9px">Keep, don't replace</div>
+      <div style="font:400 15px/1.55 Newsreader,serif;color:#2b2925">Terrain, kerbs, props and the light sprites are good enough to ship a vertical slice with. Spend nothing here. An asset pack purchase is the fallback, not the plan.</div>
+    </div>
+    <div style="border:1px solid #1c1c1a26;padding:18px 20px 20px">
+      <div style="font:400 20px/1.2 Newsreader,serif;color:#1c1c1a;margin-bottom:9px">Commission narrowly</div>
+      <div style="font:400 15px/1.55 Newsreader,serif;color:#2b2925">Characters first — the cast's silhouettes and the walk cycle. That is the one place placeholder quality reads as amateur, and it is a bounded order against the §06 frame table.</div>
+    </div>
+    <div style="border:1px solid #1c1c1a26;padding:18px 20px 20px">
+      <div style="font:400 20px/1.2 Newsreader,serif;color:#1c1c1a;margin-bottom:9px">Quote against this</div>
+      <div style="font:400 15px/1.55 Newsreader,serif;color:#2b2925">Send an artist these PNGs plus the bible. A quote against existing art at a locked palette avoids the revision rounds that make commissions expensive and slow.</div>
+    </div>
+  </div>
+
+  <p style="font:400 13px/1.7 'JetBrains Mono',monospace;color:#6f6a63;max-width:40em;margin:40px 0 0;padding-top:20px;border-top:1px solid #1c1c1a26">Not yet drawn: farm and interior tilesets, crop growth stages, tool-use animations, NPC variants, and the Act II / Act III variant sets. All of those inherit this palette, so they can be added in any order.</p>
+
+</div>
+</div>
+</x-dc>
+</body>
+</html>

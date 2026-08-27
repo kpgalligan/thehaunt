@@ -23,8 +23,7 @@ public partial class PlayerController : CharacterBody2D, IPersistentSystem
     public int Facing { get; private set; } // 0=down 1=left 2=right 3=up
     public InteractionProbe Probe { get; private set; } = null!;
 
-    private readonly ImageTexture[] _facingTextures = new ImageTexture[4];
-    private Sprite2D? _sprite;
+    private CharacterSprite? _sprite;
     private Camera2D? _camera;
     private Rect2? _pendingCameraLimits;
     private float _sinceLastToolUse = UseToolCooldown; // start ready
@@ -45,10 +44,7 @@ public partial class PlayerController : CharacterBody2D, IPersistentSystem
         CollisionLayer = 1;
         CollisionMask = 1;
 
-        for (int i = 0; i < _facingTextures.Length; i++)
-            _facingTextures[i] = PlaceholderSprites.Character(i, TunicColor);
-
-        _sprite = new Sprite2D { Position = new Vector2(0, -3) };
+        _sprite = new CharacterSprite { Tunic = TunicColor };
         AddChild(_sprite);
 
         AddChild(new CollisionShape2D
@@ -70,11 +66,18 @@ public partial class PlayerController : CharacterBody2D, IPersistentSystem
 
     public override void _PhysicsProcess(double delta)
     {
+        // Mounted state is read from the model every frame rather than plumbed
+        // through events: a load, NewGame, or overnight reset swaps it out from
+        // under the node and this stays correct with no lifecycle to manage.
+        bool riding = SaveService.Instance.Current.Scooter.Mounted;
+        _sprite?.SetRiding(riding);
+
         if (!GameState.Instance.PlayerHasControl)
         {
             _hadControlLastPhysicsFrame = false;
             Velocity = Vector2.Zero;
             MoveAndSlide();
+            _sprite?.SetMoving(false);
             return;
         }
 
@@ -87,8 +90,9 @@ public partial class PlayerController : CharacterBody2D, IPersistentSystem
         _hadControlLastPhysicsFrame = true;
 
         var input = Input.GetVector("move_left", "move_right", "move_up", "move_down");
-        Velocity = input * MoveSpeed;
+        Velocity = input * MoveSpeed * (riding ? ScooterRules.SpeedMultiplier : 1f);
         MoveAndSlide();
+        _sprite?.SetMoving(input != Vector2.Zero);
 
         if (input != Vector2.Zero)
         {
@@ -101,7 +105,7 @@ public partial class PlayerController : CharacterBody2D, IPersistentSystem
         }
 
         if (!firstFrameBack && Input.IsActionJustPressed("interact"))
-            Probe.TryInteract(this);
+            HandleInteractPress();
 
         _sinceLastToolUse += (float)delta;
         if (!firstFrameBack && Input.IsActionJustPressed("use_tool") && _sinceLastToolUse >= UseToolCooldown)
@@ -141,12 +145,23 @@ public partial class PlayerController : CharacterBody2D, IPersistentSystem
     // Feet tile + facing direction, computed directly — never from the probe
     // position (feet + dir*14 rounds back into the player's own tile when
     // feet%16 < 2).
+    /// <summary>
+    /// One key, three meanings (scooter handoff): a focused interactable always
+    /// wins — riding up to a door or an NPC keeps E meaning what the prompt says.
+    /// With nothing focused, E parks the scooter on the tile under the rider's
+    /// feet. On foot with nothing focused it does nothing.
+    /// </summary>
+    public void HandleInteractPress()
+    {
+        if (SaveService.Instance.Current.Scooter.Mounted && Probe.Focused == null)
+            WorldSim.Instance.DismountScooter(FeetTile(), Facing);
+        else
+            Probe.TryInteract(this);
+    }
+
     public Vector2I TargetTile()
     {
-        Vector2 feet = GlobalPosition + new Vector2(0, 6);
-        var feetTile = new Vector2I(
-            Mathf.FloorToInt(feet.X / TileSize),
-            Mathf.FloorToInt(feet.Y / TileSize));
+        Vector2I feetTile = FeetTile();
         Vector2I dir = Facing switch
         {
             1 => new Vector2I(-1, 0),
@@ -155,6 +170,15 @@ public partial class PlayerController : CharacterBody2D, IPersistentSystem
             _ => new Vector2I(0, 1),
         };
         return feetTile + dir;
+    }
+
+    /// <summary>The tile under the feet collider — where a dismount parks the scooter.</summary>
+    public Vector2I FeetTile()
+    {
+        Vector2 feet = GlobalPosition + new Vector2(0, 6);
+        return new Vector2I(
+            Mathf.FloorToInt(feet.X / TileSize),
+            Mathf.FloorToInt(feet.Y / TileSize));
     }
 
     public void ApplyCameraLimits(Rect2 limits)
@@ -191,8 +215,7 @@ public partial class PlayerController : CharacterBody2D, IPersistentSystem
     {
         // Clamp: Facing can arrive from a hand-edited save file via ReadState.
         Facing = Math.Clamp(facing, 0, 3);
-        if (_sprite != null)
-            _sprite.Texture = _facingTextures[Facing];
+        _sprite?.SetFacing(Facing);
         if (Probe != null)
             Probe.SetFacing(Facing);
     }

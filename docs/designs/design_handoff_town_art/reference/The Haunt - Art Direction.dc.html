@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,300;0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  doc-page:not(:defined) { visibility: hidden; }
+  body { margin: 0; background: #e7e4db; }
+  a { color: #6b4560; text-decoration: underline; text-underline-offset: 2px; }
+  a:hover { color: #a4432f; }
+  h1, h2, h3, h4 { break-after: avoid; }
+  table { break-inside: auto; }
+</style>
+<script src="./doc-page.js"></script>
+</helmet>
+<doc-page margin="0.85in">
+
+<div style="font:500 11px/1 'JetBrains Mono',monospace;letter-spacing:0.14em;text-transform:uppercase;color:#6b4560">The Haunt · Art Direction Bible · v1 · draft for Kevin</div>
+<h1 style="font:300 54px/1.02 Newsreader,serif;color:#1c1c1a;margin:18px 0 0;letter-spacing:-0.02em">A cozy town that is<br>quietly wrong</h1>
+<p style="font:400 17px/1.6 Newsreader,serif;color:#3a3733;max-width:34em;margin:20px 0 0">This document sets the visual rules for The Haunt: one house palette, one tile grammar, one lighting model, and three act-scoped variants of all of it. It exists so that art commissioned in six months still sits next to art commissioned today, and so the dread can escalate without a re-draw.</p>
+<p style="font:400 13px/1.6 'JetBrains Mono',monospace;color:#6f6a63;max-width:34em;margin:14px 0 0">Scope of this pass: the town exterior. Farm, interiors, mine and shore inherit the palette and lighting rules but need their own tile grammar sections later. Nothing here overrides <span style="color:#1c1c1a">docs/design.md</span> canon; names are still deliberately absent.</p>
+
+<div style="height:1px;background:#1c1c1a26;margin:40px 0 34px"></div>
+
+<h2 style="font:400 13px/1 'JetBrains Mono',monospace;letter-spacing:0.14em;text-transform:uppercase;color:#6b4560;margin:0 0 4px">01</h2>
+<h2 style="font:400 32px/1.15 Newsreader,serif;color:#1c1c1a;margin:0 0 16px;letter-spacing:-0.01em">Resolution, tile size, and character scale</h2>
+
+<p style="font:400 16px/1.62 Newsreader,serif;color:#2b2925;max-width:34em;margin:0 0 14px"><strong style="font-weight:600">Keep 16px tiles.</strong> They are already load-bearing in the code — <span style="font:400 14px/1 'JetBrains Mono',monospace">TileSize = 16</span>, tile centers at <span style="font:400 14px/1 'JetBrains Mono',monospace">(x*16+8, y*16+8)</span>, the 48×30 town, the collision polygons, the spawn markers. Moving to 32px would double every asset's cost and buy detail that a cozy sim spends most of its time not looking at. 16px is also the size the largest pool of purchasable and CC0 art is drawn at, which matters for the sourcing question below.</p>
+
+<p style="font:400 16px/1.62 Newsreader,serif;color:#2b2925;max-width:34em;margin:0 0 14px"><strong style="font-weight:600">Tighten the viewport.</strong> 640×360 shows 40×22 tiles at once. That is a wide, map-like read: buildings are small, faces are unreadable, and the town's 48×30 footprint is almost entirely on screen at all times, which kills the sense that there is more town around the corner. Recommendation: <span style="font:400 14px/1 'JetBrains Mono',monospace">480×270</span> (30×17 tiles) in the same 1280×720 window — an integer-friendly 2.66× scale, or 960×540 window for a clean 2×. It costs one constant and a camera-limit re-check, and it roughly doubles the apparent size of every character and building.</p>
+
+<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin:22px 0 8px;break-inside:avoid">
+  <div style="border:1px solid #1c1c1a26;padding:14px 15px 15px">
+    <div style="font:700 11px/1 'JetBrains Mono',monospace;letter-spacing:0.1em;color:#6b4560">640 × 360</div>
+    <div style="font:400 15px/1.45 Newsreader,serif;color:#2b2925;margin-top:8px">40×22 tiles visible. Current. Reads as a strategy map.</div>
+  </div>
+  <div style="border:1.5px solid #6b4560;padding:14px 15px 15px;background:#6b45600d">
+    <div style="font:700 11px/1 'JetBrains Mono',monospace;letter-spacing:0.1em;color:#6b4560">480 × 270 ← use this</div>
+    <div style="font:400 15px/1.45 Newsreader,serif;color:#2b2925;margin-top:8px">30×17 tiles. A character is 6% of screen height. Buildings loom.</div>
+  </div>
+  <div style="border:1px solid #1c1c1a26;padding:14px 15px 15px">
+    <div style="font:700 11px/1 'JetBrains Mono',monospace;letter-spacing:0.1em;color:#6b4560">426 × 240</div>
+    <div style="font:400 15px/1.45 Newsreader,serif;color:#2b2925;margin-top:8px">27×15 tiles. Intimate, but the plaza no longer fits in frame.</div>
+  </div>
+</div>
+
+<p style="font:400 16px/1.62 Newsreader,serif;color:#2b2925;max-width:34em;margin:18px 0 14px"><strong style="font-weight:600">Characters: 16×32, not 16×22.</strong> The current placeholder is 16×22 with no room for a silhouette. Move to a <span style="font:400 14px/1 'JetBrains Mono',monospace">16 wide × 32 tall</span> canvas: feet anchored at the bottom row, occupying one tile of floor, overhanging one tile upward. That gives 10–12px of head — enough for a hat, hair shape, and an eye line that survives at 2× — and keeps the sprite an exact tile multiple so the atlas math stays trivial. Keep the facing encoding (<span style="font:400 14px/1 'JetBrains Mono',monospace">0=down, 1=left, 2=right, 3=up</span>) and mirror left from right; nobody in a cozy sim needs asymmetric handedness.</p>
+
+<div style="height:1px;background:#1c1c1a26;margin:40px 0 34px"></div>
+
+<h2 style="font:400 13px/1 'JetBrains Mono',monospace;letter-spacing:0.14em;text-transform:uppercase;color:#6b4560;margin:0 0 4px">02</h2>
+<h2 style="font:400 32px/1.15 Newsreader,serif;color:#1c1c1a;margin:0 0 16px;letter-spacing:-0.01em">The house palette</h2>
+
+<p style="font:400 16px/1.62 Newsreader,serif;color:#2b2925;max-width:34em;margin:0 0 22px">Thirty colors, two slots reserved. Every asset in the game draws from this list and nothing else. The greens, earths and stones are extended from the hexes already in <span style="font:400 14px/1 'JetBrains Mono',monospace">TownMap.cs</span> and <span style="font:400 14px/1 'JetBrains Mono',monospace">PlaceholderSprites.cs</span>, so existing placeholder maps do not clash with finished art during the transition. Ramps are five steps: two shadow, one base, two light. Never introduce a sixth step — dither between two instead.</p>
+
+<h3 style="font:600 12px/1 'JetBrains Mono',monospace;letter-spacing:0.1em;text-transform:uppercase;color:#1c1c1a;margin:0 0 10px">Ink — outlines, text, deepest shadow</h3>
+<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin:0 0 26px;break-inside:avoid">
+  <div><div style="height:52px;background:#171310"></div><div style="font:400 10px/1.5 'JetBrains Mono',monospace;color:#4a4640;margin-top:5px">ink-900<br>#171310</div></div>
+  <div><div style="height:52px;background:#2b241d"></div><div style="font:400 10px/1.5 'JetBrains Mono',monospace;color:#4a4640;margin-top:5px">ink-700<br>#2b241d</div></div>
+  <div><div style="height:52px;background:#453a2e"></div><div style="font:400 10px/1.5 'JetBrains Mono',monospace;color:#4a4640;margin-top:5px">ink-500<br>#453a2e</div></div>
+  <div><div style="height:52px;background:#ede3cb"></div><div style="font:400 10px/1.5 'JetBrains Mono',monospace;color:#4a4640;margin-top:5px">cream<br>#ede3cb</div></div>
+  <div><div style="height:52px;background:#b8b5a5"></div><div style="font:400 10px/1.5 'JetBrains Mono',monospace;color:#4a4640;margin-top:5px">stone-pale<br>#b8b5a5</div></div>
+</div>
+
+<h3 style="font:600 12px/1 'JetBrains Mono',monospace;letter-spacing:0.1em;text-transform:uppercase;color:#1c1c1a;margin:0 0 10px">Green — grass, foliage, crops</h3>
+<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin:0 0 26px;break-inside:avoid">
+  <div><div style="height:52px;background:#2f5228"></div><div style="font:400 10px/1.5 'JetBrains Mono',monospace;color:#4a4640;margin-top:5px">green-dark<br>#2f5228</div></div>
+  <div><div style="height:52px;background:#457539"></div><div style="font:400 10px/1.5 'JetBrains Mono',monospace;color:#4a4640;margin-top:5px">green-mid<br>#457539</div></div>
+  <div><div style="height:52px;background:#4a7c3a"></div><div style="font:400 10px/1.5 'JetBrains Mono',monospace;color:#4a4640;margin-top:5px">green-base<br>#4a7c3a</div></div>
+  <div><div style="height:52px;background:#5f9445"></div><div style="font:400 10px/1.5 'JetBrains Mono',monospace;color:#4a4640;margin-top:5px">green-light<br>#5f9445</div></div>
+  <div><div style="height:52px;background:#86ad5c"></div><div style="font:400 10px/1.5 'JetBrains Mono',monospace;color:#4a4640;margin-top:5px">green-pale<br>#86ad5c</div></div>
+</div>
+
+<h3 style="font:600 12px/1 'JetBrains Mono',monospace;letter-spacing:0.1em;text-transform:uppercase;color:#1c1c1a;margin:0 0 10px">Earth — road, tilled soil, timber</h3>
+<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin:0 0 26px;break-inside:avoid">
+  <div><div style="height:52px;background:#4a3526"></div><div style="font:400 10px/1.5 'JetBrains Mono',monospace;color:#4a4640;margin-top:5px">earth-dark<br>#4a3526</div></div>
+  <div><div style="height:52px;background:#6b4a2f"></div><div style="font:400 10px/1.5 'JetBrains Mono',monospace;color:#4a4640;margin-top:5px">wood-warm<br>#6b4a2f</div></div>
+  <div><div style="height:52px;background:#7a5b3c"></div><div style="font:400 10px/1.5 'JetBrains Mono',monospace;color:#4a4640;margin-top:5px">earth-mid<br>#7a5b3c</div></div>
+  <div><div style="height:52px;background:#8a6a45"></div><div style="font:400 10px/1.5 'JetBrains Mono',monospace;color:#4a4640;margin-top:5px">earth-base<br>#8a6a45</div></div>
+  <div><div style="height:52px;background:#a5855c"></div><div style="font:400 10px/1.5 'JetBrains Mono',monospace;color:#4a4640;margin-top:5px">earth-light<br>#a5855c</div></div>
+</div>
+
+<h3 style="font:600 12px/1 'JetBrains Mono',monospace;letter-spacing:0.1em;text-transform:uppercase;color:#1c1c1a;margin:0 0 10px">Stone — masonry, cobble, slate roofs</h3>
+<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin:0 0 26px;break-inside:avoid">
+  <div><div style="height:52px;background:#3e4241"></div><div style="font:400 10px/1.5 'JetBrains Mono',monospace;color:#4a4640;margin-top:5px">stone-dark<br>#3e4241</div></div>
+  <div><div style="height:52px;background:#575a58"></div><div style="font:400 10px/1.5 'JetBrains Mono',monospace;color:#4a4640;margin-top:5px">stone-shade<br>#575a58</div></div>
+  <div><div style="height:52px;background:#7a7a7a"></div><div style="font:400 10px/1.5 'JetBrains Mono',monospace;color:#4a4640;margin-top:5px">stone-base<br>#7a7a7a</div></div>
+  <div><div style="height:52px;background:#9a9a8a"></div><div style="font:400 10px/1.5 'JetBrains Mono',monospace;color:#4a4640;margin-top:5px">stone-light<br>#9a9a8a</div></div>
+  <div><div style="height:52px;background:#a4432f"></div><div style="font:400 10px/1.5 'JetBrains Mono',monospace;color:#4a4640;margin-top:5px">barn-red<br>#a4432f</div></div>
+</div>
+
+<h3 style="font:600 12px/1 'JetBrains Mono',monospace;letter-spacing:0.1em;text-transform:uppercase;color:#1c1c1a;margin:0 0 10px">Sky, water, flesh</h3>
+<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin:0 0 26px;break-inside:avoid">
+  <div><div style="height:52px;background:#8fb8cf"></div><div style="font:400 10px/1.5 'JetBrains Mono',monospace;color:#4a4640;margin-top:5px">sky-day<br>#8fb8cf</div></div>
+  <div><div style="height:52px;background:#47788c"></div><div style="font:400 10px/1.5 'JetBrains Mono',monospace;color:#4a4640;margin-top:5px">water-mid<br>#47788c</div></div>
+  <div><div style="height:52px;background:#2e5566"></div><div style="font:400 10px/1.5 'JetBrains Mono',monospace;color:#4a4640;margin-top:5px">water-deep<br>#2e5566</div></div>
+  <div><div style="height:52px;background:#e8c8a0"></div><div style="font:400 10px/1.5 'JetBrains Mono',monospace;color:#4a4640;margin-top:5px">skin-base<br>#e8c8a0</div></div>
+  <div><div style="height:52px;background:#c49a72"></div><div style="font:400 10px/1.5 'JetBrains Mono',monospace;color:#4a4640;margin-top:5px">skin-shade<br>#c49a72</div></div>
+</div>
+
+<h3 style="font:600 12px/1 'JetBrains Mono',monospace;letter-spacing:0.1em;text-transform:uppercase;color:#1c1c1a;margin:0 0 10px">Accents — rationed, never terrain</h3>
+<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin:0 0 12px;break-inside:avoid">
+  <div><div style="height:52px;background:#f2b95c"></div><div style="font:400 10px/1.5 'JetBrains Mono',monospace;color:#4a4640;margin-top:5px">lantern<br>#f2b95c</div></div>
+  <div><div style="height:52px;background:#5a4a3a"></div><div style="font:400 10px/1.5 'JetBrains Mono',monospace;color:#4a4640;margin-top:5px">hair-stock<br>#5a4a3a</div></div>
+  <div><div style="height:52px;background:#6b4560"></div><div style="font:400 10px/1.5 'JetBrains Mono',monospace;color:#4a4640;margin-top:5px">plum<br>#6b4560</div></div>
+  <div><div style="height:52px;background:#7d8f4a"></div><div style="font:400 10px/1.5 'JetBrains Mono',monospace;color:#4a4640;margin-top:5px">bile-green<br>#7d8f4a</div></div>
+  <div><div style="height:52px;background:#cfd6d1"></div><div style="font:400 10px/1.5 'JetBrains Mono',monospace;color:#4a4640;margin-top:5px">bone<br>#cfd6d1</div></div>
+</div>
+<p style="font:400 14px/1.6 'JetBrains Mono',monospace;color:#6f6a63;max-width:34em;margin:0"><span style="color:#6b4560">plum</span>, <span style="color:#6b4560">bile-green</span> and <span style="color:#6b4560">bone</span> are the dread accents. In Act I they appear nowhere except one object per map (see §05). Spending them early spends the whole effect.</p>
+
+<div style="height:1px;background:#1c1c1a26;margin:40px 0 34px"></div>
+
+<h2 style="font:400 13px/1 'JetBrains Mono',monospace;letter-spacing:0.14em;text-transform:uppercase;color:#6b4560;margin:0 0 4px">03</h2>
+<h2 style="font:400 32px/1.15 Newsreader,serif;color:#1c1c1a;margin:0 0 16px;letter-spacing:-0.01em">Tile grammar — town exterior</h2>
+
+<p style="font:400 16px/1.62 Newsreader,serif;color:#2b2925;max-width:34em;margin:0 0 14px"><strong style="font-weight:600">Projection: flat-top three-quarter.</strong> Ground is drawn straight down — no perspective skew on grass, road or cobble. Anything vertical (buildings, fences, trees, signs, the shipping bin) is drawn in elevation, front face only, as though the camera sits slightly above and dead ahead. No side walls, ever. This is the cheapest projection to draw consistently and the only one that survives a large tile library drawn by more than one hand.</p>
+
+<p style="font:400 16px/1.62 Newsreader,serif;color:#2b2925;max-width:34em;margin:0 0 14px"><strong style="font-weight:600">Light comes from the upper left, always.</strong> Highlights on the top and left edges of raised forms; a one-pixel <span style="font:400 14px/1 'JetBrains Mono',monospace">ink-700</span> contact shadow along the bottom-right. Never a drop shadow larger than 2px — this is a daylight town, not a diorama.</p>
+
+<p style="font:400 16px/1.62 Newsreader,serif;color:#2b2925;max-width:34em;margin:0 0 20px"><strong style="font-weight:600">Outlines: selective, never black.</strong> Terrain has no outline. Objects a player can walk behind get a 1px <span style="font:400 14px/1 'JetBrains Mono',monospace">ink-700</span> outline on their lower half only, so they read against grass. Characters are fully outlined in <span style="font:400 14px/1 'JetBrains Mono',monospace">ink-700</span>; that outline is what makes them pop off any terrain and it is the one place the rule is absolute.</p>
+
+<h3 style="font:600 12px/1 'JetBrains Mono',monospace;letter-spacing:0.1em;text-transform:uppercase;color:#1c1c1a;margin:0 0 12px">Terrain layers and their transitions</h3>
+<table style="width:100%;border-collapse:collapse;font:400 13px/1.5 'JetBrains Mono',monospace;color:#2b2925;margin:0 0 22px">
+  <thead>
+    <tr>
+      <th style="text-align:left;padding:8px 10px 8px 0;border-bottom:1.5px solid #1c1c1a;font-weight:700;font-size:11px;letter-spacing:0.08em;text-transform:uppercase">Terrain</th>
+      <th style="text-align:left;padding:8px 10px;border-bottom:1.5px solid #1c1c1a;font-weight:700;font-size:11px;letter-spacing:0.08em;text-transform:uppercase">Variants</th>
+      <th style="text-align:left;padding:8px 0 8px 10px;border-bottom:1.5px solid #1c1c1a;font-weight:700;font-size:11px;letter-spacing:0.08em;text-transform:uppercase">Transition rule</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td style="padding:9px 10px 9px 0;border-bottom:1px solid #1c1c1a1f;vertical-align:top">Grass</td>
+      <td style="padding:9px 10px;border-bottom:1px solid #1c1c1a1f;vertical-align:top">4 base + 3 detail (clover, stones, bare patch)</td>
+      <td style="padding:9px 0 9px 10px;border-bottom:1px solid #1c1c1a1f;vertical-align:top">Base layer. Detail tiles at ≤8% frequency, never adjacent to each other.</td>
+    </tr>
+    <tr>
+      <td style="padding:9px 10px 9px 0;border-bottom:1px solid #1c1c1a1f;vertical-align:top">Dirt road</td>
+      <td style="padding:9px 10px;border-bottom:1px solid #1c1c1a1f;vertical-align:top">3 base + wheel-rut pair</td>
+      <td style="padding:9px 0 9px 10px;border-bottom:1px solid #1c1c1a1f;vertical-align:top">47-tile blob autotile over grass. Soft, 2px irregular edge — roads are worn, not cut.</td>
+    </tr>
+    <tr>
+      <td style="padding:9px 10px 9px 0;border-bottom:1px solid #1c1c1a1f;vertical-align:top">Cobble plaza</td>
+      <td style="padding:9px 10px;border-bottom:1px solid #1c1c1a1f;vertical-align:top">2 base + 1 worn centre</td>
+      <td style="padding:9px 0 9px 10px;border-bottom:1px solid #1c1c1a1f;vertical-align:top">15-tile edge set over dirt. Hard 1px <span style="color:#6f6a63">stone-dark</span> kerb — the plaza is the one built surface.</td>
+    </tr>
+    <tr>
+      <td style="padding:9px 10px 9px 0;border-bottom:1px solid #1c1c1a1f;vertical-align:top">Gravel verge</td>
+      <td style="padding:9px 10px;border-bottom:1px solid #1c1c1a1f;vertical-align:top">2</td>
+      <td style="padding:9px 0 9px 10px;border-bottom:1px solid #1c1c1a1f;vertical-align:top">Manual, 1 tile wide, wherever road meets a building footprint.</td>
+    </tr>
+    <tr>
+      <td style="padding:9px 10px 9px 0;border-bottom:1px solid #1c1c1a1f;vertical-align:top">Tall grass / woods edge</td>
+      <td style="padding:9px 10px;border-bottom:1px solid #1c1c1a1f;vertical-align:top">3 + 4 corner pieces</td>
+      <td style="padding:9px 0 9px 10px;border-bottom:1px solid #1c1c1a1f;vertical-align:top">Blocking. This is what replaces the current stone map border — see §08.</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3 style="font:600 12px/1 'JetBrains Mono',monospace;letter-spacing:0.1em;text-transform:uppercase;color:#1c1c1a;margin:0 0 12px">Building anatomy</h3>
+<p style="font:400 16px/1.62 Newsreader,serif;color:#2b2925;max-width:34em;margin:0 0 14px">Every town building is assembled from the same five bands, bottom to top: <strong style="font-weight:600">foundation</strong> (1 tile, <span style="font:400 14px/1 'JetBrains Mono',monospace">stone-base</span> rubble), <strong style="font-weight:600">wall</strong> (2–3 tiles, clapboard in <span style="font:400 14px/1 'JetBrains Mono',monospace">cream</span> or masonry in <span style="font:400 14px/1 'JetBrains Mono',monospace">stone-light</span>), <strong style="font-weight:600">eave</strong> (1 tile, the shadow line under the roof), <strong style="font-weight:600">roof</strong> (2 tiles, slate or cedar shake), <strong style="font-weight:600">ridge</strong> (1 tile, plus a chimney where a hearth exists). The existing footprints fit this without moving a single collision cell: the town hall's <span style="font:400 14px/1 'JetBrains Mono',monospace">x20–27, y6–11</span> is six rows — foundation, two wall, eave, two roof — and the general store's <span style="font:400 14px/1 'JetBrains Mono',monospace">x8–14, y8–11</span> is four, so it becomes the low-slung single-storey building and reads as subordinate to the hall. That hierarchy is worth keeping.</p>
+<p style="font:400 16px/1.62 Newsreader,serif;color:#2b2925;max-width:34em;margin:0 0 14px"><strong style="font-weight:600">Doors are 1 tile wide and 2 tall visually, 1 tile of collision</strong> — the existing door cells at <span style="font:400 14px/1 'JetBrains Mono',monospace">(23,11)</span> and <span style="font:400 14px/1 'JetBrains Mono',monospace">(11,11)</span> stay exactly where they are; the upper half of the door frame is drawn into the wall tile above. Doors get a warm interior glow when the building is open (see §04, and it should read against <span style="font:400 14px/1 'JetBrains Mono',monospace">ShopHours</span>) and a shuttered variant when closed. That is the cheapest possible "is the store open" affordance and it means the sign never has to be read twice.</p>
+<p style="font:400 16px/1.62 Newsreader,serif;color:#2b2925;max-width:34em;margin:0 0 0"><strong style="font-weight:600">Windows are where the game keeps its secrets.</strong> Every building needs three window states — lit, dark, and shuttered — as separate tiles, addressable per building. Almost every dread beat in §05 is a window state change, so build them as a swappable layer from the start rather than baking them into wall tiles.</p>
+
+<div style="height:1px;background:#1c1c1a26;margin:40px 0 34px"></div>
+
+<h2 style="font:400 13px/1 'JetBrains Mono',monospace;letter-spacing:0.14em;text-transform:uppercase;color:#6b4560;margin:0 0 4px">04</h2>
+<h2 style="font:400 32px/1.15 Newsreader,serif;color:#1c1c1a;margin:0 0 16px;letter-spacing:-0.01em">Light, time of day, and season</h2>
+
+<p style="font:400 16px/1.62 Newsreader,serif;color:#2b2925;max-width:34em;margin:0 0 20px">One full-screen tint layer over the world, below the UI, driven off <span style="font:400 14px/1 'JetBrains Mono',monospace">TenMinuteTicked</span> and lerped between the keys below. Art is drawn at <em>day</em> values only; every other hour of the game is this one multiply. Interiors do not receive the tint — they get their own fixed warm key, which is what makes stepping inside at dusk feel like relief.</p>
+
+<table style="width:100%;border-collapse:collapse;font:400 13px/1.5 'JetBrains Mono',monospace;color:#2b2925;margin:0 0 20px">
+  <thead>
+    <tr>
+      <th style="text-align:left;padding:8px 10px 8px 0;border-bottom:1.5px solid #1c1c1a;font-weight:700;font-size:11px;letter-spacing:0.08em;text-transform:uppercase">Key</th>
+      <th style="text-align:left;padding:8px 10px;border-bottom:1.5px solid #1c1c1a;font-weight:700;font-size:11px;letter-spacing:0.08em;text-transform:uppercase">Tint</th>
+      <th style="text-align:left;padding:8px 10px;border-bottom:1.5px solid #1c1c1a;font-weight:700;font-size:11px;letter-spacing:0.08em;text-transform:uppercase">Blend</th>
+      <th style="text-align:left;padding:8px 0 8px 10px;border-bottom:1.5px solid #1c1c1a;font-weight:700;font-size:11px;letter-spacing:0.08em;text-transform:uppercase">Feel</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr><td style="padding:9px 10px 9px 0;border-bottom:1px solid #1c1c1a1f">06:00 dawn</td><td style="padding:9px 10px;border-bottom:1px solid #1c1c1a1f"><span style="display:inline-block;width:11px;height:11px;background:#d8a878;vertical-align:-1px;margin-right:6px"></span>#d8a878 · 22%</td><td style="padding:9px 10px;border-bottom:1px solid #1c1c1a1f">overlay</td><td style="padding:9px 0 9px 10px;border-bottom:1px solid #1c1c1a1f">low sun, long warmth</td></tr>
+    <tr><td style="padding:9px 10px 9px 0;border-bottom:1px solid #1c1c1a1f">09:00–16:00 day</td><td style="padding:9px 10px;border-bottom:1px solid #1c1c1a1f"><span style="display:inline-block;width:11px;height:11px;background:#ffffff;border:1px solid #1c1c1a33;vertical-align:-1px;margin-right:6px"></span>none · 0%</td><td style="padding:9px 10px;border-bottom:1px solid #1c1c1a1f">—</td><td style="padding:9px 0 9px 10px;border-bottom:1px solid #1c1c1a1f">the reference state</td></tr>
+    <tr><td style="padding:9px 10px 9px 0;border-bottom:1px solid #1c1c1a1f">18:00 dusk</td><td style="padding:9px 10px;border-bottom:1px solid #1c1c1a1f"><span style="display:inline-block;width:11px;height:11px;background:#c4703f;vertical-align:-1px;margin-right:6px"></span>#c4703f · 30%</td><td style="padding:9px 10px;border-bottom:1px solid #1c1c1a1f">multiply</td><td style="padding:9px 0 9px 10px;border-bottom:1px solid #1c1c1a1f">the cozy peak — lanterns light here</td></tr>
+    <tr><td style="padding:9px 10px 9px 0;border-bottom:1px solid #1c1c1a1f">20:00 evening</td><td style="padding:9px 10px;border-bottom:1px solid #1c1c1a1f"><span style="display:inline-block;width:11px;height:11px;background:#3f4d7a;vertical-align:-1px;margin-right:6px"></span>#3f4d7a · 42%</td><td style="padding:9px 10px;border-bottom:1px solid #1c1c1a1f">multiply</td><td style="padding:9px 0 9px 10px;border-bottom:1px solid #1c1c1a1f">blue hour, windows warm</td></tr>
+    <tr><td style="padding:9px 10px 9px 0;border-bottom:1px solid #1c1c1a1f">23:00 night</td><td style="padding:9px 10px;border-bottom:1px solid #1c1c1a1f"><span style="display:inline-block;width:11px;height:11px;background:#232a4a;vertical-align:-1px;margin-right:6px"></span>#232a4a · 58%</td><td style="padding:9px 10px;border-bottom:1px solid #1c1c1a1f">multiply</td><td style="padding:9px 0 9px 10px;border-bottom:1px solid #1c1c1a1f">navigable by lantern only</td></tr>
+    <tr><td style="padding:9px 10px 9px 0;border-bottom:1px solid #1c1c1a1f">01:00–01:59 late</td><td style="padding:9px 10px;border-bottom:1px solid #1c1c1a1f"><span style="display:inline-block;width:11px;height:11px;background:#1b1e33;vertical-align:-1px;margin-right:6px"></span>#1b1e33 · 66%</td><td style="padding:9px 10px;border-bottom:1px solid #1c1c1a1f">multiply</td><td style="padding:9px 0 9px 10px;border-bottom:1px solid #1c1c1a1f">the clock's clamp hour. Push saturation to 0.</td></tr>
+  </tbody>
+</table>
+
+<p style="font:400 16px/1.62 Newsreader,serif;color:#2b2925;max-width:34em;margin:0 0 20px"><strong style="font-weight:600">Point lights.</strong> Lanterns, lit windows and the store's open door punch through the tint as additive radial sprites in <span style="font:400 14px/1 'JetBrains Mono',monospace">lantern #f2b95c</span> — two sizes only (2-tile and 4-tile radius), and the falloff is a hand-dithered sprite, not a shader gradient, so it stays pixel-honest. Lights flicker on a 4-frame loop at 6fps with ±4% radius. Nothing in the town is lit by anything but fire; there is no electric light in this palette, which is itself a piece of characterisation.</p>
+
+<h3 style="font:600 12px/1 'JetBrains Mono',monospace;letter-spacing:0.1em;text-transform:uppercase;color:#1c1c1a;margin:0 0 12px">Seasons</h3>
+<p style="font:400 16px/1.62 Newsreader,serif;color:#2b2925;max-width:34em;margin:0 0 16px">Four terrain sets, one lighting adjustment each. New England is the whole point of the setting, so autumn should be the showpiece and winter should be genuinely hard to look at for long.</p>
+<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:0 0 6px;break-inside:avoid">
+  <div style="border:1px solid #1c1c1a26;padding:12px 13px 14px">
+    <div style="display:flex;gap:3px;margin-bottom:9px"><div style="flex:1;height:26px;background:#5f9445"></div><div style="flex:1;height:26px;background:#86ad5c"></div><div style="flex:1;height:26px;background:#8a6a45"></div></div>
+    <div style="font:700 11px/1 'JetBrains Mono',monospace;letter-spacing:0.08em;color:#1c1c1a">SPRING</div>
+    <div style="font:400 14px/1.45 Newsreader,serif;color:#2b2925;margin-top:6px">Green-light dominant, mud on every road edge, standing water. Wettest palette.</div>
+  </div>
+  <div style="border:1px solid #1c1c1a26;padding:12px 13px 14px">
+    <div style="display:flex;gap:3px;margin-bottom:9px"><div style="flex:1;height:26px;background:#4a7c3a"></div><div style="flex:1;height:26px;background:#2f5228"></div><div style="flex:1;height:26px;background:#a5855c"></div></div>
+    <div style="font:700 11px/1 'JetBrains Mono',monospace;letter-spacing:0.08em;color:#1c1c1a">SUMMER</div>
+    <div style="font:400 14px/1.45 Newsreader,serif;color:#2b2925;margin-top:6px">Deepest greens, dust on the road, hardest shadows. Dawn arrives an hour earlier.</div>
+  </div>
+  <div style="border:1.5px solid #6b4560;padding:12px 13px 14px;background:#6b45600d">
+    <div style="display:flex;gap:3px;margin-bottom:9px"><div style="flex:1;height:26px;background:#a4432f"></div><div style="flex:1;height:26px;background:#c4703f"></div><div style="flex:1;height:26px;background:#7d8f4a"></div></div>
+    <div style="font:700 11px/1 'JetBrains Mono',monospace;letter-spacing:0.08em;color:#6b4560">AUTUMN</div>
+    <div style="font:400 14px/1.45 Newsreader,serif;color:#2b2925;margin-top:6px">The showpiece. Barn-red and amber canopies, leaf litter drifting over the cobbles. Also where <span style="color:#6b4560">bile-green</span> can hide in plain sight.</div>
+  </div>
+  <div style="border:1px solid #1c1c1a26;padding:12px 13px 14px">
+    <div style="display:flex;gap:3px;margin-bottom:9px"><div style="flex:1;height:26px;background:#cfd6d1"></div><div style="flex:1;height:26px;background:#9a9a8a"></div><div style="flex:1;height:26px;background:#3f4d7a"></div></div>
+    <div style="font:700 11px/1 'JetBrains Mono',monospace;letter-spacing:0.08em;color:#1c1c1a">WINTER</div>
+    <div style="font:400 14px/1.45 Newsreader,serif;color:#2b2925;margin-top:6px">Bone and stone only; greens vanish entirely. Dusk at 16:00. The lit windows carry the whole screen.</div>
+  </div>
+</div>
+
+<div style="height:1px;background:#1c1c1a26;margin:40px 0 34px"></div>
+
+<h2 style="font:400 13px/1 'JetBrains Mono',monospace;letter-spacing:0.14em;text-transform:uppercase;color:#6b4560;margin:0 0 4px">05</h2>
+<h2 style="font:400 32px/1.15 Newsreader,serif;color:#1c1c1a;margin:0 0 16px;letter-spacing:-0.01em">How the dread escalates</h2>
+
+<p style="font:400 16px/1.62 Newsreader,serif;color:#2b2925;max-width:34em;margin:0 0 12px">The design canon says the opening is entirely cozy and the dread arrives first through dialogue. You have asked for the art to escalate visibly by act, so the rule is: <strong style="font-weight:600">the art never leads the writing, it confirms it.</strong> A player should notice something is wrong only after an NPC has already made them uneasy, and then feel that the town has been like this the whole time.</p>
+<p style="font:400 16px/1.62 Newsreader,serif;color:#2b2925;max-width:34em;margin:0 0 22px">Mechanically this is cheap if it is planned now: each act is a <em>variant set</em> of the same tiles at the same coordinates, swapped by a story flag. No map is rebuilt. Budget roughly 20% extra tiles per act, not a second tileset.</p>
+
+<div style="display:flex;flex-direction:column;gap:14px;margin:0 0 22px">
+  <div style="border-left:none;border:1px solid #1c1c1a26;padding:16px 18px 18px;break-inside:avoid">
+    <div style="display:flex;align-items:baseline;gap:12px;margin-bottom:10px"><span style="font:700 12px/1 'JetBrains Mono',monospace;letter-spacing:0.1em;color:#6b4560">ACT I</span><span style="font:400 15px/1 Newsreader,serif;color:#1c1c1a;font-style:italic">Nothing is wrong</span></div>
+    <div style="font:400 15px/1.55 Newsreader,serif;color:#2b2925;max-width:34em">Full warm palette. No plum, no bile-green, no bone anywhere in the town exterior. One single exception per map, placed where the player will walk past it fifty times before it matters: in town, the plaza's worn centre cobble is a slightly different shape than paving stones should be. It is never pointed at. Also: the road always curves out of frame to the west — the player can never see a horizon, only more town. That is the one piece of level-design dread that ships in Act I.</div>
+  </div>
+  <div style="border:1px solid #1c1c1a26;padding:16px 18px 18px;break-inside:avoid">
+    <div style="display:flex;align-items:baseline;gap:12px;margin-bottom:10px"><span style="font:700 12px/1 'JetBrains Mono',monospace;letter-spacing:0.1em;color:#6b4560">ACT II</span><span style="font:400 15px/1 Newsreader,serif;color:#1c1c1a;font-style:italic">The details stop agreeing with each other</span></div>
+    <div style="font:400 15px/1.55 Newsreader,serif;color:#2b2925;max-width:34em">Greens lose 8% saturation; plum enters the shadow step of every stone ramp, so masonry shadows go faintly violet. Then four specific tells, all window and prop swaps: one house window is lit at 01:00 every night, and it is a different house each week. One building's contact shadow falls to the upper-left, against the light. The store's hanging sign gains a 2-frame idle sway with no wind anywhere else on screen. Leaf litter in autumn drifts <em>toward</em> the plaza centre regardless of which way the player walks.</div>
+  </div>
+  <div style="border:1px solid #1c1c1a26;padding:16px 18px 18px;break-inside:avoid">
+    <div style="display:flex;align-items:baseline;gap:12px;margin-bottom:10px"><span style="font:700 12px/1 'JetBrains Mono',monospace;letter-spacing:0.1em;color:#6b4560">ACT III</span><span style="font:400 15px/1 Newsreader,serif;color:#1c1c1a;font-style:italic">The town admits it</span></div>
+    <div style="font:400 15px/1.55 Newsreader,serif;color:#2b2925;max-width:34em">The palette splits: highlights push hotter toward lantern, shadows collapse into plum-black, and the mid-tones thin out — a high-contrast, low-mid image that is tiring to look at, deliberately. Green-dark becomes the dominant grass. Bile-green appears in living vegetation. Ash gathers in the cobble seams. Windows go shuttered building by building as residents give up on the evening, and on tribute nights the lantern flames burn <span style="font:400 14px/1 'JetBrains Mono',monospace">bone</span> instead of amber — the single most legible signal in the game that tonight is different, and it costs one recolored 4-frame sprite.</div>
+  </div>
+</div>
+
+<p style="font:400 14px/1.6 'JetBrains Mono',monospace;color:#6f6a63;max-width:34em;margin:0">Rule of thumb for anything proposed later: if it would make a player say "that's scary," it belongs in Act III. If it makes them look twice and then move on, it is Act II. Act I gets nothing.</p>
+
+<div style="height:1px;background:#1c1c1a26;margin:40px 0 34px"></div>
+
+<h2 style="font:400 13px/1 'JetBrains Mono',monospace;letter-spacing:0.14em;text-transform:uppercase;color:#6b4560;margin:0 0 4px">06</h2>
+<h2 style="font:400 32px/1.15 Newsreader,serif;color:#1c1c1a;margin:0 0 16px;letter-spacing:-0.01em">Characters</h2>
+
+<p style="font:400 16px/1.62 Newsreader,serif;color:#2b2925;max-width:34em;margin:0 0 14px">16×32, feet on the bottom row, outlined in <span style="font:400 14px/1 'JetBrains Mono',monospace">ink-700</span>. Silhouette carries the identity — hat, hair mass, coat length, posture — because at this size a face is four pixels and cannot. The current placeholder already has the right instinct in distinguishing NPCs by tunic color; keep that as a secondary channel, not the primary one. Two skin ramps and three hair ramps are enough for a town this small, and a limited cast whose bodies read as a family of shapes is a stronger look than variety for its own sake.</p>
+
+<p style="font:400 16px/1.62 Newsreader,serif;color:#2b2925;max-width:34em;margin:0 0 20px">Animation counts below are the full first-pass commission. Walk cycles come first; everything else can ship as a 2-frame stand-in without the game looking broken.</p>
+
+<table style="width:100%;border-collapse:collapse;font:400 13px/1.5 'JetBrains Mono',monospace;color:#2b2925;margin:0 0 18px">
+  <thead>
+    <tr>
+      <th style="text-align:left;padding:8px 10px 8px 0;border-bottom:1.5px solid #1c1c1a;font-weight:700;font-size:11px;letter-spacing:0.08em;text-transform:uppercase">Action</th>
+      <th style="text-align:left;padding:8px 10px;border-bottom:1.5px solid #1c1c1a;font-weight:700;font-size:11px;letter-spacing:0.08em;text-transform:uppercase">Frames</th>
+      <th style="text-align:left;padding:8px 10px;border-bottom:1.5px solid #1c1c1a;font-weight:700;font-size:11px;letter-spacing:0.08em;text-transform:uppercase">Dirs</th>
+      <th style="text-align:left;padding:8px 0 8px 10px;border-bottom:1.5px solid #1c1c1a;font-weight:700;font-size:11px;letter-spacing:0.08em;text-transform:uppercase">Rate / notes</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr><td style="padding:9px 10px 9px 0;border-bottom:1px solid #1c1c1a1f">Idle</td><td style="padding:9px 10px;border-bottom:1px solid #1c1c1a1f">2</td><td style="padding:9px 10px;border-bottom:1px solid #1c1c1a1f">4</td><td style="padding:9px 0 9px 10px;border-bottom:1px solid #1c1c1a1f">1.5fps breath, 1px chest lift</td></tr>
+    <tr><td style="padding:9px 10px 9px 0;border-bottom:1px solid #1c1c1a1f">Walk</td><td style="padding:9px 10px;border-bottom:1px solid #1c1c1a1f">4</td><td style="padding:9px 10px;border-bottom:1px solid #1c1c1a1f">3 + mirror</td><td style="padding:9px 0 9px 10px;border-bottom:1px solid #1c1c1a1f">8fps. Contact–down–pass–up; 1px vertical bob on pass only</td></tr>
+    <tr><td style="padding:9px 10px 9px 0;border-bottom:1px solid #1c1c1a1f">Till / chop</td><td style="padding:9px 10px;border-bottom:1px solid #1c1c1a1f">4</td><td style="padding:9px 10px;border-bottom:1px solid #1c1c1a1f">3 + mirror</td><td style="padding:9px 0 9px 10px;border-bottom:1px solid #1c1c1a1f">12fps, holds on frame 3 (impact) for 2 ticks</td></tr>
+    <tr><td style="padding:9px 10px 9px 0;border-bottom:1px solid #1c1c1a1f">Water</td><td style="padding:9px 10px;border-bottom:1px solid #1c1c1a1f">3</td><td style="padding:9px 10px;border-bottom:1px solid #1c1c1a1f">3 + mirror</td><td style="padding:9px 0 9px 10px;border-bottom:1px solid #1c1c1a1f">8fps, loops while held</td></tr>
+    <tr><td style="padding:9px 10px 9px 0;border-bottom:1px solid #1c1c1a1f">Carry (overhead)</td><td style="padding:9px 10px;border-bottom:1px solid #1c1c1a1f">1</td><td style="padding:9px 10px;border-bottom:1px solid #1c1c1a1f">4</td><td style="padding:9px 0 9px 10px;border-bottom:1px solid #1c1c1a1f">Pose overlay on the walk cycle</td></tr>
+    <tr><td style="padding:9px 10px 9px 0;border-bottom:1px solid #1c1c1a1f">Sleep / collapse</td><td style="padding:9px 10px;border-bottom:1px solid #1c1c1a1f">2</td><td style="padding:9px 10px;border-bottom:1px solid #1c1c1a1f">1</td><td style="padding:9px 0 9px 10px;border-bottom:1px solid #1c1c1a1f">Also serves the stamina-zero flop</td></tr>
+    <tr><td style="padding:9px 10px 9px 0;border-bottom:1px solid #1c1c1a1f">NPC talk</td><td style="padding:9px 10px;border-bottom:1px solid #1c1c1a1f">2</td><td style="padding:9px 10px;border-bottom:1px solid #1c1c1a1f">4</td><td style="padding:9px 0 9px 10px;border-bottom:1px solid #1c1c1a1f">3fps, arm only. Never a mouth at this size</td></tr>
+  </tbody>
+</table>
+<p style="font:400 14px/1.6 'JetBrains Mono',monospace;color:#6f6a63;max-width:34em;margin:0">Per character: 43 frames, of which 24 are walk. Ten named NPCs plus the player at this spec is roughly 470 frames — a real commission, and the reason to lock the spec before ordering any of it.</p>
+
+<div style="height:1px;background:#1c1c1a26;margin:40px 0 34px"></div>
+
+<h2 style="font:400 13px/1 'JetBrains Mono',monospace;letter-spacing:0.14em;text-transform:uppercase;color:#6b4560;margin:0 0 4px">07</h2>
+<h2 style="font:400 32px/1.15 Newsreader,serif;color:#1c1c1a;margin:0 0 16px;letter-spacing:-0.01em">Where the art should come from</h2>
+
+<p style="font:400 16px/1.62 Newsreader,serif;color:#2b2925;max-width:34em;margin:0 0 14px">You are undecided, so here is a recommendation rather than a menu. <strong style="font-weight:600">Split it: buy the terrain, commission the town.</strong></p>
+<p style="font:400 16px/1.62 Newsreader,serif;color:#2b2925;max-width:34em;margin:0 0 14px">Terrain, crops, tools, UI frames and generic props are solved problems. A 16px asset pack — a permissive commercial pack, or the CC0 material on OpenGameArt and Kenney's libraries — gets you a playable-looking farm and store immediately, at a cost measured in hours. Recolor whatever you use to the palette in §02 as the first act of integration; that single step is what makes bought art stop looking bought.</p>
+<p style="font:400 16px/1.62 Newsreader,serif;color:#2b2925;max-width:34em;margin:0 0 14px">What no pack will ever contain is the part that makes The Haunt itself: the town's five named buildings, the cast's silhouettes, and every Act II and Act III variant. Nothing off the shelf has a tile whose shadow falls the wrong way. Commission those, from one artist, after the palette and the animation spec above are locked — a pixel artist quoting against a fixed 30-color palette and a frame table is quoting against something real, and the estimate will be both cheaper and more accurate than a quote against a vibe.</p>
+<p style="font:400 16px/1.62 Newsreader,serif;color:#2b2925;max-width:34em;margin:0 0 14px"><strong style="font-weight:600">Drawing it yourself is a legitimate third answer</strong> — but only for terrain, and only if you enjoy it. Tiles are forgiving: a grass variant is an afternoon. Character animation is not; a bad walk cycle is the single fastest way to make a game read as amateur, and it is the last thing to try to learn on a project this size.</p>
+<p style="font:400 16px/1.62 Newsreader,serif;color:#2b2925;max-width:34em;margin:0">Whichever route: keep <span style="font:400 14px/1 'JetBrains Mono',monospace">PlaceholderSprites</span> and the procedural tile atlases working the whole way through. They cost nothing to keep, they let a new map ship before its art exists, and every asset that replaces one of them is a visible piece of progress.</p>
+
+<div style="height:1px;background:#1c1c1a26;margin:40px 0 34px"></div>
+
+<h2 style="font:400 13px/1 'JetBrains Mono',monospace;letter-spacing:0.14em;text-transform:uppercase;color:#6b4560;margin:0 0 4px">08</h2>
+<h2 style="font:400 32px/1.15 Newsreader,serif;color:#1c1c1a;margin:0 0 16px;letter-spacing:-0.01em">First order — the town exterior</h2>
+<p style="font:400 16px/1.62 Newsreader,serif;color:#2b2925;max-width:34em;margin:0 0 20px">The smallest set of assets that makes the existing 48×30 town stop looking like a prototype. Everything here fits the current collision map without moving a cell.</p>
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:26px 34px;margin:0 0 24px">
+  <div style="break-inside:avoid">
+    <div style="font:700 11px/1 'JetBrains Mono',monospace;letter-spacing:0.1em;color:#6b4560;margin-bottom:10px">TERRAIN · 31 TILES</div>
+    <div style="font:400 15px/1.7 Newsreader,serif;color:#2b2925">4 grass base · 3 grass detail · 3 dirt · 2 wheel rut · 47-tile dirt-over-grass blob set (reducible to 13 hand-drawn with corner reuse) · 3 cobble · 15-tile cobble edge set · 2 gravel</div>
+  </div>
+  <div style="break-inside:avoid">
+    <div style="font:700 11px/1 'JetBrains Mono',monospace;letter-spacing:0.1em;color:#6b4560;margin-bottom:10px">BOUNDARY · 7 TILES</div>
+    <div style="font:400 15px/1.7 Newsreader,serif;color:#2b2925">Replace the stone border ring with a woods edge: 3 tree-mass tiles, 4 corners. The map's limit should read as forest that turns you around, not as a wall — the no-leave rule deserves to be diegetic from the first hour.</div>
+  </div>
+  <div style="break-inside:avoid">
+    <div style="font:700 11px/1 'JetBrains Mono',monospace;letter-spacing:0.1em;color:#6b4560;margin-bottom:10px">TOWN HALL · 6×8 TILES</div>
+    <div style="font:400 15px/1.7 Newsreader,serif;color:#2b2925">Masonry, two storeys, slate roof, cupola over the ridge. Double door at (23,11) with a lit fanlight. The tallest thing in town; the mayor's authority is architectural.</div>
+  </div>
+  <div style="break-inside:avoid">
+    <div style="font:700 11px/1 'JetBrains Mono',monospace;letter-spacing:0.1em;color:#6b4560;margin-bottom:10px">GENERAL STORE · 7×4 TILES</div>
+    <div style="font:400 15px/1.7 Newsreader,serif;color:#2b2925">Clapboard, single storey, cedar shake, three windows. Door at (11,11) in open (warm glow) and closed (shuttered) states, driven by <span style="font:400 13px/1 'JetBrains Mono',monospace">ShopHours</span>. Hanging sign on a bracket — 2-frame sway held in reserve for Act II.</div>
+  </div>
+  <div style="break-inside:avoid">
+    <div style="font:700 11px/1 'JetBrains Mono',monospace;letter-spacing:0.1em;color:#6b4560;margin-bottom:10px">PLAZA DRESSING · 9 PROPS</div>
+    <div style="font:400 15px/1.7 Newsreader,serif;color:#2b2925">Well or pump, two benches, notice board, three planters, two lamp posts with the 4-frame flame. The plaza at x22–26, y18–21 is the town's social room and currently has nothing in it — this is the highest-value dressing in the whole order.</div>
+  </div>
+  <div style="break-inside:avoid">
+    <div style="font:700 11px/1 'JetBrains Mono',monospace;letter-spacing:0.1em;color:#6b4560;margin-bottom:10px">LIGHTING · 6 SPRITES</div>
+    <div style="font:400 15px/1.7 Newsreader,serif;color:#2b2925">2-tile and 4-tile dithered falloff sprites, 4-frame flame loop, and the three window states as a swappable layer. This is what buys dusk, and dusk is the screenshot the game gets remembered by.</div>
+  </div>
+</div>
+
+<p style="font:400 16px/1.62 Newsreader,serif;color:#2b2925;max-width:34em;margin:0 0 8px"><strong style="font-weight:600">Two open questions before anything is commissioned.</strong> The town is 48×30 with two buildings, which is roughly a quarter of the town it needs to be; adding the remaining building footprints now costs nothing and prevents a re-lay later. And the viewport decision in §01 changes what "readable" means for every tile in this order, so it should be settled first.</p>
+<p style="font:400 13px/1.6 'JetBrains Mono',monospace;color:#6f6a63;max-width:34em;margin:22px 0 0">Nothing in this document names the town, its residents, or the malevolence. That is still yours.</p>
+
+</doc-page>
+</x-dc>
+</body>
+</html>

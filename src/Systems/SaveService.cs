@@ -215,6 +215,29 @@ public partial class SaveService : Node
             var storage = data.Storages[key] ??= new StorageData();
             storage.Normalize(StorageIds.CapacityOf(key));
         }
+        // Scooter repair: a pre-scooter save (or a nulled record) parks it at home —
+        // that is also how existing saves acquire it. A bad facing clamps; an
+        // unknown-but-well-formed MapId is KEPT (preserve-unknown rule — the view
+        // just won't spawn until the overnight reset brings it home).
+        data.Scooter ??= ScooterData.AtHome();
+        if (string.IsNullOrEmpty(data.Scooter.MapId)
+            || data.Scooter.TileX < 0 || data.Scooter.TileX >= 512
+            || data.Scooter.TileY < 0 || data.Scooter.TileY >= 512)
+        {
+            // No map is anywhere near 512 tiles; out-of-range coords are a hostile
+            // writer, and a view parked off-map is a scooter lost for a day.
+            data.Scooter = ScooterData.AtHome();
+        }
+        data.Scooter.Facing = Math.Clamp(data.Scooter.Facing, 0, 3);
+        // Never ridden — or parked — indoors (scooter handoff): the rule is enforced
+        // at the travel boundary in play, so an interior state here is a hand-edited
+        // or drifted save. Re-park at home rather than load the impossible state.
+        // Unknown map ids pass (IsInterior is false for them — preserve-unknown).
+        if ((data.Scooter.Mounted && MapIds.IsInterior(data.Player.MapId))
+            || (!data.Scooter.Mounted && MapIds.IsInterior(data.Scooter.MapId)))
+        {
+            data.Scooter = ScooterData.AtHome();
+        }
         data.Player.MaxStamina = Math.Max(1, data.Player.MaxStamina);
         data.Player.Stamina = Math.Clamp(data.Player.Stamina, 0, data.Player.MaxStamina);
 

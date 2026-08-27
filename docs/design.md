@@ -3,7 +3,7 @@
 ## Canon (user-established — do not alter without Kevin)
 
 - **Setting**: a small New England town. It appears on no map.
-- **The hook**: If you own property in town, you cannot leave. If you attempt to do so, you simply arrive back where you tried to leave (or maybe wrap around?). You can sell, if you can find a buyer, but nobody that has left has ever come back. Either because they can't return, or because they die when they leave. Nobody knows for sure. Selling is obviously difficult, because few strangers find the town, and those that visit for trade have heard the stories. Whether they believe them or not, they rarely buy. The town itself is pleasant. The compelled residents try hard to make life as enjoyable as possible. But the evil that stalks the town periodically "wakes up" and demands tribute.
+- **The hook**: If you own property in town, you cannot leave. If you attempt to do so, you are wrapped around to the other side: drive out past the west entry and you come rolling in from the east, and vice versa (settled in `docs/story/README.md`, implemented as the `RoadWrap` rule). You can sell, if you can find a buyer, but nobody that has left has ever come back. Either because they can't return, or because they die when they leave. Nobody knows for sure. Selling is obviously difficult, because few strangers find the town, and those that visit for trade have heard the stories. Whether they believe them or not, they rarely buy. The town itself is pleasant. The compelled residents try hard to make life as enjoyable as possible. But the evil that stalks the town periodically "wakes up" and demands tribute.
 - **Tone of the opening** (Kevin, answering open question 1): the start is entirely cozy,
   except for some NPC conversations. The dread seeps in through dialogue before anything
   else.
@@ -17,7 +17,10 @@
   the facility. The following morning the road is cleared and a repair crew from town
   arrives — surprised, in a bad way, to find a new owner. They tell the player to attend
   the town hall meeting that night, where the mayor explains the curse. That's the intro;
-  the rest of the story plays out later.
+  the rest of the story plays out later. *(NOTE, 2026-08-26: `docs/story/README.md` §Main
+  Character now gives Jane a partly different backstory — married, a child lost in a fall,
+  a divorce — where this bullet says lost touch with friends, parents died, no siblings.
+  Both are Kevin-authored; reconcile before writing dialogue that leans on either.)*
 - **Combat** (Kevin, answering open question 2): real-time, Stardew-style.
 - **The antagonist**: a supernatural, malevolent force in town. It enforces the no-leaving
   rule and manifests various evil entities the player must ultimately contend with.
@@ -55,7 +58,14 @@
    wine brew from special grapes. To be discussed in detail before building (Phase 4).
 4. Calendar events (festivals? malevolence-driven "bad nights"?). TBD later. The periodic
    tribute demand (now canon) will need a cadence and a cost.
-5. Names: town, NPCs, the malevolence itself — all unnamed canon so far. Do not invent. These are all TBD.
+5. Names: the town and the malevolence itself stay unnamed — do not invent. `docs/story/README.md`
+   (Kevin, 2026-08-26) is the expanding lore doc and names Jane, Billie, Bud, Sam, Abe;
+   `docs/story/cast.md` (2026-08-27, written under Kevin's fill-in-the-blanks commission)
+   proposes the rest of the road-strip cast (Walt, Dennis, Gloria, Mr. Pell, the bar
+   shifts) — pending Kevin's review. The intro cast (mayor, foreman, crew, shopkeeper)
+   remains role-labeled and unnamed. The MOTEL's name is also unwritten by design: the
+   motel handoff ships the pole sign with a blank nameplate, and the drive-in's marquee
+   carries no name either — both wait on Kevin.
 
 ## Systems roadmap
 
@@ -68,8 +78,41 @@
   (blocked road → first planting → crew arrival → town-hall meeting) shipped 2026-08-25.
   **Phase 3b (shipped 2026-08-25)**: general store (interior map, Shopkeeper 9-5, seed
   buying), farmhouse interior (bed/table/storage chest, save v4), itemized overnight
-  sales report on waking, Tab controls panel. Remaining as Phase 3c:
-  connections/relationship mechanics, more of the town.
+  sales report on waking, Tab controls panel. **Phase 3c (started 2026-08-26)**: the road
+  strip from `docs/story/README.md` — west_entry, billies (+ the covered pit), fork,
+  east_fork (Abe's shack, chained mansion drive), east_entry — as placeholder-art maps,
+  the farm rerouted through the fork, and the leave-town wrap (west edge ⇄ east edge)
+  implemented and walk-tested. 2026-08-27 (Kevin's fill-in-the-blanks commission): the
+  road-strip cast — 14 ambient NPCs with schedules, flag/time-aware dialogue, and four
+  interiors (Billie's bar room with the three drunk shifts, the motel lobby, the gas
+  station shop, Sam's salon); names/voices proposed in `docs/story/cast.md`, pending
+  review. 2026-08-27, from `docs/designs/design_handoff_motel_signage`: the motel is
+  now the drawn googie motor court in the west entry (office + four flag-locked guest
+  rooms with interiors, asphalt lot, blinking-V pole sign with the blank nameplate —
+  the name is deliberately unwritten), the four-mount signage system is applied across
+  the road strip (police/hardware/salon bands, Billie's BAR bracket, gas window neon,
+  fireworks pole), and the dead drive-in from `docs/story/README.md` is a map off the
+  east fork's south side (screen, cracked field, speaker posts, boarded concession,
+  "CLO ED" marquee). Jane's drive-in refurbishment goal has no mechanics yet — that
+  seam is deliberately empty, like the barn's. Handoff revision (2026-08-27): the town
+  is PAVED — asphalt road a value-step darker than the motel lot, kerbs with cuts at
+  every driveway, worn centre line — with cobra-head street lights on cold mercury
+  vapour replacing the fire lanterns town-wide (the motel's east head is dead by
+  design); amber is now strictly interior, and roads turn to dirt past the town line
+  (the fork's farm branch stays unsealed). 2026-08-27, from
+  `docs/designs/design_handoff_scooter`: the electric scooter — the one modern object
+  in town — ships with both production sheets wired in: ridden at 2x walk speed with
+  the six-column wheel cycle, parked anywhere with E (three parked views by dismount
+  facing), auto-parked at the door of any interior. Kevin's amendments over the
+  handoff: the player has it from day one (the mid-game acquisition, and whether it
+  arrives scuffed, is an open seam), and it returns to the farmhouse frontage every
+  morning no matter where it was left. No battery, no recall, no minimap pin — losing
+  track of it until morning is the point. Open handoff questions for Kevin: how it is
+  acquired mid-game once the seam closes, whether residents react to it, and whether
+  the dread acts touch it. Still remaining:
+  connections/relationship mechanics, enlarging the town centre (clinic, Stumble Inn,
+  homes, fountain square), shop catalogs for the gas station and fireworks stand,
+  haircuts, motel room unlock stories, the drive-in restoration arc.
 - **Phase 4 — Mining & fishing**: plus the unique specialties (design with Kevin first).
 - **Phase 5 — The malevolence**: entity manifestations, combat, weapons/special items,
   quest framework, escalation, endgame.

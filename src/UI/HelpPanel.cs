@@ -68,6 +68,7 @@ public partial class HelpPanel : Control
         // Factual bindings only — no lore.
         vbox.AddChild(MakeRow("Move — WASD / Arrows"));
         vbox.AddChild(MakeRow("Interact — E / Space"));
+        vbox.AddChild(MakeRow("Scooter — E to ride, E again to park"));
         vbox.AddChild(MakeRow("Use Tool — Left Click / C"));
         vbox.AddChild(MakeRow("Hotbar — 1-0 / Mouse Wheel"));
         vbox.AddChild(MakeRow("Chest/Shop — Arrows select, E move/buy, Esc close"));
@@ -78,7 +79,7 @@ public partial class HelpPanel : Control
     private static Label MakeRow(string text)
     {
         var label = new Label { Text = text }; // Labels ignore mouse by default
-        label.AddThemeFontSizeOverride("font_size", 10);
+        label.AddThemeFontSizeOverride("font_size", 8);
         return label;
     }
 

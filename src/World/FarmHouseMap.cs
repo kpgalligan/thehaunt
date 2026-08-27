@@ -4,36 +4,31 @@ using TheHaunt.Core;
 namespace TheHaunt.World;
 
 /// <summary>
-/// Programmatic placeholder farmhouse interior, 14x10 tiles (224x160) — far
-/// smaller than the viewport, so an oversized near-black ColorRect goes in
-/// FIRST (behind Ground) and the camera's expanded limits read as darkness.
-/// Plank floor, blocking wall ring with the Door back to the farm flush in the
-/// south wall (interiors exit via Door, not MapExit — TownHallMap precedent).
-/// Holds the Bed, a table, and the storage Chest. No farmland (IsTillable
-/// stays base false).
+/// The farmhouse interior, 14x10 tiles, dressed from the farm/interiors handoff's
+/// reference room. Log walls, plank floor, a hearth on the north side with the bed
+/// beside it, and the stove and cupboard along the west end of the same wall.
+///
+/// Every gameplay position is exactly where it was: bed (12,2)-(12,3), chest (2,2),
+/// table (6,4)+(7,4), door (7,9). The chest is drawn as the cupboard the reference room
+/// puts on its cell, and the bed is the sheet's bed — both keep their own collision and
+/// their own interaction, they just stopped being coloured rectangles.
 /// </summary>
-public partial class FarmHouseMap : MapRoot
+public partial class FarmHouseMap : InteriorMap
 {
-    private const int Width = 14;
-    private const int Height = 10;
+    protected override int Width => 14;
+    protected override int Height => 10;
+    protected override InteriorTiles.WallSet Walls => InteriorTiles.FarmhouseWalls;
+    protected override int DoorX => 7;
+    protected override int DoorY => 9;
 
-    // Atlas tile indices (atlas coords (i, 0)).
-    private const int FloorA = 0;
-    private const int FloorB = 1;
-    private const int Wall = 2;
-    private const int Table = 3;
-    private const int TileCount = 4;
-
-    private const int DoorX = 7;
-    private const int DoorY = 9;
-
-    private static readonly Color[] TileColors =
+    // The reference's three-step diagonal stagger — plank a, plank b, then a worn board.
+    protected override Vector2I[] Floor { get; } =
     {
-        new("8a6a48"), // floor plank A
-        new("856544"), // floor plank B
-        new("6a6a6a"), // wall
-        new("9a7a4a"), // table wood
+        InteriorTiles.FloorPlank[0], InteriorTiles.FloorPlank[1], InteriorTiles.FloorPlankWorn,
     };
+
+    private const int HearthX = 10;   // hearth_l/c/r on (10..12, 1), fire at (11, 2)
+    private const int BedX = 12;
 
     public override void _EnterTree()
     {
@@ -43,148 +38,34 @@ public partial class FarmHouseMap : MapRoot
         base._EnterTree();
     }
 
-    public override void _Ready()
+    protected override void Decorate()
     {
-        BuildSurround();
-        var tileSet = BuildTileSet();
-        BuildGround(tileSet);
-        BuildObstacles(tileSet);
-        BuildSpawns();
-        BuildInteractables();
-    }
+        // Lit windows in the cornice row. They are drawn on a cream plaster ground, so
+        // against the log wall they read as whitewashed trim around the glass — which is
+        // how the reference room draws them too.
+        SetWall(3, 0, InteriorTiles.WindowLit);
+        SetWall(10, 0, InteriorTiles.WindowLit);
 
-    // ------------------------------------------------------------------
-    // Surround / Ground / Obstacles
-    // ------------------------------------------------------------------
+        AddHearth(HearthX, 1);
 
-    /// <summary>
-    /// Oversized near-black backdrop, added before Ground so it draws behind
-    /// everything. MapRoot.ExpandToViewport grows the camera limits to 640x360
-    /// centered on the 224x160 interior; the overshoot must read as darkness,
-    /// not the clear color. MouseFilter Ignore so the giant Control never
-    /// swallows tool clicks.
-    /// </summary>
-    private void BuildSurround()
-    {
-        AddChild(new ColorRect
+        // The rug is floor, not furniture: red on the left column, plum on the right.
+        for (int y = 6; y <= 7; y++)
         {
-            Name = "Surround",
-            Color = new Color("0e0e12"),
-            Position = new Vector2(-640, -360),
-            Size = new Vector2(1600, 1000),
-            MouseFilter = Control.MouseFilterEnum.Ignore,
-        });
-    }
-
-    private static TileSet BuildTileSet()
-    {
-        var ts = new TileSet { TileSize = new Vector2I(TileSize, TileSize) };
-        ts.AddPhysicsLayer();                        // index 0
-        ts.SetPhysicsLayerCollisionLayer(0, 1);      // world layer
-        ts.SetPhysicsLayerCollisionMask(0, 0);
-        ts.AddCustomDataLayer();                     // index 0
-        ts.SetCustomDataLayerName(0, "walkable");
-        ts.SetCustomDataLayerType(0, Variant.Type.Bool);
-
-        var src = new TileSetAtlasSource
-        {
-            Texture = BuildAtlasTexture(),
-            TextureRegionSize = new Vector2I(TileSize, TileSize),
-        };
-        ts.AddSource(src, 0);
-
-        for (int i = 0; i < TileCount; i++)
-        {
-            var coords = new Vector2I(i, 0);
-            src.CreateTile(coords);
-            var td = src.GetTileData(coords, 0);
-            bool walkable = i is FloorA or FloorB;
-            td.SetCustomData("walkable", walkable);
-            if (!walkable)
-            {
-                td.SetCollisionPolygonsCount(0, 1);
-                td.SetCollisionPolygonPoints(0, 0, new[]
-                {
-                    new Vector2(-8, -8), new Vector2(8, -8), new Vector2(8, 8), new Vector2(-8, 8),
-                });
-            }
+            SetFloor(5, y, InteriorTiles.RugA);
+            SetFloor(6, y, InteriorTiles.RugB);
         }
 
-        return ts;
+        AddFurniture(Furniture.Stove, 3, 2);
+        AddFurniture(Furniture.Pot, 4, 2);
+        AddFurniture(Furniture.ChairSide, 5, 4);
+        AddFurniture(Furniture.Table, 6, 4);
+        AddFurniture(Furniture.ChairBack, 8, 4);
+        AddFurniture(Furniture.Lamp, 9, 6);
+        AddFurniture(Furniture.Bucket, 1, 7);
+        AddFurniture(Furniture.Sack, 12, 7);
     }
 
-    private static ImageTexture BuildAtlasTexture()
-    {
-        var img = Image.CreateEmpty(TileCount * TileSize, TileSize, false, Image.Format.Rgba8);
-        for (int i = 0; i < TileCount; i++)
-        {
-            var baseColor = TileColors[i];
-            var dark = baseColor.Darkened(0.15f);
-            var light = baseColor.Lightened(0.1f);
-            for (int py = 0; py < TileSize; py++)
-            {
-                for (int px = 0; px < TileSize; px++)
-                {
-                    // Coordinate hash sprinkles a few darker/lighter speckles per tile.
-                    int hash = (px * 31 + py * 17 + i * 7) % 23;
-                    var color = hash == 0 ? dark : hash == 1 ? light : baseColor;
-                    img.SetPixel(i * TileSize + px, py, color);
-                }
-            }
-        }
-
-        // Plank seams on the floor tiles; a lighter top edge on the table.
-        for (int i = FloorA; i <= FloorB; i++)
-        {
-            var seam = TileColors[i].Darkened(0.2f);
-            img.FillRect(new Rect2I(i * TileSize, 7, TileSize, 1), seam);
-            img.FillRect(new Rect2I(i * TileSize, 15, TileSize, 1), seam);
-        }
-        img.FillRect(new Rect2I(Table * TileSize, 0, TileSize, 2), TileColors[Table].Lightened(0.2f));
-
-        return ImageTexture.CreateFromImage(img);
-    }
-
-    private void BuildGround(TileSet tileSet)
-    {
-        var ground = new TileMapLayer { Name = "Ground", TileSet = tileSet };
-        for (int y = 0; y < Height; y++)
-        {
-            for (int x = 0; x < Width; x++)
-            {
-                int tile = (x * 7 + y * 13) % 2 == 0 ? FloorA : FloorB;
-                ground.SetCell(new Vector2I(x, y), 0, new Vector2I(tile, 0));
-            }
-        }
-        AddChild(ground);
-    }
-
-    private void BuildObstacles(TileSet tileSet)
-    {
-        var obstacles = new TileMapLayer { Name = "Obstacles", TileSet = tileSet };
-        for (int y = 0; y < Height; y++)
-        {
-            for (int x = 0; x < Width; x++)
-            {
-                // Single-thickness ring; the Door node fills the gap at the door cell.
-                bool wall = x == 0 || x == Width - 1 || y == 0 || y == Height - 1;
-                if (wall && !(x == DoorX && y == DoorY))
-                    obstacles.SetCell(new Vector2I(x, y), 0, new Vector2I(Wall, 0));
-            }
-        }
-
-        // Table: two blocking decor tiles mid-room.
-        obstacles.SetCell(new Vector2I(6, 4), 0, new Vector2I(Table, 0));
-        obstacles.SetCell(new Vector2I(7, 4), 0, new Vector2I(Table, 0));
-
-        AddChild(obstacles);
-    }
-
-    // ------------------------------------------------------------------
-    // Spawns / interactables
-    // ------------------------------------------------------------------
-
-    private void BuildSpawns()
+    protected override void BuildSpawns()
     {
         var spawns = new Node2D { Name = "Spawns" };
         spawns.AddChild(new Marker2D
@@ -200,19 +81,24 @@ public partial class FarmHouseMap : MapRoot
         AddChild(spawns);
     }
 
-    private void BuildInteractables()
+    protected override void BuildInteractables()
     {
         var interactables = new Node2D { Name = "Interactables" };
-        // The bed that used to sit outdoors on the farm — same class, new home.
+        // The bed that used to sit outdoors on the farm — same class, new home, and now
+        // the 16x32 piece from the sheet standing exactly on its two cells.
         interactables.AddChild(new Bed
         {
             Name = "Bed",
-            Position = new Vector2(200, 56), // footprint tiles (12,2)-(12,3), position per spec
+            ArtSource = Furniture.Bed,
+            Position = new Vector2(BedX * TileSize + 8, 3 * TileSize), // centre of (12,2)-(12,3)
         });
+        // The reference room draws the storage on its cell as a cupboard; the node is
+        // unchanged, so the chest's contents still live in GameData.Storages.
         interactables.AddChild(new Chest
         {
             Name = "Chest",
             StorageId = StorageIds.FarmHouseChest,
+            ArtSource = Furniture.Cupboard,
             Position = new Vector2(2 * TileSize + 8, 2 * TileSize + 8), // (40, 40)
         });
         interactables.AddChild(new Door
@@ -220,6 +106,7 @@ public partial class FarmHouseMap : MapRoot
             Name = "FarmDoor",
             TargetMapId = MapIds.Farm,
             TargetSpawnId = "house_door",
+            DrawPlaceholder = false,   // door_open is painted into the wall ring
             Position = new Vector2(DoorX * TileSize + 8, DoorY * TileSize + 8), // (120, 152)
         });
         AddChild(interactables);

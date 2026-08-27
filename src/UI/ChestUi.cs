@@ -14,8 +14,8 @@ namespace TheHaunt.UI;
 public partial class ChestUi : Control
 {
     private const int Columns = 10;   // hotbar width; chest capacity 20 renders as 2 rows
-    private const int SlotSize = 26;
-    private const int IconSize = 12;
+    private const int SlotSize = 20;
+    private const int IconSize = 10;
 
     private GridContainer _chestGrid = null!;
     private GridContainer _inventoryGrid = null!;
@@ -129,7 +129,7 @@ public partial class ChestUi : Control
 
         // Empty text still reserves a line, so refusal flashes never resize the panel.
         _flashLabel = new Label { HorizontalAlignment = HorizontalAlignment.Center };
-        _flashLabel.AddThemeFontSizeOverride("font_size", 10);
+        _flashLabel.AddThemeFontSizeOverride("font_size", 8);
         _flashLabel.AddThemeColorOverride("font_color", new Color(0.92f, 0.65f, 0.18f));
         vbox.AddChild(_flashLabel);
 
@@ -319,7 +319,7 @@ public partial class ChestUi : Control
             VerticalAlignment = VerticalAlignment.Center,
             MouseFilter = MouseFilterEnum.Ignore,
         };
-        glyph.AddThemeFontSizeOverride("font_size", 10);
+        glyph.AddThemeFontSizeOverride("font_size", 8);
         glyph.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
         button.AddChild(glyph);
 
@@ -329,7 +329,7 @@ public partial class ChestUi : Control
             HorizontalAlignment = HorizontalAlignment.Right,
             MouseFilter = MouseFilterEnum.Ignore,
         };
-        count.AddThemeFontSizeOverride("font_size", 8);
+        count.AddThemeFontSizeOverride("font_size", 6);
         count.AddThemeColorOverride("font_outline_color", new Color(0f, 0f, 0f, 0.9f));
         count.AddThemeConstantOverride("outline_size", 2);
         count.SetAnchorsAndOffsetsPreset(LayoutPreset.BottomRight, LayoutPresetMode.Minsize, margin: 1);

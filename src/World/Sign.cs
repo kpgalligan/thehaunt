@@ -13,6 +13,13 @@ public partial class Sign : Area2D, IInteractable
 
     [Export] public string Message { get; set; } = "";
 
+    /// <summary>
+    /// False where the sign is already drawn by real art (the motel's pole sign, the
+    /// drive-in's marquee): the node still carries its read area and its blocker, it
+    /// just draws nothing — the same contract as <see cref="Door.DrawPlaceholder"/>.
+    /// </summary>
+    [Export] public bool DrawPlaceholder { get; set; } = true;
+
     public string PromptText => "Read";
 
     private Label _label = null!;
@@ -38,13 +45,29 @@ public partial class Sign : Area2D, IInteractable
         };
     }
 
+    private StaticBody2D? _blocker;
+
+    /// <summary>
+    /// Whether the sign is standing here at all — for a sign that only exists while some
+    /// story flag is unset. Visibility is NOT enough on its own: a StaticBody2D under a
+    /// hidden parent still collides, so hiding a sign without this leaves an invisible
+    /// wall on its tile.
+    /// </summary>
+    public void SetPresent(bool present)
+    {
+        Visible = present;
+        SetDeferred(Area2D.PropertyName.Monitorable, present);
+        _blocker?.SetDeferred(CollisionObject2D.PropertyName.CollisionLayer, present ? 1 : 0);
+    }
+
     public override void _Ready()
     {
         CollisionLayer = 2;
         CollisionMask = 0;
         Monitorable = true;
 
-        AddChild(new Sprite2D { Texture = BuildTexture() });
+        if (DrawPlaceholder)
+            AddChild(new Sprite2D { Texture = BuildTexture() });
 
         AddChild(new CollisionShape2D
         {
@@ -52,12 +75,12 @@ public partial class Sign : Area2D, IInteractable
         });
 
         // Solid blocker so the sign stops movement (Area2Ds don't collide with bodies).
-        var blocker = new StaticBody2D { CollisionLayer = 1, CollisionMask = 0 };
-        blocker.AddChild(new CollisionShape2D
+        _blocker = new StaticBody2D { CollisionLayer = 1, CollisionMask = 0 };
+        _blocker.AddChild(new CollisionShape2D
         {
             Shape = new RectangleShape2D { Size = new Vector2(12, 10) },
         });
-        AddChild(blocker);
+        AddChild(_blocker);
 
         _label = new Label
         {

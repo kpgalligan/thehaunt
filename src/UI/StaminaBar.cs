@@ -8,8 +8,8 @@ namespace TheHaunt.UI;
 /// Redraws from the model on WorldSim.StaminaChanged / SaveService.AfterLoad.</summary>
 public partial class StaminaBar : Control
 {
-    private const float BarWidth = 80f;
-    private const float BarHeight = 10f;
+    private const float BarWidth = 60f;
+    private const float BarHeight = 8f;
     private const float Inset = 1f; // frame border thickness around the fill
 
     private static readonly Color GreenFill = new(0.30f, 0.78f, 0.35f);

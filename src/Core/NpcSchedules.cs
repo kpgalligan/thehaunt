@@ -92,4 +92,130 @@ public static class NpcSchedules
             ShopHours.OpenMinute, ShopHours.CloseMinute,     // 9:00 AM - 5:00 PM
             new NpcPlacement(MapIds.GeneralStore, 6, 3, 0)), // behind the counter, facing down
     };
+
+    // ------------------------------------------------------------------
+    // The road strip (docs/story/cast.md). All ambient, all flag-free, and none of
+    // them ever on the farm (the intro-staging invariant). Talkable NPCs stand on
+    // OPEN floor beside their counter's open end, never behind it, so the Talk
+    // prompt never depends on the probe stretching over furniture.
+    // ------------------------------------------------------------------
+
+    // Behind the motel desk from open to close of the day: the lobby IS Walt's life.
+    // His conversation, not his placement, tracks the clock (DialogueSelector).
+    public static IReadOnlyList<ScheduleEntry> Walt { get; } = new[]
+    {
+        new ScheduleEntry(null, null,
+            0, GameTime.MinutesPerDay,
+            new NpcPlacement(MapIds.Motel, 4, 4, 1)),        // open end of the desk
+    };
+
+    // Three weeks into a one-night stay. Mornings in the lobby, evenings in the
+    // lobby; the hours between he walks the roads, which never take him anywhere.
+    public static IReadOnlyList<ScheduleEntry> Pell { get; } = new[]
+    {
+        new ScheduleEntry(null, null,
+            120, 360,                                        // 8:00 AM - noon
+            new NpcPlacement(MapIds.Motel, 8, 2, 0)),        // by the bench
+        new ScheduleEntry(null, null,
+            780, 1080,                                       // 7:00 PM - midnight
+            new NpcPlacement(MapIds.Motel, 8, 2, 0)),
+    };
+
+    /// <summary>The gas station's staffed window — shared with the west entry's OPEN
+    /// neon (the window mount doubles as the shop-hours tell), so the sign can never
+    /// lie about whether Dennis is at the counter.</summary>
+    public const int GasOpenMinute = 60, GasCloseMinute = 1140;   // 7:00 AM - 1:00 AM
+
+    public static IReadOnlyList<ScheduleEntry> Dennis { get; } = new[]
+    {
+        new ScheduleEntry(null, null,
+            GasOpenMinute, GasCloseMinute,
+            new NpcPlacement(MapIds.GasStation, 7, 4, 2)),   // open end of the counter
+    };
+
+    // Out at the stand in trading hours, same span as the general store's.
+    public static IReadOnlyList<ScheduleEntry> Gloria { get; } = new[]
+    {
+        new ScheduleEntry(null, null,
+            ShopHours.OpenMinute, ShopHours.CloseMinute,     // 9:00 AM - 5:00 PM
+            new NpcPlacement(MapIds.WestEntry, 34, 12, 0)),  // in front of the stand
+    };
+
+    // The bar runs 10:00 AM to close. Billie works the room's end of the counter;
+    // Bud holds the other end, all open hours, every shift (canon).
+    public static IReadOnlyList<ScheduleEntry> Billie { get; } = new[]
+    {
+        new ScheduleEntry(null, null,
+            240, GameTime.MinutesPerDay,                     // 10:00 AM - close
+            new NpcPlacement(MapIds.BilliesBar, 2, 4, 2)),   // west end, watching the room
+    };
+
+    public static IReadOnlyList<ScheduleEntry> Bud { get; } = new[]
+    {
+        new ScheduleEntry(null, null,
+            240, GameTime.MinutesPerDay,                     // 10:00 AM - close
+            new NpcPlacement(MapIds.BilliesBar, 8, 4, 3)),   // the end of the bar
+    };
+
+    // The shifts (canon): openers, mid-afternoon replacements, then the evening
+    // drunks and the ordinary locals. Canon says "some leave and are replaced", so
+    // the seams overlap by a few hands of cards rather than swapping on the hour —
+    // and the room never empties while the bar is open.
+    public static IReadOnlyList<ScheduleEntry> Pete { get; } = new[]
+    {
+        new ScheduleEntry(null, null,
+            240, 560,                                        // 10:00 AM - 3:20 PM
+            new NpcPlacement(MapIds.BilliesBar, 2, 7, 2)),   // west table, crossword
+    };
+
+    public static IReadOnlyList<ScheduleEntry> Moody { get; } = new[]
+    {
+        new ScheduleEntry(null, null,
+            240, 540,                                        // 10:00 AM - 3:00 PM
+            new NpcPlacement(MapIds.BilliesBar, 5, 4, 3)),   // at the bar
+    };
+
+    public static IReadOnlyList<ScheduleEntry> Lyle { get; } = new[]
+    {
+        new ScheduleEntry(null, null,
+            520, 840,                                        // 2:40 PM - 8:00 PM
+            new NpcPlacement(MapIds.BilliesBar, 6, 4, 3)),   // at the bar
+    };
+
+    public static IReadOnlyList<ScheduleEntry> Harriet { get; } = new[]
+    {
+        new ScheduleEntry(null, null,
+            540, 840,                                        // 3:00 PM - 8:00 PM
+            new NpcPlacement(MapIds.BilliesBar, 12, 7, 1)),  // east table, gin
+    };
+
+    public static IReadOnlyList<ScheduleEntry> Ray { get; } = new[]
+    {
+        new ScheduleEntry(null, null,
+            820, GameTime.MinutesPerDay,                     // 7:40 PM - close
+            new NpcPlacement(MapIds.BilliesBar, 4, 4, 3)),   // at the bar
+    };
+
+    // Harriet's seat, inherited by the evening local — the regulars' corner.
+    public static IReadOnlyList<ScheduleEntry> Nora { get; } = new[]
+    {
+        new ScheduleEntry(null, null,
+            840, GameTime.MinutesPerDay,                     // 8:00 PM - close
+            new NpcPlacement(MapIds.BilliesBar, 12, 7, 1)),
+    };
+
+    public static IReadOnlyList<ScheduleEntry> Sam { get; } = new[]
+    {
+        new ScheduleEntry(null, null,
+            ShopHours.OpenMinute, ShopHours.CloseMinute,     // 9:00 AM - 5:00 PM
+            new NpcPlacement(MapIds.Salon, 4, 4, 2)),        // beside the chair
+    };
+
+    // Twenty years at the roadside; where else would he be.
+    public static IReadOnlyList<ScheduleEntry> Abe { get; } = new[]
+    {
+        new ScheduleEntry(null, null,
+            0, GameTime.MinutesPerDay,
+            new NpcPlacement(MapIds.EastFork, 26, 20, 0)),   // beside the shack
+    };
 }

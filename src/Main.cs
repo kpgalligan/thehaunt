@@ -10,9 +10,11 @@ public partial class Main : Node2D
 {
     private Node2D _mapHost = null!;
     private Player.PlayerController _player = null!;
+    private DayNightTint _lighting = null!;
     private ScreenFade _fade = null!;
     private OvernightReportUi _overnightReport = null!;
     private MapRoot? _currentMap;
+    private string _bootSpawnId = "default";
     private bool _sleepFlowRunning;
     private bool _travelRunning;
 
@@ -20,6 +22,7 @@ public partial class Main : Node2D
     {
         _mapHost = GetNode<Node2D>("World/MapHost");
         _player = GetNode<Player.PlayerController>("World/Player");
+        _lighting = GetNode<DayNightTint>("World/Lighting");
         _fade = GetNode<ScreenFade>("UI/ScreenFade");
         _overnightReport = GetNode<OvernightReportUi>("UI/OvernightReport");
         GetNode<InteractionPrompt>("UI/InteractionPrompt").Bind(_player.Probe);
@@ -62,6 +65,9 @@ public partial class Main : Node2D
         _currentMap = map;
         _mapHost.AddChild(map);
         map.ApplyState(SaveService.Instance.Current.GetMap(map.MapId));
+        // Boot order: the Lighting node's own _Ready ran before the save was loaded,
+        // so the first correct tint is the one applied here.
+        _lighting.SetMap(map);
 
         // Through the bus like RunTravel: keeps Player.MapId coherent after an
         // unknown-id fallback and stages NPCs at boot (AfterLoad fired before any
@@ -85,7 +91,7 @@ public partial class Main : Node2D
         }
 
         if (!SaveService.Instance.Current.Player.HasPosition)
-            _player.GlobalPosition = map.GetSpawn();
+            _player.GlobalPosition = map.GetSpawn(_bootSpawnId);
         _player.ApplyCameraLimits(map.GetCameraLimits());
     }
 
@@ -105,6 +111,11 @@ public partial class Main : Node2D
     {
         _travelRunning = true;
         GameState.Instance.TransitionTo(GameState.Phase.Cutscene);   // clock + player frozen; tree NOT paused
+        // Where the rider stood when the door was used — captured before the fade
+        // frees the map, for the interior auto-dismount below.
+        string fromMapId = SaveService.Instance.Current.Player.MapId;
+        Vector2I fromTile = _player.FeetTile();
+        int fromFacing = _player.Facing;
         try
         {
             // MapExit.BodyEntered fires during the physics flush — the awaited fade
@@ -112,9 +123,14 @@ public partial class Main : Node2D
             await _fade.FadeOut(0.25);
             _currentMap?.QueueFree();               // FindRegisteredMap's IsQueuedForDeletion guard covers the same-frame window
             var map = MapRegistry.Create(mapId);
+            // Never ridden indoors (scooter handoff): entering an interior parks the
+            // scooter outside, at the doorstep the rider just left. No-op unless mounted.
+            if (map.IsInterior)
+                WorldSim.Instance.ParkScooterAt(fromMapId, fromTile, fromFacing);
             _currentMap = map;
             _mapHost.AddChild(map);
             map.ApplyState(SaveService.Instance.Current.GetMap(map.MapId));
+            _lighting.SetMap(map);                                   // interior/exterior key, set while black
             WorldSim.Instance.CompleteTravel(map.MapId);             // model write via the bus + NPC sync
             _player.GlobalPosition = map.GetSpawn(spawnId);          // node-owned volatile state, set while black
             _player.ApplyCameraLimits(map.GetCameraLimits());
@@ -186,6 +202,15 @@ public partial class Main : Node2D
                 SaveService.Instance.Current.Player.HasPosition = false;
             }
 
+            // Dev-only: land the boot on a named spawn marker instead of the map's
+            // default, so --screenshot can frame a corner of a map that has no door
+            // leading to it. Ignored once a save carries a position.
+            if (args[i] == "--spawn")
+            {
+                _bootSpawnId = args[i + 1];
+                SaveService.Instance.Current.Player.HasPosition = false;
+            }
+
             // Dev-only: advance the in-memory clock (never saved unless the run sleeps)
             // so --screenshot can catch time-gated staging like the shopkeeper's hours.
             // Through the clock, not GameData — the model already synced at load.
@@ -196,7 +221,17 @@ public partial class Main : Node2D
             if (args[i] == "--open-ui")
                 CallDeferred(nameof(OpenUiForScreenshot), args[i + 1]);
         }
+
+        // Dev-only (flag, no value): mount the scooter after boot so --screenshot can
+        // capture the riding sprite. Refused by the bus unless the boot map holds it.
+        foreach (string arg in args)
+        {
+            if (arg == "--ride")
+                CallDeferred(nameof(MountScooterForScreenshot));
+        }
     }
+
+    private void MountScooterForScreenshot() => WorldSim.Instance.MountScooter();
 
     // Deferred so the boot's LoadMap/phase state has fully settled first.
     private void OpenUiForScreenshot(string which)

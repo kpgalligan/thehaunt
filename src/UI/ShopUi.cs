@@ -83,7 +83,7 @@ public partial class ShopUi : Control
 
     private void BuildControls()
     {
-        var panel = new PanelContainer { CustomMinimumSize = new Vector2(240, 0) };
+        var panel = new PanelContainer { CustomMinimumSize = new Vector2(180, 0) };
         panel.SetAnchorsAndOffsetsPreset(LayoutPreset.Center);
         panel.GrowHorizontal = GrowDirection.Both;
         panel.GrowVertical = GrowDirection.Both;
@@ -122,12 +122,12 @@ public partial class ShopUi : Control
         vbox.AddChild(_rows);
 
         var hint = new Label { Text = "Shift — buy 5", HorizontalAlignment = HorizontalAlignment.Right };
-        hint.AddThemeFontSizeOverride("font_size", 10);
+        hint.AddThemeFontSizeOverride("font_size", 8);
         vbox.AddChild(hint);
 
         // Empty text still reserves a line, so refusal flashes never resize the panel.
         _flashLabel = new Label { HorizontalAlignment = HorizontalAlignment.Center };
-        _flashLabel.AddThemeFontSizeOverride("font_size", 10);
+        _flashLabel.AddThemeFontSizeOverride("font_size", 8);
         _flashLabel.AddThemeColorOverride("font_color", new Color(0.92f, 0.65f, 0.18f));
         vbox.AddChild(_flashLabel);
 

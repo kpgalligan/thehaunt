@@ -9,6 +9,11 @@ namespace TheHaunt.World;
 /// </summary>
 public partial class Bed : Area2D, IInteractable
 {
+    /// <summary>Atlas region to draw; zero-size falls back to the procedural placeholder.</summary>
+    public Rect2 ArtSource { get; init; }
+
+    public string ArtPath { get; init; } = Furniture.TexturePath;
+
     public string PromptText => "Sleep";
 
     public bool CanInteract(Node2D interactor) =>
@@ -23,7 +28,9 @@ public partial class Bed : Area2D, IInteractable
         CollisionMask = 0;
         Monitorable = true;
 
-        AddChild(new Sprite2D { Texture = BuildTexture() });
+        AddChild(ArtSource.Size == Vector2.Zero
+            ? new Sprite2D { Texture = BuildTexture() }
+            : Prop.Cut(ArtPath, ArtSource));
 
         AddChild(new CollisionShape2D
         {

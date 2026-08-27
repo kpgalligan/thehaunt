@@ -12,11 +12,31 @@ public static class TravelTests
     // must resolve to a real Marker2D, never the camera-center fallback.
     private static readonly Dictionary<string, string[]> DocumentedSpawns = new()
     {
-        [MapIds.Farm] = new[] { "default", "road", "house_door" },
-        [MapIds.Town] = new[] { "from_farm", "from_hall", "from_store" },
+        [MapIds.Farm] = new[] { "default", "road", "house_door", "barn_door" },
+        [MapIds.Town] = new[] { "from_fork", "from_east_fork", "from_hall", "from_store" },
         [MapIds.TownHall] = new[] { "entry" },
         [MapIds.FarmHouse] = new[] { "default", "entry" },
         [MapIds.GeneralStore] = new[] { "default", "entry" },
+        [MapIds.Barn] = new[] { "default", "entry" },
+        [MapIds.WestEntry] = new[]
+        {
+            "default", RoadWrap.ArrivalSpawn, "from_billies", "from_motel",
+            "from_room1", "from_room2", "from_room3", "from_room4", "from_gas",
+        },
+        [MapIds.Billies] = new[] { "default", "from_west_entry", "from_fork", "from_bar" },
+        [MapIds.Fork] = new[] { "default", "from_billies", "from_town", "from_farm" },
+        [MapIds.EastFork] = new[] { "default", "from_town", "from_east_entry", "from_drive_in" },
+        [MapIds.EastEntry] = new[]
+            { "default", "from_east_fork", RoadWrap.ArrivalSpawn, "from_salon" },
+        [MapIds.Motel] = new[] { "default", "entry" },
+        [MapIds.GasStation] = new[] { "default", "entry" },
+        [MapIds.BilliesBar] = new[] { "default", "entry" },
+        [MapIds.Salon] = new[] { "default", "entry" },
+        [MapIds.MotelRoom1] = new[] { "default", "entry" },
+        [MapIds.MotelRoom2] = new[] { "default", "entry" },
+        [MapIds.MotelRoom3] = new[] { "default", "entry" },
+        [MapIds.MotelRoom4] = new[] { "default", "entry" },
+        [MapIds.DriveIn] = new[] { "default", "from_road" },
     };
 
     [SimTest]
@@ -42,9 +62,15 @@ public static class TravelTests
                     t.Assert(map.GetNodeOrNull<Marker2D>($"Spawns/{spawn}") != null,
                         $"'{id}': spawn '{spawn}' is a real marker, not the fallback");
                 }
+                // Set equality, not just containment: a marker added to a map without
+                // a roster entry would otherwise drift from the documentation unpinned.
+                t.AssertEqual(DocumentedSpawns[id].Length,
+                    map.GetNodeOrNull("Spawns")?.GetChildCount() ?? 0,
+                    $"'{id}': every marker on the map is in the documented roster");
                 Rect2 limits = map.GetCameraLimits();
-                t.Assert(limits.Size.X >= 640 && limits.Size.Y >= 360,
-                    $"'{id}': camera limits {limits.Size} cover at least the 640x360 viewport");
+                t.Assert(limits.Size.X >= MapRoot.ViewportWidth && limits.Size.Y >= MapRoot.ViewportHeight,
+                    $"'{id}': camera limits {limits.Size} cover at least the "
+                    + $"{MapRoot.ViewportWidth}x{MapRoot.ViewportHeight} viewport");
 
                 map.Free();
                 map = null;
@@ -70,7 +96,8 @@ public static class TravelTests
         TestMap? map = null;
         PlayerController? player = null;
         int requests = 0;
-        Action<string, string> onTravel = (_, _) => requests++;
+        (string MapId, string SpawnId) lastRequest = ("", "");
+        Action<string, string> onTravel = (mapId, spawnId) => { requests++; lastRequest = (mapId, spawnId); };
         WorldSim.Instance.TravelRequested += onTravel;
         try
         {
@@ -92,7 +119,7 @@ public static class TravelTests
                     $"debris cell {cell} present while the road is blocked");
             }
 
-            MapExit? exit = FindExit(map, MapIds.Town);
+            MapExit? exit = FindExit(map, MapIds.Fork);
             t.Assert(exit != null, "road MapExit exists on the farm");
             t.Assert(!(exit!.IsEnabled?.Invoke() ?? true), "road exit IsEnabled reports blocked");
             t.Assert(!exit.Monitoring, "road exit monitoring disabled while blocked");
@@ -105,6 +132,22 @@ public static class TravelTests
             await t.WaitFrames(10);
             t.AssertEqual(0, requests, "no TravelRequested while the road is blocked");
             t.AssertEqual(MapIds.Farm, service.Current.Player.MapId, "player MapId unchanged");
+
+            // And the other half of the gate: the crew clears the road and the same
+            // exit wakes up. SetStoryFlag repaints every registered map, this one
+            // included, so the debris and the Monitoring toggle both flip here.
+            WorldSim.Instance.SetStoryFlag(StoryKeys.RoadCleared);
+            await t.WaitFrames(2); // let the deferred Monitoring toggle land
+            t.Assert(exit.IsEnabled?.Invoke() ?? false, "road exit IsEnabled reports cleared");
+            t.Assert(exit.Monitoring, "road exit monitoring re-enabled once cleared");
+
+            // Step off and back on: the cleared exit fires, and it leads to the fork.
+            player.GlobalPosition = new Vector2(20 * 16 + 8, 15 * 16 + 8);
+            await t.WaitFrames(2);
+            player.GlobalPosition = new Vector2(38 * 16 + 8, 15 * 16 + 8);
+            t.Assert(await t.WaitUntil(() => requests > 0, 5), "cleared exit fires TravelRequested");
+            t.AssertEqual((MapIds.Fork, "from_farm"), lastRequest,
+                "and it leads to the fork's farm-road arrival");
         }
         finally
         {
@@ -145,7 +188,7 @@ public static class TravelTests
             var player = main.GetNodeOrNull<PlayerController>("World/Player");
             t.Assert(player != null, "World/Player exists after boot");
 
-            t.Assert(WorldSim.Instance.RequestTravel(MapIds.Town, "from_farm"),
+            t.Assert(WorldSim.Instance.RequestTravel(MapIds.Town, "from_fork"),
                 "travel request to town accepted");
             bool arrived = await t.WaitUntil(
                 () => SaveService.Instance.Current.Player.MapId == MapIds.Town
@@ -158,7 +201,7 @@ public static class TravelTests
 
             MapRoot? town = FindCurrentMap(main);
             t.Assert(town != null, "town map instanced under MapHost");
-            t.AssertEqual(town!.GetSpawn("from_farm"), player!.GlobalPosition,
+            t.AssertEqual(town!.GetSpawn("from_fork"), player!.GlobalPosition,
                 "player placed at the arrival spawn");
 
             // Spawn-clearance rule: the arrival spot must not overlap the town's west
@@ -208,7 +251,7 @@ public static class TravelTests
 
             t.Assert(WorldSim.Instance.StartDialogue("foreman_wait"), "dialogue started");
             t.Assert(!GameState.Instance.PlayerHasControl, "no control during dialogue");
-            t.Assert(!WorldSim.Instance.RequestTravel(MapIds.Town, "from_farm"),
+            t.Assert(!WorldSim.Instance.RequestTravel(MapIds.Town, "from_fork"),
                 "travel refused during dialogue");
             t.AssertEqual(0, requests, "no TravelRequested during dialogue");
 
@@ -230,7 +273,7 @@ public static class TravelTests
             t.Assert(await t.WaitUntil(() => GameState.Instance.PlayerHasControl, 5),
                 "control restored after the dialogue");
 
-            t.Assert(WorldSim.Instance.RequestTravel(MapIds.Town, "from_farm"),
+            t.Assert(WorldSim.Instance.RequestTravel(MapIds.Town, "from_fork"),
                 "travel accepted after the dialogue");
             t.AssertEqual(1, requests, "TravelRequested fired once control returned");
         }
@@ -273,11 +316,19 @@ public static class TravelTests
 
             // Farmhouse -> farm through the interior door: lands at 'house_door'.
             await EnterDoor(t, main, player, MapIds.Farm, "farmhouse door back to the farm");
-            t.AssertEqual(new Vector2(104, 136), player.GlobalPosition,
-                "arrived at the farm 'house_door' spawn, tile (6,8)");
+            t.AssertEqual(new Vector2(120, 136), player.GlobalPosition,
+                "arrived at the farm 'house_door' spawn, tile (7,8)");
+
+            // The barn across the yard is the same round trip on the same farm.
+            await EnterDoor(t, main, player, MapIds.Barn, "yard door into the barn");
+            AssertNearSpawn(t, player, new Vector2(136, 168),
+                "arrived at the barn 'entry' spawn, tile (8,10)");
+            await EnterDoor(t, main, player, MapIds.Farm, "barn door back to the yard");
+            t.AssertEqual(new Vector2(440, 168), player.GlobalPosition,
+                "arrived at the farm 'barn_door' spawn, tile (27,10)");
 
             // Over to town on the bus, then through the StoreDoor and back.
-            t.Assert(WorldSim.Instance.RequestTravel(MapIds.Town, "from_farm"),
+            t.Assert(WorldSim.Instance.RequestTravel(MapIds.Town, "from_fork"),
                 "travel to town accepted");
             t.Assert(await t.WaitUntil(
                 () => SaveService.Instance.Current.Player.MapId == MapIds.Town

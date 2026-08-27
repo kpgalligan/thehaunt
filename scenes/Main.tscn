@@ -1,4 +1,4 @@
-[gd_scene load_steps=15 format=3]
+[gd_scene load_steps=16 format=3]
 
 [ext_resource type="Script" path="res://src/Main.cs" id="1_main"]
 [ext_resource type="Script" path="res://src/Player/PlayerController.cs" id="2_player"]
@@ -14,14 +14,20 @@
 [ext_resource type="Script" path="res://src/UI/ChestUi.cs" id="12_chest"]
 [ext_resource type="Script" path="res://src/UI/ShopUi.cs" id="13_shop"]
 [ext_resource type="Script" path="res://src/UI/OvernightReportUi.cs" id="14_report"]
+[ext_resource type="Script" path="res://src/World/DayNightTint.cs" id="15_lighting"]
 
 [node name="Main" type="Node2D"]
 script = ExtResource("1_main")
 
 [node name="World" type="Node2D" parent="."]
 process_mode = 1
+y_sort_enabled = true
+
+[node name="Lighting" type="CanvasModulate" parent="World"]
+script = ExtResource("15_lighting")
 
 [node name="MapHost" type="Node2D" parent="World"]
+y_sort_enabled = true
 
 [node name="Player" type="CharacterBody2D" parent="World"]
 script = ExtResource("2_player")

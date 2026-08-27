@@ -4,51 +4,66 @@ using TheHaunt.Core;
 namespace TheHaunt.World;
 
 /// <summary>
-/// Programmatic placeholder town, 48x30 tiles, TestMap style. Grass with an
-/// east-west dirt road on rows 14-15 (continuous with the farm road), a stone
-/// town-hall facade with its Door, a general-store facade with its Door and
-/// storefront sign, a plaza south of the road, and a west-edge MapExit back to
-/// the farm — always enabled: leaving town is never gated.
-/// No bed, no farmland (IsTillable stays base false).
+/// The town centre, 48x30 tiles, painted from the art handoff's terrain sheet
+/// (docs/designs/design_handoff_town_art). Grass with an east-west dirt road on rows
+/// 14-15 (continuous with every other frame of the strip), a woods edge instead of a
+/// wall for the map limit, gravel aprons under the two building facades, a cobbled
+/// plaza south of the road, and a road mouth at each end — west to the fork, east to
+/// the east fork. Both always enabled: leaving town is never gated. No bed, no
+/// farmland (IsTillable stays base false).
+///
+/// Buildings and props are drawn as base-anchored sprites in elevation (front face
+/// only, no side walls). Their collision is a transparent tile on the Obstacles layer,
+/// so the geometry the player runs into is unchanged from the procedural placeholder:
+/// same footprints, same two door cells.
 /// </summary>
-public partial class TownMap : MapRoot
+public partial class TownMap : ExteriorMap
 {
     private const int Width = 48;
     private const int Height = 30;
 
-    // Atlas tile indices (atlas coords (i, 0)).
-    private const int GrassA = 0;
-    private const int GrassB = 1;
-    private const int GrassC = 2;
-    private const int Dirt = 3;
-    private const int Stone = 4; // scattered rocks + map border
-    private const int Wall = 5;  // town-hall masonry
-    private const int TileCount = 6;
+    protected override int MapWidth => Width;
+    protected override int MapHeight => Height;
 
+    // Town hall: footprint x20-27, y6-11; the facade is 8x8 tiles and overhangs the
+    // top two rows. Door cell unchanged.
+    private const int HallLeft = 20, HallRight = 27, HallTop = 6, HallBottom = 11;
     private const int DoorX = 23;
     private const int DoorY = 11;
 
-    // General-store facade (footprint x8-14, y8-11); door gap at (11,11).
+    // General store: footprint x8-14, y8-11; the facade is 7x6 tiles, same overhang.
+    private const int StoreLeft = 8, StoreRight = 14, StoreTop = 8, StoreBottom = 11;
     private const int StoreDoorX = 11;
     private const int StoreDoorY = 11;
 
-    private static readonly Color[] TileColors =
+    // Plaza — the town's social room. The mayor stages on (24,19), so it stays clear.
+    private const int PlazaLeft = 22, PlazaRight = 26, PlazaTop = 18, PlazaBottom = 21;
+    private static readonly Vector2I PlazaCentre = new(24, 20);
+
+    private const int RoadTop = 14, RoadBottom = 15;
+    private const int ApronRow = 12;
+
+    private const string TownHallPath = "res://assets/sprites/town/building_townhall.png";
+    private static readonly Rect2 TownHallSource = new(0, 0, 128, 128);
+
+    // Props, as (source rect, base tile, width in tiles). Every one of these blocks.
+    private static readonly (Rect2 Source, int X, int Y, int Tiles)[] PlazaProps =
     {
-        new("4a7c3a"), // grass A
-        new("457539"), // grass B
-        new("4f823d"), // grass C
-        new("8a6a45"), // dirt
-        new("7a7a7a"), // stone
-        new("9a9a8a"), // wall masonry
+        (TownProps.Well, 25, 19, 2),
+        (TownProps.BenchA, 22, 19, 2),
+        (TownProps.BenchB, 25, 21, 2),
+        (TownProps.NoticeBoard, 21, 17, 2),
+        (TownProps.Planters[0], 21, ApronRow, 1),
+        (TownProps.Planters[1], 26, ApronRow, 1),
+        (TownProps.Planters[2], 9, ApronRow, 1),
     };
 
-    // Decorative rocks; the road rows, plaza, spawns, door approach, and the
-    // frozen NPC staging tiles (24,19),(30,13),(31,16),(33,13) all stay clear.
-    private static readonly Vector2I[] StoneCoords =
-    {
-        new(8, 6), new(15, 5), new(38, 8), new(6, 18), new(12, 22),
-        new(36, 24), new(40, 20), new(29, 22),
-    };
+    // The 2x2 well is solid for its whole footprint, not just its base row.
+    private static readonly Vector2I[] WellExtraBlockers = { new(25, 18), new(26, 18) };
+
+    // Cobra-head street lights where the fire lanterns stood (motel handoff: the
+    // town electrified before it had taste; firelight props are replaced town-wide).
+    private static readonly Vector2I[] StreetLights = { new(21, 21), new(27, 21) };
 
     public override void _EnterTree()
     {
@@ -60,140 +75,157 @@ public partial class TownMap : MapRoot
 
     public override void _Ready()
     {
-        var tileSet = BuildTileSet();
-        BuildGround(tileSet);
+        BuildSurfaces();
+        TileSet tileSet = RoadsideTerrain.Get(); // the paved road needs the roadside source
+        TileMapLayer ground = BuildGround(tileSet);
+        // Kerb cuts where the door paths and the plaza path cross the gutter.
+        ground.AddChild(BuildRoadDressing(RoadTop,
+            new[] { (StoreDoorX, StoreDoorX), (DoorX, DoorX + 1) },
+            new[] { (PlazaCentre.X, PlazaCentre.X) }));
+
         BuildObstacles(tileSet);
+        BuildFacades();
+        BuildProps();
         BuildSpawns();
         BuildInteractables();
         BuildTravel();
     }
 
     // ------------------------------------------------------------------
-    // Ground / Obstacles (shared TileSet with physics + walkable data)
+    // Surfaces — what each cell IS, before it is any particular tile
     // ------------------------------------------------------------------
 
-    private static TileSet BuildTileSet()
+    private void BuildSurfaces()
     {
-        var ts = new TileSet { TileSize = new Vector2I(TileSize, TileSize) };
-        ts.AddPhysicsLayer();                        // index 0
-        ts.SetPhysicsLayerCollisionLayer(0, 1);      // world layer
-        ts.SetPhysicsLayerCollisionMask(0, 0);
-        ts.AddCustomDataLayer();                     // index 0
-        ts.SetCustomDataLayerName(0, "walkable");
-        ts.SetCustomDataLayerType(0, Variant.Type.Bool);
+        ResetSurfaces();
 
-        var src = new TileSetAtlasSource
+        // Road, continuous with the fork's rows 14-15, open at both mouths — west to
+        // the fork, east to the east fork.
+        for (int x = 0; x < Width; x++)
         {
-            Texture = BuildAtlasTexture(),
-            TextureRegionSize = new Vector2I(TileSize, TileSize),
-        };
-        ts.AddSource(src, 0);
-
-        for (int i = 0; i < TileCount; i++)
-        {
-            var coords = new Vector2I(i, 0);
-            src.CreateTile(coords);
-            var td = src.GetTileData(coords, 0);
-            bool walkable = i is GrassA or GrassB or GrassC or Dirt;
-            td.SetCustomData("walkable", walkable);
-            if (!walkable)
-            {
-                td.SetCollisionPolygonsCount(0, 1);
-                td.SetCollisionPolygonPoints(0, 0, new[]
-                {
-                    new Vector2(-8, -8), new Vector2(8, -8), new Vector2(8, 8), new Vector2(-8, 8),
-                });
-            }
+            Set(x, RoadTop, Surface.Road);
+            Set(x, RoadBottom, Surface.Road);
         }
 
-        return ts;
+        // Ground under the facades: hidden by the sprite, gravel so the aprons and
+        // door approaches never draw a grass edge against it.
+        Fill(HallLeft, HallTop, HallRight, HallBottom, Surface.Gravel);
+        Fill(StoreLeft, StoreTop, StoreRight, StoreBottom, Surface.Gravel);
+        Fill(HallLeft, ApronRow, HallRight, ApronRow, Surface.Gravel);
+        Fill(StoreLeft, ApronRow, StoreRight, ApronRow, Surface.Gravel);
+
+        // Door approaches down to the road. The hall's double door is drawn straddling
+        // x23/x24 (only x23 is the collision cell), so its path is two tiles wide to
+        // sit under the doorway rather than off to one side of it.
+        Fill(DoorX, ApronRow, DoorX + 1, 13, Surface.Dirt);
+        Set(StoreDoorX, ApronRow, Surface.Dirt);
+        Set(StoreDoorX, 13, Surface.Dirt);
+
+        // Plaza, its apron, and the path down to it from the road. The cobble edge set
+        // is drawn over dirt, so the plaza sits in a one-tile apron rather than butting
+        // straight into grass.
+        Set(PlazaCentre.X, 16, Surface.Dirt);
+        Fill(PlazaLeft - 1, PlazaTop - 1, PlazaRight + 1, PlazaBottom + 1, Surface.Dirt);
+        Fill(PlazaLeft, PlazaTop, PlazaRight, PlazaBottom, Surface.Cobble);
     }
 
-    private static ImageTexture BuildAtlasTexture()
-    {
-        var img = Image.CreateEmpty(TileCount * TileSize, TileSize, false, Image.Format.Rgba8);
-        for (int i = 0; i < TileCount; i++)
-        {
-            var baseColor = TileColors[i];
-            var dark = baseColor.Darkened(0.15f);
-            var light = baseColor.Lightened(0.1f);
-            for (int py = 0; py < TileSize; py++)
-            {
-                for (int px = 0; px < TileSize; px++)
-                {
-                    // Coordinate hash sprinkles a few darker/lighter speckles per tile.
-                    int hash = (px * 31 + py * 17 + i * 7) % 23;
-                    var color = hash == 0 ? dark : hash == 1 ? light : baseColor;
-                    img.SetPixel(i * TileSize + px, py, color);
-                }
-            }
-        }
+    // The one Act I dread tell in this map: a paving stone at the plaza centre that is
+    // a slightly wrong shape. It is never pointed at and never repeated.
+    protected override Vector2I CobbleField(int x, int y) =>
+        x == PlazaCentre.X && y == PlazaCentre.Y
+            ? TerrainTiles.CobbleWorn
+            : base.CobbleField(x, y);
 
-        // Wall gets mortar lines so the facade reads as masonry, not pavement.
-        var mortar = TileColors[Wall].Darkened(0.25f);
-        for (int py = 3; py < TileSize; py += 5)
-            img.FillRect(new Rect2I(Wall * TileSize, py, TileSize, 1), mortar);
-
-        return ImageTexture.CreateFromImage(img);
-    }
-
-    private void BuildGround(TileSet tileSet)
-    {
-        var ground = new TileMapLayer { Name = "Ground", TileSet = tileSet };
-        for (int y = 0; y < Height; y++)
-        {
-            for (int x = 0; x < Width; x++)
-            {
-                bool road = y is 14 or 15;                             // continuous with the farm road rows
-                bool plaza = x >= 22 && x <= 26 && y >= 18 && y <= 21; // town square
-                int tile = road || plaza ? Dirt : (x * 7 + y * 13) % 3;
-                ground.SetCell(new Vector2I(x, y), 0, new Vector2I(tile, 0));
-            }
-        }
-        AddChild(ground);
-    }
+    // ------------------------------------------------------------------
+    // Obstacles
+    // ------------------------------------------------------------------
 
     private void BuildObstacles(TileSet tileSet)
     {
         var obstacles = new TileMapLayer { Name = "Obstacles", TileSet = tileSet };
-        for (int y = 0; y < Height; y++)
-        {
-            for (int x = 0; x < Width; x++)
-            {
-                bool border = x == 0 || x == Width - 1 || y == 0 || y == Height - 1;
-                // The border opens at the west road mouth, where the farm exit sits.
-                bool exitOpening = x == 0 && y is 14 or 15;
-                if (border && !exitOpening)
-                    obstacles.SetCell(new Vector2I(x, y), 0, new Vector2I(Stone, 0));
-            }
-        }
 
-        // Town-hall facade block; the Door node fills the gap at the door cell.
-        for (int y = 6; y <= 11; y++)
-        {
-            for (int x = 20; x <= 27; x++)
-            {
-                if (x == DoorX && y == DoorY)
-                    continue;
-                obstacles.SetCell(new Vector2I(x, y), 0, new Vector2I(Wall, 0));
-            }
-        }
+        Block(obstacles, HallLeft, HallTop, HallRight, HallBottom, DoorX, DoorY);
+        Block(obstacles, StoreLeft, StoreTop, StoreRight, StoreBottom, StoreDoorX, StoreDoorY);
 
-        // General-store facade block, same pattern — clear of the stone (8,6),
-        // the staging tiles, the plaza, and the road rows 14-15.
-        for (int y = 8; y <= 11; y++)
-        {
-            for (int x = 8; x <= 14; x++)
-            {
-                if (x == StoreDoorX && y == StoreDoorY)
-                    continue;
-                obstacles.SetCell(new Vector2I(x, y), 0, new Vector2I(Wall, 0));
-            }
-        }
+        foreach (var (_, x, y, tiles) in PlazaProps)
+            for (int i = 0; i < tiles; i++)
+                obstacles.SetCell(new Vector2I(x + i, y), 0, TerrainTiles.Blocker);
+        foreach (Vector2I coord in WellExtraBlockers)
+            obstacles.SetCell(coord, 0, TerrainTiles.Blocker);
+        foreach (Vector2I coord in StreetLights)
+            obstacles.SetCell(coord, 0, TerrainTiles.Blocker);
 
-        foreach (var coord in StoneCoords)
-            obstacles.SetCell(coord, 0, new Vector2I(Stone, 0));
         AddChild(obstacles);
+    }
+
+    // ------------------------------------------------------------------
+    // Facades and props (drawn in elevation, anchored on their base row)
+    // ------------------------------------------------------------------
+
+    private void BuildFacades()
+    {
+        var hall = new Prop
+        {
+            Name = "TownHall",
+            TexturePath = TownHallPath,
+            Source = TownHallSource,
+            Position = Prop.Anchor(HallLeft, HallBottom, HallRight - HallLeft + 1),
+        };
+        // Offsets are the lit pixels' centres, measured from the facade's bottom-centre.
+        foreach (float windowX in new[] { -42f, -12f, 18f, 42f })
+        {
+            hall.AddChild(new GlowLight
+            {
+                Position = new Vector2(windowX, -61f),
+                Size = GlowLight.Falloff.Small,
+                Strength = 0.55f,
+            });
+        }
+        hall.AddChild(new GlowLight
+        {
+            Name = "Fanlight",
+            Position = new Vector2(-1f, -42f),
+            Size = GlowLight.Falloff.Large,
+            Strength = 0.65f,
+        });
+        hall.AddChild(new GlowLight
+        {
+            Name = "Cupola",
+            Position = new Vector2(-1f, -116f),
+            Size = GlowLight.Falloff.Small,
+            Strength = 0.5f,
+        });
+        AddChild(hall);
+
+        AddChild(new StoreFacade
+        {
+            Name = "GeneralStore",
+            TexturePath = StoreFacade.StorePath,
+            Source = StoreFacade.OpenVariant,
+            Position = Prop.Anchor(StoreLeft, StoreBottom, StoreRight - StoreLeft + 1),
+        });
+    }
+
+    private void BuildProps()
+    {
+        foreach (var (source, x, y, tiles) in PlazaProps)
+        {
+            AddChild(new Prop
+            {
+                TexturePath = TownProps.TexturePath,
+                Source = source,
+                Position = Prop.Anchor(x, y, tiles),
+            });
+        }
+
+        foreach (Vector2I coord in StreetLights)
+        {
+            AddChild(new StreetLight
+            {
+                ArmLeft = coord.X > PlazaCentre.X,  // the pair faces the plaza
+                Position = Prop.Anchor(coord.X, coord.Y),
+            });
+        }
     }
 
     // ------------------------------------------------------------------
@@ -203,12 +235,9 @@ public partial class TownMap : MapRoot
     private void BuildSpawns()
     {
         var spawns = new Node2D { Name = "Spawns" };
-        spawns.AddChild(new Marker2D
-        {
-            Name = "from_farm",
-            // >= 1 tile clear of the west exit area (spawn-clearance rule).
-            Position = new Vector2(2 * TileSize + 8, 15 * TileSize + 8), // (40, 248)
-        });
+        // >= 1 tile clear of each road-mouth exit area (spawn-clearance rule).
+        spawns.AddChild(SpawnMarker("from_fork", 2, 15));
+        spawns.AddChild(SpawnMarker("from_east_fork", 45, 15));
         spawns.AddChild(new Marker2D
         {
             Name = "from_hall",
@@ -235,25 +264,18 @@ public partial class TownMap : MapRoot
 
     private void BuildTravel()
     {
-        // West road mouth back to the farm — always enabled (IsEnabled null).
-        var exit = new MapExit
-        {
-            Name = "FarmExit",
-            TargetMapId = MapIds.Farm,
-            TargetSpawnId = "road",
-            Position = new Vector2(8, 15 * TileSize), // center of tiles (0,14)-(0,15)
-        };
-        exit.AddChild(new CollisionShape2D
-        {
-            Shape = new RectangleShape2D { Size = new Vector2(16, 32) },
-        });
-        AddChild(exit);
+        // Road mouths — always enabled (IsEnabled null): leaving town is never gated.
+        AddRoadExit("WestExit", MapIds.Fork, "from_town", 0, RoadTop);
+        AddRoadExit("EastExit", MapIds.EastFork, "from_town", Width - 1, RoadTop);
 
+        // Both doorways are drawn into their facade, so the Door nodes contribute
+        // their blocker and their prompt only.
         AddChild(new Door
         {
             Name = "TownHallDoor",
             TargetMapId = MapIds.TownHall,
             TargetSpawnId = "entry",
+            DrawPlaceholder = false,
             Position = new Vector2(DoorX * TileSize + 8, DoorY * TileSize + 8), // (376, 184)
         });
 
@@ -262,6 +284,7 @@ public partial class TownMap : MapRoot
             Name = "StoreDoor",
             TargetMapId = MapIds.GeneralStore,
             TargetSpawnId = "entry",
+            DrawPlaceholder = false,
             Position = new Vector2(StoreDoorX * TileSize + 8, StoreDoorY * TileSize + 8), // (184, 184)
         });
     }

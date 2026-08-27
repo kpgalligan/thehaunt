@@ -4,33 +4,40 @@ using TheHaunt.Core;
 namespace TheHaunt.World;
 
 /// <summary>
-/// Programmatic placeholder meeting hall, 40x23 tiles — authored at least the
-/// viewport size so the camera clamp never engages. Plank floor, blocking wall
-/// ring (doubled on the south side so the Door back to town sits flush in it),
-/// podium visual at the north end. No bed, no farmland.
+/// The meeting hall, 40x23 tiles — wider than the 30x17 viewport, so the player never
+/// sees all of it at once, which makes it the one interior with anything to walk toward.
+/// Checkered floor, a rug runner up the centre, pews in two blocks, clerks' desks at
+/// both ends, and the long table on the runner where the placeholder podium stood.
+///
+/// The mayor's staging cell (20,6) is the row in front of the table, and the three
+/// seated crew stage on the runner at row 12 — both unchanged. The door moved from row
+/// 21 to row 22, where the handoff and its reference render both put it; the placeholder
+/// doubled its south wall so the door could sit flush in row 21, and with the drawn
+/// door_open tile that is no longer needed. Row 21 is floor now, and carries the
+/// threshold.
+///
+/// The walls are wainscot plaster under a stone cornice, following the reference render.
+/// The handoff's prose asks for stone walls; the render draws stone only in the cornice
+/// row, which still leaves the hall the only interior that uses stone at all.
 /// </summary>
-public partial class TownHallMap : MapRoot
+public partial class TownHallMap : InteriorMap
 {
-    private const int Width = 40;
-    private const int Height = 23;
+    protected override int Width => 40;
+    protected override int Height => 23;
+    protected override InteriorTiles.WallSet Walls => InteriorTiles.HallWalls;
+    protected override int DoorX => 20;
+    protected override int DoorY => 22;
 
-    // Atlas tile indices (atlas coords (i, 0)).
-    private const int FloorA = 0;
-    private const int FloorB = 1;
-    private const int Wall = 2;
-    private const int Podium = 3;
-    private const int TileCount = 4;
-
-    private const int DoorX = 20;
-    private const int DoorY = 21;
-
-    private static readonly Color[] TileColors =
+    protected override Vector2I[] Floor { get; } =
     {
-        new("8a6a48"), // floor plank A
-        new("856544"), // floor plank B
-        new("6a6a6a"), // wall
-        new("9a7a4a"), // podium wood
+        InteriorTiles.FloorCheckA, InteriorTiles.FloorCheckB,
     };
+
+    // Where the placeholder podium was; the long table now occupies it cell for cell.
+    private const int TableLeft = 19, TableRow = 5;
+
+    private static readonly int[] PewRows = { 9, 12, 15, 18 };
+    private const int PewLeft = 11, PewRight = 24;
 
     public override void _EnterTree()
     {
@@ -40,130 +47,57 @@ public partial class TownHallMap : MapRoot
         base._EnterTree();
     }
 
-    public override void _Ready()
+    protected override void Decorate()
     {
-        var tileSet = BuildTileSet();
-        BuildGround(tileSet);
-        BuildObstacles(tileSet);
-        BuildSpawns();
-        BuildDoor();
-    }
+        foreach (int x in new[] { 6, 12, 27, 33 })
+            SetWall(x, 0, InteriorTiles.WindowLit);
+        foreach (int x in new[] { 9, 30 })
+            SetWall(x, 0, InteriorTiles.Plaque);
 
-    // ------------------------------------------------------------------
-    // Ground / Obstacles (shared TileSet with physics + walkable data)
-    // ------------------------------------------------------------------
-
-    private static TileSet BuildTileSet()
-    {
-        var ts = new TileSet { TileSize = new Vector2I(TileSize, TileSize) };
-        ts.AddPhysicsLayer();                        // index 0
-        ts.SetPhysicsLayerCollisionLayer(0, 1);      // world layer
-        ts.SetPhysicsLayerCollisionMask(0, 0);
-        ts.AddCustomDataLayer();                     // index 0
-        ts.SetCustomDataLayerName(0, "walkable");
-        ts.SetCustomDataLayerType(0, Variant.Type.Bool);
-
-        var src = new TileSetAtlasSource
+        // The runner: two columns from the table down to the row above the threshold,
+        // which the shell has already painted on the cell inside the door.
+        for (int y = TableRow + 1; y < Height - 2; y++)
         {
-            Texture = BuildAtlasTexture(),
-            TextureRegionSize = new Vector2I(TileSize, TileSize),
-        };
-        ts.AddSource(src, 0);
-
-        for (int i = 0; i < TileCount; i++)
-        {
-            var coords = new Vector2I(i, 0);
-            src.CreateTile(coords);
-            var td = src.GetTileData(coords, 0);
-            bool walkable = i is FloorA or FloorB;
-            td.SetCustomData("walkable", walkable);
-            if (!walkable)
-            {
-                td.SetCollisionPolygonsCount(0, 1);
-                td.SetCollisionPolygonPoints(0, 0, new[]
-                {
-                    new Vector2(-8, -8), new Vector2(8, -8), new Vector2(8, 8), new Vector2(-8, 8),
-                });
-            }
+            SetFloor(19, y, InteriorTiles.RugA);
+            SetFloor(20, y, InteriorTiles.RugA);
         }
 
-        return ts;
-    }
+        // The long table stands where the podium block did: (19..21, 4..5).
+        AddFurniture(Furniture.LongTable, TableLeft, TableRow);
+        for (int x = TableLeft; x <= TableLeft + 2; x++)
+            Block(x, TableRow - 1);
+        AddFurniture(Furniture.Banner, 16, TableRow);
+        AddFurniture(Furniture.Banner, 24, TableRow);
 
-    private static ImageTexture BuildAtlasTexture()
-    {
-        var img = Image.CreateEmpty(TileCount * TileSize, TileSize, false, Image.Format.Rgba8);
-        for (int i = 0; i < TileCount; i++)
+        // Clerks at both ends.
+        AddFurniture(Furniture.Desk, 3, 5);
+        AddFurniture(Furniture.ChairBack, 4, 4);
+        AddFurniture(Furniture.Desk, 34, 5);
+        AddFurniture(Furniture.ChairBack, 35, 4);
+
+        foreach (int y in new[] { 7, 12 })
         {
-            var baseColor = TileColors[i];
-            var dark = baseColor.Darkened(0.15f);
-            var light = baseColor.Lightened(0.1f);
-            for (int py = 0; py < TileSize; py++)
-            {
-                for (int px = 0; px < TileSize; px++)
-                {
-                    // Coordinate hash sprinkles a few darker/lighter speckles per tile.
-                    int hash = (px * 31 + py * 17 + i * 7) % 23;
-                    var color = hash == 0 ? dark : hash == 1 ? light : baseColor;
-                    img.SetPixel(i * TileSize + px, py, color);
-                }
-            }
+            AddFurniture(Furniture.TallShelf, 1, y);
+            AddFurniture(Furniture.TallShelf, 38, y);
+        }
+        AddFurniture(Furniture.Candles, 7, 7);
+        AddFurniture(Furniture.Candles, 32, 7);
+        AddFurniture(Furniture.Books, 2, 10);
+        AddFurniture(Furniture.Books, 37, 14);
+
+        // Two blocks of four pews, either side of the aisle. The intro stages three crew
+        // on the runner at row 12 between them; those cells stay clear.
+        foreach (int y in PewRows)
+        {
+            AddFurniture(Furniture.Pew, PewLeft, y);
+            AddFurniture(Furniture.Pew, PewRight, y);
         }
 
-        // Plank seams on the floor tiles; a lighter top edge on the podium.
-        for (int i = FloorA; i <= FloorB; i++)
-        {
-            var seam = TileColors[i].Darkened(0.2f);
-            img.FillRect(new Rect2I(i * TileSize, 7, TileSize, 1), seam);
-            img.FillRect(new Rect2I(i * TileSize, 15, TileSize, 1), seam);
-        }
-        img.FillRect(new Rect2I(Podium * TileSize, 0, TileSize, 2), TileColors[Podium].Lightened(0.2f));
-
-        return ImageTexture.CreateFromImage(img);
+        AddFurniture(Furniture.Bench, 5, 20);
+        AddFurniture(Furniture.Bench, 33, 20);
     }
 
-    private void BuildGround(TileSet tileSet)
-    {
-        var ground = new TileMapLayer { Name = "Ground", TileSet = tileSet };
-        for (int y = 0; y < Height; y++)
-        {
-            for (int x = 0; x < Width; x++)
-            {
-                int tile = (x * 7 + y * 13) % 2 == 0 ? FloorA : FloorB;
-                ground.SetCell(new Vector2I(x, y), 0, new Vector2I(tile, 0));
-            }
-        }
-        AddChild(ground);
-    }
-
-    private void BuildObstacles(TileSet tileSet)
-    {
-        var obstacles = new TileMapLayer { Name = "Obstacles", TileSet = tileSet };
-        for (int y = 0; y < Height; y++)
-        {
-            for (int x = 0; x < Width; x++)
-            {
-                // Ring, with the south wall doubled (rows 21-22) so the door
-                // sits flush in it; the Door node fills the gap at the door cell.
-                bool wall = x == 0 || x == Width - 1 || y == 0 || y >= Height - 2;
-                if (wall && !(x == DoorX && y == DoorY))
-                    obstacles.SetCell(new Vector2I(x, y), 0, new Vector2I(Wall, 0));
-            }
-        }
-
-        // Podium visual; the mayor's staging tile (20,6) is the row in front of it.
-        for (int y = 4; y <= 5; y++)
-            for (int x = 19; x <= 21; x++)
-                obstacles.SetCell(new Vector2I(x, y), 0, new Vector2I(Podium, 0));
-
-        AddChild(obstacles);
-    }
-
-    // ------------------------------------------------------------------
-    // Spawns / travel
-    // ------------------------------------------------------------------
-
-    private void BuildSpawns()
+    protected override void BuildSpawns()
     {
         var spawns = new Node2D { Name = "Spawns" };
         spawns.AddChild(new Marker2D
@@ -174,14 +108,15 @@ public partial class TownHallMap : MapRoot
         AddChild(spawns);
     }
 
-    private void BuildDoor()
+    protected override void BuildInteractables()
     {
         AddChild(new Door
         {
             Name = "TownDoor",
             TargetMapId = MapIds.Town,
             TargetSpawnId = "from_hall",
-            Position = new Vector2(DoorX * TileSize + 8, DoorY * TileSize + 8), // (328, 344)
+            DrawPlaceholder = false,
+            Position = new Vector2(DoorX * TileSize + 8, DoorY * TileSize + 8), // (328, 360)
         });
     }
 }
