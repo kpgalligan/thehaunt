@@ -39,8 +39,12 @@ public partial class ForkMap : ExteriorMap
     public override void _Ready()
     {
         BuildSurfaces();
-        TileSet tileSet = TownTerrain.Get();
-        BuildGround(tileSet);
+        TileSet tileSet = RoadsideTerrain.Get(); // the paved road needs the roadside source
+        TileMapLayer ground = BuildGround(tileSet);
+        // Kerb cuts where the unsealed farm road and the chained south stub cross.
+        ground.AddChild(BuildRoadDressing(RoadTop,
+            new[] { (CrossLeft, CrossRight) }, new[] { (CrossLeft, CrossRight) }));
+
         BuildObstacles(tileSet);
         BuildStructures();
         BuildSpawns();
@@ -54,8 +58,8 @@ public partial class ForkMap : ExteriorMap
 
         for (int x = 0; x < Width; x++)
         {
-            Set(x, RoadTop, Surface.Dirt);
-            Set(x, RoadBottom, Surface.Dirt);
+            Set(x, RoadTop, Surface.Road);
+            Set(x, RoadBottom, Surface.Road);
         }
 
         // The farm road, open through the north border.

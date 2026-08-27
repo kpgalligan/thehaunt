@@ -185,6 +185,8 @@ public static class RoadWrapTests
             t.Assert(!map.IsStandable(new Vector2I(10, 5)), "the motel's room strip blocks");
             t.Assert(map.IsStandable(new Vector2I(10, 8)), "its walkway is open");
             t.Assert(map.IsStandable(new Vector2I(10, 10)), "and so is the parking lot");
+            t.Assert(!map.IsStandable(new Vector2I(13, 13)) && !map.IsStandable(new Vector2I(22, 13)),
+                "both street light poles block in the verge");
             t.Assert(!map.IsStandable(new Vector2I(26, 19)), "the gas station blocks");
             t.Assert(!map.IsStandable(new Vector2I(34, 11)), "the fireworks stand blocks");
         });

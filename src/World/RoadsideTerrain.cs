@@ -43,14 +43,29 @@ public static class RoadsideTerrain
         return tileSet;
     }
 
-    // Palette and mix ratios straight from the handoff's ground table: asphalt 8%
-    // dark, 8% light over stone-shade; concrete 7% pale, 5% mid over stone-light.
-    private static readonly Color AsphaltBase = new("575a58");
-    private static readonly Color AsphaltDark = new("3e4241");
-    private static readonly Color AsphaltLight = new("7a7a7a");
+    // Palette and mix ratios straight from the handoff's ground table: lot 8% dark,
+    // 10% light over stone-shade; road 16% shade, 6% ink over stone-dark (a full
+    // value-step darker than the lot); concrete 7% pale, 5% mid over stone-light.
+    private static readonly Color LotBase = new("575a58");
+    private static readonly Color LotDark = new("3e4241");
+    private static readonly Color LotLight = new("7a7a7a");
+    private static readonly Color RoadBase = new("3e4241");
+    private static readonly Color RoadShade = new("575a58");
+    private static readonly Color RoadInk = new("2b241d");
     private static readonly Color ConcreteBase = new("9a9a8a");
     private static readonly Color ConcretePale = new("b8b5a5");
     private static readonly Color ConcreteMid = new("7a7a7a");
+
+    /// <summary>A parking-lot pixel for a roll — shared with the road dressing so
+    /// kerb cuts are the same asphalt as the lot they serve.</summary>
+    internal static Color LotPixel(int roll) =>
+        roll < 8 ? LotDark : roll < 18 ? LotLight : LotBase;
+
+    internal static Color RoadPixel(int roll) =>
+        roll < 16 ? RoadShade : roll < 22 ? RoadInk : RoadBase;
+
+    internal static Color ConcretePixel(int roll) =>
+        roll < 7 ? ConcretePale : roll < 12 ? ConcreteMid : ConcreteBase;
 
     private static ImageTexture BuildSheet()
     {
@@ -58,15 +73,14 @@ public static class RoadsideTerrain
         var img = Image.CreateEmpty(RoadsideTiles.Columns * size, size, false, Image.Format.Rgba8);
         for (int col = 0; col < RoadsideTiles.Columns; col++)
         {
-            bool asphalt = col < 4;
             for (int y = 0; y < size; y++)
             {
                 for (int x = 0; x < size; x++)
                 {
                     int roll = Mottle(col, x, y);
-                    Color c = asphalt
-                        ? roll < 8 ? AsphaltDark : roll < 16 ? AsphaltLight : AsphaltBase
-                        : roll < 7 ? ConcretePale : roll < 12 ? ConcreteMid : ConcreteBase;
+                    Color c = col < 4 ? LotPixel(roll)
+                        : col < 7 ? ConcretePixel(roll)
+                        : RoadPixel(roll);
                     if (col == 6 && y >= size - 2)
                         c = ConcretePale; // the kerb lip
                     img.SetPixel(col * size + x, y, c);
@@ -78,7 +92,7 @@ public static class RoadsideTerrain
 
     /// <summary>Deterministic per-pixel roll 0-99, seeded per column so the variant
     /// tiles differ — the same speckle idea as the grass detail hash.</summary>
-    private static int Mottle(int col, int x, int y)
+    internal static int Mottle(int col, int x, int y)
     {
         unchecked
         {

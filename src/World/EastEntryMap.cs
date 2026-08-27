@@ -29,7 +29,7 @@ public partial class EastEntryMap : ExteriorMap
     // The salon's door cell, on the face's bottom row under the drawn doorway.
     private const int SalonDoorX = 34;
 
-    private static readonly Vector2I Lamp = new(17, 12);
+    private static readonly Vector2I Light = new(17, 13);  // cobra head in the verge
 
     public override void _EnterTree()
     {
@@ -41,8 +41,12 @@ public partial class EastEntryMap : ExteriorMap
     public override void _Ready()
     {
         BuildSurfaces();
-        TileSet tileSet = TownTerrain.Get();
-        BuildGround(tileSet);
+        TileSet tileSet = RoadsideTerrain.Get(); // the paved road needs the roadside source
+        TileMapLayer ground = BuildGround(tileSet);
+        // Kerb cut at the salon's frontage across the road.
+        ground.AddChild(BuildRoadDressing(RoadTop,
+            System.Array.Empty<(int, int)>(), new[] { (SalonDoorX - 1, SalonDoorX) }));
+
         BuildObstacles(tileSet);
         BuildBuildings();
         BuildSpawns();
@@ -57,8 +61,8 @@ public partial class EastEntryMap : ExteriorMap
         // The road, open at both mouths: west toward the east fork, east out of town.
         for (int x = 0; x < Width; x++)
         {
-            Set(x, RoadTop, Surface.Dirt);
-            Set(x, RoadBottom, Surface.Dirt);
+            Set(x, RoadTop, Surface.Road);
+            Set(x, RoadBottom, Surface.Road);
         }
 
         Fill(PoliceLeft, PoliceTop, PoliceRight, PoliceBottom + 1, Surface.Gravel);
@@ -72,7 +76,7 @@ public partial class EastEntryMap : ExteriorMap
         Block(obstacles, PoliceLeft, PoliceTop, PoliceRight, PoliceBottom);
         Block(obstacles, HardwareLeft, HardwareTop, HardwareRight, HardwareBottom);
         Block(obstacles, SalonLeft, SalonTop, SalonRight, SalonBottom, SalonDoorX, SalonBottom);
-        obstacles.SetCell(Lamp, 0, TerrainTiles.Blocker);
+        obstacles.SetCell(Light, 0, TerrainTiles.Blocker);
         AddChild(obstacles);
     }
 
@@ -126,7 +130,7 @@ public partial class EastEntryMap : ExteriorMap
         });
         AddChild(salon);
 
-        AddChild(new LampPost { Position = Prop.Anchor(Lamp.X, Lamp.Y) });
+        AddChild(new StreetLight { Position = Prop.Anchor(Light.X, Light.Y) });
     }
 
     private void BuildSpawns()

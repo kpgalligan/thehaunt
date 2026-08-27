@@ -61,7 +61,9 @@ public partial class TownMap : ExteriorMap
     // The 2x2 well is solid for its whole footprint, not just its base row.
     private static readonly Vector2I[] WellExtraBlockers = { new(25, 18), new(26, 18) };
 
-    private static readonly Vector2I[] LampPosts = { new(21, 21), new(27, 21) };
+    // Cobra-head street lights where the fire lanterns stood (motel handoff: the
+    // town electrified before it had taste; firelight props are replaced town-wide).
+    private static readonly Vector2I[] StreetLights = { new(21, 21), new(27, 21) };
 
     public override void _EnterTree()
     {
@@ -74,8 +76,13 @@ public partial class TownMap : ExteriorMap
     public override void _Ready()
     {
         BuildSurfaces();
-        TileSet tileSet = TownTerrain.Get();
-        BuildGround(tileSet);
+        TileSet tileSet = RoadsideTerrain.Get(); // the paved road needs the roadside source
+        TileMapLayer ground = BuildGround(tileSet);
+        // Kerb cuts where the door paths and the plaza path cross the gutter.
+        ground.AddChild(BuildRoadDressing(RoadTop,
+            new[] { (StoreDoorX, StoreDoorX), (DoorX, DoorX + 1) },
+            new[] { (PlazaCentre.X, PlazaCentre.X) }));
+
         BuildObstacles(tileSet);
         BuildFacades();
         BuildProps();
@@ -96,8 +103,8 @@ public partial class TownMap : ExteriorMap
         // the fork, east to the east fork.
         for (int x = 0; x < Width; x++)
         {
-            Set(x, RoadTop, Surface.Dirt);
-            Set(x, RoadBottom, Surface.Dirt);
+            Set(x, RoadTop, Surface.Road);
+            Set(x, RoadBottom, Surface.Road);
         }
 
         // Ground under the facades: hidden by the sprite, gravel so the aprons and
@@ -145,7 +152,7 @@ public partial class TownMap : ExteriorMap
                 obstacles.SetCell(new Vector2I(x + i, y), 0, TerrainTiles.Blocker);
         foreach (Vector2I coord in WellExtraBlockers)
             obstacles.SetCell(coord, 0, TerrainTiles.Blocker);
-        foreach (Vector2I coord in LampPosts)
+        foreach (Vector2I coord in StreetLights)
             obstacles.SetCell(coord, 0, TerrainTiles.Blocker);
 
         AddChild(obstacles);
@@ -211,8 +218,14 @@ public partial class TownMap : ExteriorMap
             });
         }
 
-        foreach (Vector2I coord in LampPosts)
-            AddChild(new LampPost { Position = Prop.Anchor(coord.X, coord.Y) });
+        foreach (Vector2I coord in StreetLights)
+        {
+            AddChild(new StreetLight
+            {
+                ArmLeft = coord.X > PlazaCentre.X,  // the pair faces the plaza
+                Position = Prop.Anchor(coord.X, coord.Y),
+            });
+        }
     }
 
     // ------------------------------------------------------------------

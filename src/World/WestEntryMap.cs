@@ -47,7 +47,11 @@ public partial class WestEntryMap : ExteriorMap
     private const int StandLeft = 33, StandTop = 10, StandRight = 35, StandBottom = 11;
     private const int GasDoorX = 26;
 
-    private static readonly Vector2I Lamp = new(30, 12);
+    // The two cobra heads stand in the lot's kerb verge, flanking the driveway.
+    // The east one is DEAD and stays dead — not flickering, dead — which keeps the
+    // vacancy sign's V the only animated thing in the game (motel handoff).
+    private static readonly Vector2I WestLight = new(13, 13);
+    private static readonly Vector2I EastLight = new(22, 13);
     private static readonly Vector2I StandSign = new(31, 12);
 
     public override void _EnterTree()
@@ -63,6 +67,9 @@ public partial class WestEntryMap : ExteriorMap
         TileSet tileSet = RoadsideTerrain.Get(); // the lot needs the asphalt source
         TileMapLayer ground = BuildGround(tileSet);
         ground.AddChild(BuildLotMarkings());
+        // Kerb cuts: the lot driveway (a cut, not an apron) and the gas frontage.
+        ground.AddChild(BuildRoadDressing(RoadTop,
+            new[] { (LotLeft + 2, LotLeft + 5) }, new[] { (GasDoorX, GasDoorX + 1) }));
         BuildObstacles(tileSet);
         BuildBuildings();
         BuildSpawns();
@@ -77,8 +84,8 @@ public partial class WestEntryMap : ExteriorMap
         // The road, open at both mouths: west out of town, east toward Billie's.
         for (int x = 0; x < Width; x++)
         {
-            Set(x, RoadTop, Surface.Dirt);
-            Set(x, RoadBottom, Surface.Dirt);
+            Set(x, RoadTop, Surface.Road);
+            Set(x, RoadBottom, Surface.Road);
         }
 
         // The court's poured ground. The walkway runs the office frontage too, and
@@ -114,7 +121,8 @@ public partial class WestEntryMap : ExteriorMap
 
         Block(obstacles, GasLeft, GasTop, GasRight, GasBottom, GasDoorX, GasBottom);
         Block(obstacles, StandLeft, StandTop, StandRight, StandBottom);
-        obstacles.SetCell(Lamp, 0, TerrainTiles.Blocker);
+        obstacles.SetCell(WestLight, 0, TerrainTiles.Blocker);
+        obstacles.SetCell(EastLight, 0, TerrainTiles.Blocker);
         obstacles.SetCell(StandSign, 0, TerrainTiles.Blocker);
         AddChild(obstacles);
     }
@@ -173,7 +181,18 @@ public partial class WestEntryMap : ExteriorMap
             Position = Prop.Anchor(StandSign.X, StandSign.Y),
         });
 
-        AddChild(new LampPost { Position = Prop.Anchor(Lamp.X, Lamp.Y) });
+        AddChild(new StreetLight
+        {
+            Name = "WestLight",
+            Position = Prop.Anchor(WestLight.X, WestLight.Y),
+        });
+        AddChild(new StreetLight
+        {
+            Name = "EastLightDead",
+            Lit = false,
+            ArmLeft = true,
+            Position = Prop.Anchor(EastLight.X, EastLight.Y),
+        });
     }
 
     private void BuildSpawns()
@@ -271,7 +290,6 @@ public partial class WestEntryMap : ExteriorMap
 
     private static readonly Color StallStripe = new("b8b5a5");
     private static readonly Color Crack = new("3e4241");
-    private static readonly Color Wear = new("8a6a45");
 
     private Sprite2D BuildLotMarkings()
     {
@@ -293,9 +311,6 @@ public partial class WestEntryMap : ExteriorMap
             int len = 1 + Hash(i, 11) % 7;
             img.FillRect(new Rect2I(cx, cy, len, 1), Crack);
         }
-
-        // The entrance apron: dirt worn through where cars actually turn in.
-        img.FillRect(new Rect2I(36, h - 6, 64, 6), Wear);
 
         return new Sprite2D
         {

@@ -69,8 +69,9 @@ sign uses.
   drive-in);
   signage (motel handoff, all authored in code): PixelFont (the one 3x5 typeface) +
   MotelFacade/MotelSign (the blinking V) + WallBandSign/BracketSign/NeonWordSign/PoleSign,
-  and RoadsideTiles/RoadsideTerrain (generated asphalt/concrete source beside the town
-  atlas; ExteriorMap's Asphalt/Concrete surfaces need RoadsideTerrain.Get());
+  and RoadsideTiles/RoadsideTerrain (generated lot/concrete/road source beside the town
+  atlas; ExteriorMap's Asphalt/Concrete/Road surfaces need RoadsideTerrain.Get()) +
+  StreetLight (the cobra heads);
   art layer: TileSetTools (walkable derivation + blockers) and the three named-coordinate
   tables TerrainTiles/FarmTiles/InteriorTiles with their TileSets TownTerrain/FarmTerrain/
   InteriorTerrain/CropTiles, Prop + the sheets TownProps/FarmBuildings/Furniture,
@@ -143,11 +144,18 @@ sign uses.
     Obstacles layer — a transparent atlas cell. Terrain "walkable" custom data is DERIVED
     from the TileSet's own collision in `TownTerrain`, never hand-listed.
   - Time of day is one CanvasModulate (`DayNightTint`, driven by `DayNight`'s keys off
-    TenMinuteTicked + DayStarted); interiors take a fixed warm key instead. Lanterns and
-    lit windows punch back through it as additive `GlowLight`s. Nothing in TOWN is lit
-    by anything but fire; the roadside strip's signage is the one exception (motel
-    handoff): neon aqua/red and incandescent sign bulbs, flipping on `DayNight.SignsLit`
-    (dusk 720 to dawn 150, hard cut).
+    TenMinuteTicked + DayStarted); interiors take a fixed warm key instead. Lit things
+    punch back through it as additive `GlowLight`s, flipping on `DayNight.SignsLit`
+    (dusk 720 to dawn 150, hard cut). THREE light sources, never mixed (motel handoff):
+    neon aqua/red on signs, incandescent amber strictly indoors (lit windows, bulb
+    rails), cold mercury vapour on the street (`StreetLight` cobra heads — the west
+    entry's east head is dead and stays dead). `LampPost` firelight is retired inside
+    the town line; it stays shippable for rustic frames beyond it.
+  - The town is PAVED (motel handoff §Road): road rows are `Surface.Road` tiles (a full
+    value-step darker than lot `Surface.Asphalt`), and kerbs/centre line/cracks come
+    from `ExteriorMap.BuildRoadDressing` with a kerb cut wherever a driveway or path
+    crosses. Roads turn unsealed (Dirt) past the town line — the fork's farm branch and
+    every drive stay dirt, and the farm itself never paves.
   - Signage: every business exterior wears exactly one of the four mounts (pole /
     wall band / hanging bracket / window+neon), lettered in `PixelFont`'s 3x5 alphabet —
     no second typeface, ever. City hall gets NO exterior sign (confirmed in the handoff).

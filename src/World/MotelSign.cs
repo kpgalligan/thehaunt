@@ -28,10 +28,9 @@ public partial class MotelSign : Sprite2D
     internal const float BlinkCycle = 4.0f;
     internal const float BlinkOff = 0.55f;
 
-    // Cabinet geometry (local px). The cabinet is 74 wide; pylon shortened from the
-    // handoff's 34 to 26 so the whole sign clears the office face above it in the
-    // west entry's compressed lot.
-    private const int W = 74, H = 92;
+    // Cabinet geometry (local px), straight from the handoff: 74-wide cabinet,
+    // 22px pylon, 4px ink foot.
+    private const int W = 74, H = 88;
     private const int PanelY = 42;                    // vacancy panel top
 
     private static readonly Color Ink900 = new("171310");
@@ -46,7 +45,7 @@ public partial class MotelSign : Sprite2D
     private static readonly Color BulbDay = new("b8b5a5");
     private static readonly Color BulbNight = new("f2b95c");
     private static readonly Color Pylon = new("575a58");
-    private static readonly Color Foot = new("3e4241");
+    private static readonly Color Foot = new("171310");
 
     internal enum State { Day, NightVOn, NightVOff, NightFullVOn, NightFullVOff }
 
@@ -155,10 +154,10 @@ public partial class MotelSign : Sprite2D
         for (int x = 4; x <= 68; x += 6)
             img.FillRect(new Rect2I(x, 60, 2, 2), night ? BulbNight : BulbDay);
 
-        // Pylon and concrete foot.
-        img.FillRect(new Rect2I(W / 2 - 5, 66, 10, 20), Ink700);
-        img.FillRect(new Rect2I(W / 2 - 4, 66, 8, 20), Pylon);
-        img.FillRect(new Rect2I(W / 2 - 11, H - 6, 22, 6), Foot);
+        // Pylon and foot.
+        img.FillRect(new Rect2I(W / 2 - 5, 66, 10, 22), Ink700);
+        img.FillRect(new Rect2I(W / 2 - 4, 66, 8, 22), Pylon);
+        img.FillRect(new Rect2I(W / 2 - 11, H - 4, 22, 4), Foot);
 
         return ImageTexture.CreateFromImage(img);
     }

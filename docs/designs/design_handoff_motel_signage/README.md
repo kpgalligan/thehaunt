@@ -41,9 +41,19 @@ The implementation task is to build the motel as a real Godot map in the existin
 | 2–8 | Office facade (x 1–6) and room strip facade (x 7–25) |
 | 9 | Concrete walkway, x 6–26. Curb along its south edge |
 | 10–15 | Asphalt parking lot, x 6–26. Eight painted stalls |
-| 16–17 | Dirt road, full width. Continuous with the town/farm road grammar |
+| 15.5–16 | Concrete kerb and gutter strip, full width (y 248–254 px) |
+| 16–17 | **Paved** asphalt road, full width, with a worn dashed centre line |
 
-Grass, asphalt, concrete, and dirt are all **mottled**, not flat: per-pixel hash picking between 3–4 palette values, matching the speckle approach already in `TownMap.BuildAtlasTexture`. Rough mix ratios — grass 6% `#457539`, 6% `#5f9445`, 3% `#2f5228`, remainder `#4a7c3a`; asphalt 8% `#3e4241`, 8% `#7a7a7a`, remainder `#575a58`; concrete 7% `#b8b5a5`, 5% `#7a7a7a`, remainder `#9a9a8a`; dirt 8% `#7a5b3c`, 8% `#a5855c`, remainder `#8a6a45`.
+Grass, asphalt, and concrete are all **mottled**, not flat: per-pixel hash picking between 3–4 palette values, matching the speckle approach already in `TownMap.BuildAtlasTexture`. Mix ratios:
+
+| Surface | Mix |
+| --- | --- |
+| Grass | 6% `#457539`, 6% `#5f9445`, 3% `#2f5228`, remainder `#4a7c3a` |
+| Parking lot | 8% `#3e4241`, 10% `#7a7a7a`, remainder `#575a58` |
+| Road | 16% `#575a58`, 6% `#2b241d`, remainder `#3e4241` |
+| Concrete | 7% `#b8b5a5`, 5% `#7a7a7a`, remainder `#9a9a8a` |
+
+The road is deliberately a full value-step darker than the parking lot so the two never read as one surface.
 
 #### Office (pixel coords, origin top-left of the 416 × 288 frame)
 
@@ -95,13 +105,46 @@ Four identical room units at `ux = 112 + i * 68`, i = 0..3. Within each unit:
 
 **Ice/vending alcove** at the strip's east end: frame `#2b241d` (372, 96, 24, 44), recess `#575a58` (373, 97, 22, 42), machines `#5fb9b0` (376, 100, 7, 16) and `#a4432f` (386, 100, 7, 16), the word `ICE` centred at (384, 122) in `#ede3cb`. It is a cheap ambient night light and a natural place to hide an item.
 
+#### Road and kerb
+
+The town is paved. This corrects the existing codebase: `TownMap.cs` currently fills road rows 14–15 with `earth-base` dirt, which does not belong in a town whose buildings went up in 1958. A town with porcelain enamel and neon has asphalt and a utility contract.
+
+| Element | Rect | Colour |
+| --- | --- | --- |
+| Kerb + gutter strip | 0, 248, 416, 6 | Concrete mix |
+| Kerb top highlight | 0, 247, 416, 1 | `#b8b5a5` |
+| Kerb face shadow | 0, 253, 416, 1 | `#2b241d` |
+| Road surface | 0, 254, 416, 34 | Road mix |
+| Centre line | 8 × 2 px every 16 px, y = 270 | `#b8b5a5`, worn — not white |
+| Patches / cracks | ~26 runs, 2–9 × 1 px, scattered y 256–286 | `#171310` |
+| Kerb cut (lot driveway) | 132, 248, 64, 6 | Parking-lot mix, breaking the kerb |
+
+Knock-on work outside this bundle: repave rows 14–15 of `TownMap` and the farm road, add kerbs, and update the plaza. The farm road may stay unsealed where it leaves town — a paved road that turns to gravel at the town line is a real thing and a useful one.
+
+#### Street lights
+
+Two aluminium cobra heads on tapered poles, bases in the verge at x = 204 and x = 346, base y = 250, pole height 60 px. **The east one is dead** and stays dead — not flickering, dead. It costs nothing, reads instantly, and preserves the flickering `V` as the only animated thing in the game.
+
+| Element | Rect (relative to pole x `px`, top `topY = baseY - 60`) | Colour |
+| --- | --- | --- |
+| Pole silhouette | px-1, topY+5, 5, 55 | `#2b241d` |
+| Pole body | px, topY+5, 3, 55 | `#575a58` |
+| Pole highlight column | px+1, topY+5, 1, 55 | `#9a9a8a` |
+| Base collar | px-3, baseY-3, 9, 4 | `#171310` |
+| Mast arm | stepped 4×4 outline + 3×2 body along offsets (0,5) (3,3) (6,2) (9,2) (12,2) (15,3) (18,4) | `#2b241d` / `#575a58` |
+| Luminaire outline | px+16, topY+2, 17, 9 | `#2b241d` |
+| Luminaire shell | px+17, topY+3, 15, 4 | `#b8b5a5`, inner highlight `#9a9a8a` |
+| Luminaire underside | px+17, topY+7, 15, 3 | `#171310` |
+| Lens | px+20, topY+8, 9, 2 | `#ede3cb` lit / `#3e4241` dead |
+
+No finials, no scrollwork, nothing cast-iron. The town electrified before it had taste.
+
 #### Parking lot details
 
 - Curb: `#b8b5a5`, (96, 158, 320, 2).
 - Stall stripes: `#b8b5a5`, 2 × 40 px, at x = 104, 140, 176, 212, 248, 284, 320, 356, y = 170. Faded, not white.
 - Asphalt cracks: ~40 short horizontal runs of `#3e4241`, 1–7 px long, scattered across (100–410, 164–252).
-- Lot entrance: a dirt apron (132, 250, 64, 8) breaking the grass between lot and road.
-- Road wear: `#7a5b3c` bars, 12 × 2 px, every 24 px along y = 271.
+- Lot entrance: a kerb cut, not an apron — see the road table above.
 
 #### Pole sign
 
@@ -109,8 +152,8 @@ Stands in the grass apron between the lot entrance and the road, west of the ent
 
 | Element | Rect | Colour |
 | --- | --- | --- |
-| Pylon outline / body | 50, 228, 10, 34 / 51, 228, 8, 34 | `#2b241d` / `#575a58` |
-| Concrete foot | 44, 258, 22, 6 | `#3e4241` |
+| Pylon outline / body | 50, 228, 10, 22 / 51, 228, 8, 22 | `#2b241d` / `#575a58` |
+| Concrete foot | 44, 246, 22, 4 | `#171310` |
 | Cabinet outline | 18, 168, 74, 62 | `#2b241d` |
 | Cabinet face | 20, 170, 70, 58 | `#ede3cb` |
 | Atomic starburst | vertical 80,164,2,10 + horizontal 76,168,10,2 | `#5fb9b0` |
@@ -191,15 +234,21 @@ Spawn markers: `from_road` on the road apron, and one `from_<room>` marker per d
 
 Day and night are **two sprites per sign, not a tint** — unlit day, lit night, identical footprint. Swap on time of day. The light pool underneath is a separate additive sprite so it can be reused across signs.
 
-At night the mockup applies an overall `rgba(24, 30, 72, 0.60)` wash, then redraws lit elements above it at full colour, then adds additive light pools:
+At night the mockup applies an overall `rgba(24, 30, 72, 0.60)` wash, then redraws lit elements above it at full colour, then adds additive light.
+
+**Three light sources, and they never mix.** Neon on signs, incandescent amber indoors, cold mercury vapour on the street. Amber is now strictly interior — lit windows and bulb rails only. Outdoors is cold, indoors is warm, and that contrast carries every night scene.
 
 | Source | Centre | Radius | Colour |
 | --- | --- | --- | --- |
+| Street light, ground pool | 228, 266 | 56 | `rgba(175,230,225,0.38)` |
+| Street light, cone | apex at the lens, spreading to y=276 | — | linear `rgba(190,235,230,0.34)` → `rgba(130,205,205,0)` |
 | Office lobby | 46, 120 | 60 | `rgba(242,185,92,0.50)` |
 | Occupied room window | 268, 116 | 42 | `rgba(242,185,92,0.42)` |
 | Pole sign | 55, 200 | 64 | `rgba(224,90,63,0.34)` |
 | Canopy stripe, west | 124, 150 | 30 | `rgba(95,185,176,0.25)` |
 | Ice alcove | 384, 120 | 26 | `rgba(95,185,176,0.30)` |
+
+The cone is drawn as a triangle from the lens down to below the road edge, not as a radial — a cobra head throws a directed pattern and the shape is most of what identifies it.
 
 ### Occupancy tell
 
@@ -232,14 +281,13 @@ No data fetching. All state is local to the save.
 | cream | `#ede3cb` | Enamel wall panels, sign lettering, sills |
 | stone-pale | `#b8b5a5` | Enamel chalking speckle, mullions, curb, stall stripes |
 | green-dark / mid / base / light | `#2f5228` / `#457539` / `#4a7c3a` / `#5f9445` | Grass mottle |
-| earth-mid / base / light | `#7a5b3c` / `#8a6a45` / `#a5855c` | Dirt road mottle |
-| stone-dark | `#3e4241` | Asphalt cracks, kick plates, concrete foot |
-| stone-shade | `#575a58` | Asphalt base, roof gravel, pylon |
+| stone-dark | `#3e4241` | Road base, lot cracks, kick plates, dead lens |
+| stone-shade | `#575a58` | Parking-lot base, roof gravel, pylon, street-light pole |
 | stone-base | `#7a7a7a` | Asphalt and concrete speckle |
 | stone-light | `#9a9a8a` | Concrete walkway base |
 | barn-red | `#a4432f` | MOTEL panel, doors, vending |
 | water-deep | `#2e5566` | Daytime glass |
-| lamp | `#f2b95c` | Incandescent bulbs, lit windows |
+| lamp | `#f2b95c` | Incandescent bulbs, lit windows. **Interior only** |
 
 ### Palette — the two reserved slots, now spent
 
@@ -248,9 +296,7 @@ No data fetching. All state is local to the save.
 | neon-aqua | `#5fb9b0` | Googie stripes, canopy posts, aqua doors, aqua neon lettering |
 | neon-red | `#e05a3f` | Lit neon tube |
 
-Two lit colours only: neon red and aqua. Incandescent bulbs use the existing lamp amber. Nothing else in the game glows.
-
-Derived, non-palette values used only for unlit glass and one reflection: `#63403a` (unlit tube at night), `#6d4038` (unlit tube in daylight), `#5c8fa3` (day glass reflection), `#2a2a20` (unlit office glass at night).
+Derived, non-palette values used for unlit glass, street light, and one reflection: `#63403a` (unlit tube at night), `#6d4038` (unlit tube in daylight), `#5c8fa3` (day glass reflection), `#2a2a20` (unlit office glass at night), and the mercury-vapour light values in the table above — cold blue-green, deliberately outside the warm palette.
 
 ### Typography — the 3×5 pixel alphabet
 

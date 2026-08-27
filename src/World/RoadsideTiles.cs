@@ -19,7 +19,11 @@ public static class RoadsideTiles
     /// wherever the parking lot runs directly below it.</summary>
     public static readonly Vector2I ConcreteCurb = new(6, 0);
 
-    public const int Columns = 7;
+    /// <summary>The paved road — deliberately a full value-step darker than the
+    /// parking lot so the two never read as one surface (motel handoff §Road).</summary>
+    public static readonly Vector2I[] Road = { new(7, 0), new(8, 0), new(9, 0), new(10, 0) };
+
+    public const int Columns = 11;
 
     /// <summary>Act I is the identity map, exactly like the town sheet's.</summary>
     public static Vector2I ForAct(Vector2I coords, TerrainTiles.Act act) => act switch

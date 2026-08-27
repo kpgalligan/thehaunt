@@ -30,7 +30,7 @@ public partial class BilliesMap : ExteriorMap
     private const int PitLeft = 26, PitTop = 20, PitRight = 28, PitBottom = 21;
     private const int ChainLeft = 25, ChainRight = 29, ChainRow = 19;
 
-    private static readonly Vector2I Lamp = new(13, 12);
+    private static readonly Vector2I Light = new(13, 13);  // cobra head in the verge
 
     public override void _EnterTree()
     {
@@ -42,8 +42,12 @@ public partial class BilliesMap : ExteriorMap
     public override void _Ready()
     {
         BuildSurfaces();
-        TileSet tileSet = TownTerrain.Get();
-        BuildGround(tileSet);
+        TileSet tileSet = RoadsideTerrain.Get(); // the paved road needs the roadside source
+        TileMapLayer ground = BuildGround(tileSet);
+        // Kerb cut where the bar's two-tile door path crosses.
+        ground.AddChild(BuildRoadDressing(RoadTop,
+            new[] { (BarDoorX, BarDoorX + 1) }, System.Array.Empty<(int, int)>()));
+
         BuildObstacles(tileSet);
         BuildStructures();
         BuildSpawns();
@@ -57,8 +61,8 @@ public partial class BilliesMap : ExteriorMap
 
         for (int x = 0; x < Width; x++)
         {
-            Set(x, RoadTop, Surface.Dirt);
-            Set(x, RoadBottom, Surface.Dirt);
+            Set(x, RoadTop, Surface.Road);
+            Set(x, RoadBottom, Surface.Road);
         }
 
         Fill(BarLeft, BarTop, BarRight, BarBottom + 1, Surface.Gravel);
@@ -76,7 +80,7 @@ public partial class BilliesMap : ExteriorMap
         Block(obstacles, BarLeft, BarTop, BarRight, BarBottom, BarDoorX, BarBottom);
         Block(obstacles, PitLeft, PitTop, PitRight, PitBottom);
         Block(obstacles, ChainLeft, ChainRow, ChainRight, ChainRow);
-        obstacles.SetCell(Lamp, 0, TerrainTiles.Blocker);
+        obstacles.SetCell(Light, 0, TerrainTiles.Blocker);
         AddChild(obstacles);
     }
 
@@ -113,7 +117,7 @@ public partial class BilliesMap : ExteriorMap
             Position = Prop.Anchor(ChainLeft, ChainRow, ChainRight - ChainLeft + 1),
         });
 
-        AddChild(new LampPost { Position = Prop.Anchor(Lamp.X, Lamp.Y) });
+        AddChild(new StreetLight { Position = Prop.Anchor(Light.X, Light.Y) });
     }
 
     private void BuildSpawns()

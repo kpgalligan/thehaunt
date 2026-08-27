@@ -94,7 +94,12 @@
   fireworks pole), and the dead drive-in from `docs/story/README.md` is a map off the
   east fork's south side (screen, cracked field, speaker posts, boarded concession,
   "CLO ED" marquee). Jane's drive-in refurbishment goal has no mechanics yet — that
-  seam is deliberately empty, like the barn's. Still remaining:
+  seam is deliberately empty, like the barn's. Handoff revision (2026-08-27): the town
+  is PAVED — asphalt road a value-step darker than the motel lot, kerbs with cuts at
+  every driveway, worn centre line — with cobra-head street lights on cold mercury
+  vapour replacing the fire lanterns town-wide (the motel's east head is dead by
+  design); amber is now strictly interior, and roads turn to dirt past the town line
+  (the fork's farm branch stays unsealed). Still remaining:
   connections/relationship mechanics, enlarging the town centre (clinic, Stumble Inn,
   homes, fountain square), shop catalogs for the gas station and fireworks stand,
   haircuts, motel room unlock stories, the drive-in restoration arc.

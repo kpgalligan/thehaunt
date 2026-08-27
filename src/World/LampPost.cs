@@ -3,9 +3,14 @@ using Godot;
 namespace TheHaunt.World;
 
 /// <summary>
-/// Plaza lamp post: a 1x3 prop, the 4-frame flame loop in its lantern, and the
+/// Fire lamp post: a 1x3 prop, the 4-frame flame loop in its lantern, and the
 /// <see cref="GlowLight"/> it casts. The flame runs at 6fps and carries the light's
 /// ±4% radius variation with it (art handoff §6).
+///
+/// The motel handoff repaved the town and replaced every exterior firelight with
+/// <see cref="StreetLight"/> cobra heads, so no town frame places one today. The
+/// prop stays shippable for the unsealed side of the town line — a farm lane or a
+/// wilderness camp lights however it can afford to.
 ///
 /// Position is the bottom-centre of its base tile, like every other <see cref="Prop"/>.
 /// </summary>

@@ -9,10 +9,11 @@ namespace TheHaunt.World;
 /// sprite from assets/sprites/lights.png rather than a shader gradient, so it stays
 /// pixel-honest (art handoff §6).
 ///
-/// Nothing in TOWN is lit by anything but fire. The one exception is the roadside
-/// strip's period signage — the motel handoff spends the palette's two reserved neon
-/// slots (aqua and red) and its incandescent bulbs reuse the lamp amber. Two lit
-/// colours only; nothing else in the game glows.
+/// Three light sources, and they never mix (motel handoff): neon on signs (the
+/// palette's two reserved slots, aqua and red), incandescent amber STRICTLY indoors
+/// (lit windows and sign bulbs), and cold mercury vapour on the street
+/// (<see cref="StreetLight"/>). Outdoors is cold, indoors is warm, and that contrast
+/// carries every night scene. Nothing else glows.
 /// </summary>
 public partial class GlowLight : PointLight2D
 {
