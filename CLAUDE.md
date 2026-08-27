@@ -14,15 +14,21 @@ The architecture contracts are `docs/foundation-spec.md` (clock/save/state base)
 `docs/phase3b-spec.md` (storage/chest + save v4, general store + buy flow, overnight
 report, Menu phase, help panel). Read them before touching Core/Systems code — public signatures and semantics are specified there.
 
-The art contract is `docs/designs/` — two handoffs, both binding.
+The art contract is `docs/designs/` — three handoffs, all binding.
 `design_handoff_town_art/` is the base: palette, projection, tile grammar, lighting keys
 and the act-by-act dread escalation, with `reference/The Haunt - Art Direction.dc.html`
 as the full bible. `design_handoff_farm_interiors/` is incremental on top of it (farm
 soil autotile, crops at 16x32, the barn's three states, the 64-tile interior atlas and 34
 furniture pieces) — where the two conflict, handoff 01 wins. Each `README.md` is its
 integration brief; the `reference/` room and scene renders are design targets, not
-assets. The `art/` PNGs are the shipped assets, copied into `assets/sprites/` — never
-redraw, scale or filter them.
+assets. The `art/` PNGs of those two are the shipped assets, copied into
+`assets/sprites/` — never redraw, scale or filter them.
+`design_handoff_motel_signage/` (2026-08-27) is different in kind: its `art/` PNGs are
+MOCKUPS, not atlases — the motel facade, pole sign, and the four sign mounts are
+authored IN CODE from its pixel-exact spec tables (MotelFacade, MotelSign, the
+*Sign nodes, PixelFont, RoadsideTerrain). It also spends the palette's two reserved
+neon slots (aqua `#5fb9b0`, red `#e05a3f`) and fixes the one 3x5 pixel typeface every
+sign uses.
 
 ## Toolchain
 
@@ -47,16 +53,24 @@ redraw, scale or filter them.
 
 ## Structure
 
-- `src/Core/` — PURE C# (no `using Godot`, test-enforced): GameTime/calendar, ClockModel, GameData + save DTOs, migrations, item/crop defs (code registries), InventoryData, FarmActions, OvernightSim + ShippedLine; storage: StackOps/StorageData/StorageIds; shop: ShopCatalog (+ ShopEntry/BuyResult)/ShopHours; story: StoryKeys/IntroRules/BarnRules/MapIds/RoadWrap, DialogueDef(s)/DialogueSession/DialogueSelector, NpcDef(s)/NpcSchedules
+- `src/Core/` — PURE C# (no `using Godot`, test-enforced): GameTime/calendar, ClockModel, GameData + save DTOs, migrations, item/crop defs (code registries), InventoryData, FarmActions, OvernightSim + ShippedLine; storage: StackOps/StorageData/StorageIds; shop: ShopCatalog (+ ShopEntry/BuyResult)/ShopHours; story: StoryKeys/IntroRules/BarnRules/MotelRules/MapIds/RoadWrap, DialogueDef(s)/DialogueSession/DialogueSelector, NpcDef(s)/NpcSchedules
 - `src/Systems/` — the four autoloads, in registration order: GameState, Clock, SaveService, WorldSim (the single gameplay-mutation bus — all model writes flow through it, incl. story flags, travel requests, the dialogue session, chest/shop Menu sessions, transfers, and purchases; UI subscribes to its events)
 - `src/World/` — MapRoot base (owns NPC views + IsStandable + IsInterior + the shared
   scatter hash), MapRegistry, the exteriors TestMap (farm) and the ExteriorMap base
   (surface grid + shared town-sheet painters) carrying TownMap and the road strip
-  WestEntryMap/BilliesMap/ForkMap/EastForkMap/EastEntryMap, and the InteriorMap base with
-  TownHallMap/FarmHouseMap/GeneralStoreMap/BarnMap on it (all programmatic), IInteractable,
-  Bed, Sign, ShippingBin, Chest, ShopCounter, MapExit, Door, NpcView, PlaceholderSprites,
-  PlaceholderBuilding/RoadBarrier/PitCover (code-built stand-ins for buildings with no
-  art yet, chained-off roads, and the pit);
+  WestEntryMap/BilliesMap/ForkMap/EastForkMap/EastEntryMap plus DriveInMap, and the
+  InteriorMap base with TownHallMap/FarmHouseMap/GeneralStoreMap/BarnMap/MotelMap/
+  GasStationMap/BilliesBarMap/SalonMap/MotelRoomMap (one class, four registered room ids)
+  on it (all programmatic), IInteractable,
+  Bed, Sign, ShippingBin, Chest, ShopCounter, MapExit, Door (flag-lockable: RequiredFlag +
+  LockedMessage — a locked handle answers with a line), NpcView, PlaceholderSprites,
+  PlaceholderBuilding/RoadBarrier/PitCover/DriveInScreen/DriveInSpeaker (code-built
+  stand-ins for buildings with no art yet, chained-off roads, the pit, and the dead
+  drive-in);
+  signage (motel handoff, all authored in code): PixelFont (the one 3x5 typeface) +
+  MotelFacade/MotelSign (the blinking V) + WallBandSign/BracketSign/NeonWordSign/PoleSign,
+  and RoadsideTiles/RoadsideTerrain (generated asphalt/concrete source beside the town
+  atlas; ExteriorMap's Asphalt/Concrete surfaces need RoadsideTerrain.Get());
   art layer: TileSetTools (walkable derivation + blockers) and the three named-coordinate
   tables TerrainTiles/FarmTiles/InteriorTiles with their TileSets TownTerrain/FarmTerrain/
   InteriorTerrain/CropTiles, Prop + the sheets TownProps/FarmBuildings/Furniture,
@@ -130,8 +144,17 @@ redraw, scale or filter them.
     from the TileSet's own collision in `TownTerrain`, never hand-listed.
   - Time of day is one CanvasModulate (`DayNightTint`, driven by `DayNight`'s keys off
     TenMinuteTicked + DayStarted); interiors take a fixed warm key instead. Lanterns and
-    lit windows punch back through it as additive `GlowLight`s. Nothing in this town is
-    lit by anything but fire.
+    lit windows punch back through it as additive `GlowLight`s. Nothing in TOWN is lit
+    by anything but fire; the roadside strip's signage is the one exception (motel
+    handoff): neon aqua/red and incandescent sign bulbs, flipping on `DayNight.SignsLit`
+    (dusk 720 to dawn 150, hard cut).
+  - Signage: every business exterior wears exactly one of the four mounts (pole /
+    wall band / hanging bracket / window+neon), lettered in `PixelFont`'s 3x5 alphabet —
+    no second typeface, ever. City hall gets NO exterior sign (confirmed in the handoff).
+    The motel pole sign's nameplate is BLANK and the drive-in marquee carries no name —
+    both wait on Kevin. The vacancy sign's `V` is the ONLY animated sign in the game
+    (4.0s cycle, 0.55s off, hard cut, never randomised); a second flickering sign must
+    replace it, not join it.
   - Act II/III are a variant set of the SAME tiles at the SAME coordinates, swapped by a
     story flag: every painted cell goes through `TerrainTiles.ForAct`. No map is rebuilt.
   - Keep `PlaceholderSprites` and the procedural fallbacks working (`Door.DrawPlaceholder`,
@@ -161,7 +184,8 @@ redraw, scale or filter them.
   verified unnecessary in `src/World/`: the stage hand-instantiates the four autoloads in
   project.godot's order, so map code runs in the editor completely unmodified. If the editor
   misbehaves, fix the stage — never sprinkle guards through the World layer.
-- The three TileSet builders assemble their `.tres` at runtime, and they must (a) build on a PRIVATE
+- The four TileSet builders (TownTerrain/FarmTerrain/InteriorTerrain/RoadsideTerrain)
+  assemble their `.tres` at runtime, and they must (a) build on a PRIVATE
   copy (`CacheMode.Ignore`) and (b) be IDEMPOTENT. Both are load-bearing, and both were learned the
   hard way. `GD.Load` returns the process-cached resource — in the editor, the object the editor owns
   and writes back to disk — so mutating it baked the derived walkable data and a synthesized source

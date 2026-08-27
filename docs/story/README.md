@@ -90,3 +90,7 @@ East of the fork is the east entry.
 Early game is restricted. We'll be adding many more maps as the story progresses.
 
 See also: [cast.md](cast.md) — the road-strip cast (names and voices proposed 2026-08-27, pending review).
+
+## Drive-in Movie Theater
+
+This is off the side of the road, to the west of the east entry. It should have a screen, spaces for cars, a seating area for people who came without cars, and an office/consession building. It is not functioning. It shut down years ago. The main character will have a long-running goal of refurbishing and opening the drive-in movie theater.

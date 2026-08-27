@@ -56,6 +56,13 @@ public static class DayNight
         return Resolve(from).Lerp(Resolve(to), t);
     }
 
+    /// <summary>
+    /// Binary "the signs are on" for the signage pass (motel handoff): dusk to dawn,
+    /// hard cut. Neon and sign bulbs flip at the dusk key where the lanterns light,
+    /// and hold through the dawn tail while <see cref="LightLevel"/> drains to zero.
+    /// </summary>
+    public static bool SignsLit(int minuteOfDay) => minuteOfDay >= 720 || minuteOfDay < 150;
+
     /// <summary>Lantern/window light energy, 0 at midday to 1 in the small hours.</summary>
     public static float LightLevel(GameTime now) => LightLevel(now.MinuteOfDay);
 

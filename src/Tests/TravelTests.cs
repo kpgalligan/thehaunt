@@ -19,16 +19,24 @@ public static class TravelTests
         [MapIds.GeneralStore] = new[] { "default", "entry" },
         [MapIds.Barn] = new[] { "default", "entry" },
         [MapIds.WestEntry] = new[]
-            { "default", RoadWrap.ArrivalSpawn, "from_billies", "from_motel", "from_gas" },
+        {
+            "default", RoadWrap.ArrivalSpawn, "from_billies", "from_motel",
+            "from_room1", "from_room2", "from_room3", "from_room4", "from_gas",
+        },
         [MapIds.Billies] = new[] { "default", "from_west_entry", "from_fork", "from_bar" },
         [MapIds.Fork] = new[] { "default", "from_billies", "from_town", "from_farm" },
-        [MapIds.EastFork] = new[] { "default", "from_town", "from_east_entry" },
+        [MapIds.EastFork] = new[] { "default", "from_town", "from_east_entry", "from_drive_in" },
         [MapIds.EastEntry] = new[]
             { "default", "from_east_fork", RoadWrap.ArrivalSpawn, "from_salon" },
         [MapIds.Motel] = new[] { "default", "entry" },
         [MapIds.GasStation] = new[] { "default", "entry" },
         [MapIds.BilliesBar] = new[] { "default", "entry" },
         [MapIds.Salon] = new[] { "default", "entry" },
+        [MapIds.MotelRoom1] = new[] { "default", "entry" },
+        [MapIds.MotelRoom2] = new[] { "default", "entry" },
+        [MapIds.MotelRoom3] = new[] { "default", "entry" },
+        [MapIds.MotelRoom4] = new[] { "default", "entry" },
+        [MapIds.DriveIn] = new[] { "default", "from_road" },
     };
 
     [SimTest]

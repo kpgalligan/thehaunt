@@ -8,7 +8,7 @@ namespace TheHaunt.World;
 /// with the till, the registry and one lamp on it, a rug that was nice once, and a
 /// waiting bench nobody waits on — except lately Mr. Pell, who is in no hurry at all
 /// (docs/story/cast.md). Two windows on the back wall: one lit, one dark. Walt runs
-/// nine rooms and lights two, and the lobby says so without a word of dialogue.
+/// four rooms and lights two, and the lobby says so without a word of dialogue.
 ///
 /// Walt stands at the open end of his desk, so the Talk prompt never depends on
 /// the probe stretching over furniture.
@@ -39,7 +39,8 @@ public partial class MotelMap : InteriorMap
 
     protected override void Decorate()
     {
-        // Nine rooms, two lamps: one window lit, one dark, and the key board between.
+        // Four rooms, two lamps: one window lit, one dark, and the key board between
+        // (the lit lamps are the lobby and Pell's room 3 — see MotelRules.LitRoom).
         SetWall(2, 0, InteriorTiles.Plaque);
         SetWall(5, 0, InteriorTiles.WindowLit);
         SetWall(9, 0, InteriorTiles.WindowDark);

@@ -9,8 +9,10 @@ namespace TheHaunt.World;
 /// sprite from assets/sprites/lights.png rather than a shader gradient, so it stays
 /// pixel-honest (art handoff §6).
 ///
-/// Nothing in this town is lit by anything but fire; there is no electric light in
-/// the palette.
+/// Nothing in TOWN is lit by anything but fire. The one exception is the roadside
+/// strip's period signage — the motel handoff spends the palette's two reserved neon
+/// slots (aqua and red) and its incandescent bulbs reuse the lamp amber. Two lit
+/// colours only; nothing else in the game glows.
 /// </summary>
 public partial class GlowLight : PointLight2D
 {
@@ -33,8 +35,9 @@ public partial class GlowLight : PointLight2D
     // once into its own texture and shared by every light of that size.
     private static readonly Dictionary<Falloff, Texture2D> Falloffs = new();
 
-    /// <summary>Peak energy at full dark; scaled down by the time of day.</summary>
-    public float Strength { get; init; } = 1f;
+    /// <summary>Peak energy at full dark; scaled down by the time of day. Settable so
+    /// the motel sign can dip its glow while the V is out.</summary>
+    public float Strength { get; set; } = 1f;
 
     public Falloff Size { get; init; } = Falloff.Small;
 

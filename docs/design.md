@@ -63,7 +63,9 @@
    `docs/story/cast.md` (2026-08-27, written under Kevin's fill-in-the-blanks commission)
    proposes the rest of the road-strip cast (Walt, Dennis, Gloria, Mr. Pell, the bar
    shifts) — pending Kevin's review. The intro cast (mayor, foreman, crew, shopkeeper)
-   remains role-labeled and unnamed.
+   remains role-labeled and unnamed. The MOTEL's name is also unwritten by design: the
+   motel handoff ships the pole sign with a blank nameplate, and the drive-in's marquee
+   carries no name either — both wait on Kevin.
 
 ## Systems roadmap
 
@@ -84,9 +86,18 @@
   road-strip cast — 14 ambient NPCs with schedules, flag/time-aware dialogue, and four
   interiors (Billie's bar room with the three drunk shifts, the motel lobby, the gas
   station shop, Sam's salon); names/voices proposed in `docs/story/cast.md`, pending
-  review. Still remaining: connections/relationship mechanics, enlarging the town centre
-  (clinic, Stumble Inn, homes, fountain square), shop catalogs for the gas station and
-  fireworks stand, haircuts.
+  review. 2026-08-27, from `docs/designs/design_handoff_motel_signage`: the motel is
+  now the drawn googie motor court in the west entry (office + four flag-locked guest
+  rooms with interiors, asphalt lot, blinking-V pole sign with the blank nameplate —
+  the name is deliberately unwritten), the four-mount signage system is applied across
+  the road strip (police/hardware/salon bands, Billie's BAR bracket, gas window neon,
+  fireworks pole), and the dead drive-in from `docs/story/README.md` is a map off the
+  east fork's south side (screen, cracked field, speaker posts, boarded concession,
+  "CLO ED" marquee). Jane's drive-in refurbishment goal has no mechanics yet — that
+  seam is deliberately empty, like the barn's. Still remaining:
+  connections/relationship mechanics, enlarging the town centre (clinic, Stumble Inn,
+  homes, fountain square), shop catalogs for the gas station and fireworks stand,
+  haircuts, motel room unlock stories, the drive-in restoration arc.
 - **Phase 4 — Mining & fishing**: plus the unique specialties (design with Kevin first).
 - **Phase 5 — The malevolence**: entity manifestations, combat, weapons/special items,
   quest framework, escalation, endgame.

@@ -82,14 +82,24 @@ public partial class BilliesMap : ExteriorMap
 
     private void BuildStructures()
     {
-        AddChild(new PlaceholderBuilding
+        var bar = new PlaceholderBuilding
         {
             Name = "Bar",
             TilesWide = BarRight - BarLeft + 1,
             FootprintRows = BarBottom - BarTop + 1,
             Wall = new Color("6b5a45"),
             Position = Prop.Anchor(BarLeft, BarBottom, BarRight - BarLeft + 1),
+        };
+        // The hanging-bracket mount (motel handoff §3): bars get the plaque on an
+        // iron arm, one bulb over it, readable side-on down the road. It says BAR and
+        // nothing else — a dive doesn't advertise its name, and everyone who matters
+        // already knows whose it is.
+        bar.AddChild(new BracketSign
+        {
+            Text = "BAR",
+            Position = new Vector2(64, -60),
         });
+        AddChild(bar);
 
         AddChild(new PitCover
         {

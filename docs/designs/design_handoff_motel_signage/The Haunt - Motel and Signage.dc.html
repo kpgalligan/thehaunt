@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,300;6..72,400;6..72,600&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  body { margin: 0; background: #e7e4db; }
+  a { color: #6b4560; text-decoration: underline; text-underline-offset: 2px; }
+  a:hover { color: #a4432f; }
+  img { image-rendering: pixelated; }
+  @keyframes vblink { 0%,44% { opacity: 1 } 46%,58% { opacity: 0.12 } 60%,100% { opacity: 1 } }
+  @keyframes vglow { 0%,44% { text-shadow: 0 0 10px #e05a3fcc, 0 0 26px #e05a3f66 } 46%,58% { text-shadow: none } 60%,100% { text-shadow: 0 0 10px #e05a3fcc, 0 0 26px #e05a3f66 } }
+</style>
+</helmet>
+
+<div style="max-width:1180px;margin:0 auto;padding:52px 40px 90px;font-family:Newsreader,serif">
+
+  <div style="font:500 11px/1 'JetBrains Mono',monospace;letter-spacing:0.14em;text-transform:uppercase;color:#6b4560">The Haunt · Motel &amp; Town Signage · Art Kit v3 · mockup pass</div>
+  <h1 style="font:300 52px/1.04 Newsreader,serif;color:#1c1c1a;margin:16px 0 0;letter-spacing:-0.02em">A motel that was new in 1958<br>and has been open ever since</h1>
+  <p style="font:400 17px/1.62 Newsreader,serif;color:#3a3733;max-width:36em;margin:18px 0 0">Late-50s googie bones, maintained but tired: porcelain enamel panels that have chalked, a repainted stripe, one dead bulb on the sign rail. Same 16px grid and same palette as the town and farm kits, plus the two reserved palette slots finally spent — on neon.</p>
+
+  <div style="background:#f6ecd8;border:1px solid #a4432f55;padding:16px 20px;margin:26px 0 0;font:400 15px/1.6 Newsreader,serif;color:#2b2925;max-width:52em">
+    <strong style="font-weight:600">One blocker.</strong> <span style="font-family:'JetBrains Mono',monospace;font-size:13px">docs/story/README.md</span> and <span style="font-family:'JetBrains Mono',monospace;font-size:13px">docs/story/cast.md</span> aren't on <span style="font-family:'JetBrains Mono',monospace;font-size:13px">main</span> — nothing under <span style="font-family:'JetBrains Mono',monospace;font-size:13px">docs/story/</span> exists, and no file in the repo mentions a motel. So this pass is the motel plus the signage <em>system</em>. The per-location signs (which stores, which bars, the police station's name) wait on that push.</p>
+  </div>
+
+  <h2 style="font:400 13px/1 'JetBrains Mono',monospace;letter-spacing:0.14em;text-transform:uppercase;color:#6b4560;margin:56px 0 6px">01 · The lot, by day</h2>
+  <p style="font:400 16px/1.6 Newsreader,serif;color:#2b2925;max-width:40em;margin:0 0 18px">26 × 18 tiles. Office on the left with the upswept eave, a straight run of four rooms to the right, asphalt apron between them and the dirt road. Every room opens onto the parking lot — no corridor, no shared entrance. The player can walk up to all four doors from the moment they find the place.</p>
+  <div style="border:1px solid #1c1c1a33"><img src="art/scene_motel_day.png" style="width:100%;display:block" alt="Motel exterior, day"></div>
+
+  <h2 style="font:400 13px/1 'JetBrains Mono',monospace;letter-spacing:0.14em;text-transform:uppercase;color:#6b4560;margin:56px 0 6px">02 · The lot, at night</h2>
+  <p style="font:400 16px/1.6 Newsreader,serif;color:#2b2925;max-width:40em;margin:0 0 18px">The sign is the brightest object in the game. Lobby lit, one room lit, three dark — the occupancy tell reads before any dialogue does. Which room is lit should be a story flag, not decoration.</p>
+  <div style="border:1px solid #1c1c1a33"><img src="art/scene_motel_night.png" style="width:100%;display:block" alt="Motel exterior, night"></div>
+
+  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:20px 30px;margin:20px 0 0">
+    <div><div style="font:700 11px/1 'JetBrains Mono',monospace;letter-spacing:0.1em;color:#6b4560;margin-bottom:7px">THE READ</div><div style="font:400 15px/1.6 Newsreader,serif;color:#2b2925">Cream enamel, aqua stripe, alternating red and aqua doors. Only the sign is saturated. The building itself is the palest mass in the town — it should feel bleached, not colourful.</div></div>
+    <div><div style="font:700 11px/1 'JetBrains Mono',monospace;letter-spacing:0.1em;color:#6b4560;margin-bottom:7px">TIRED, NOT DERELICT</div><div style="font:400 15px/1.6 Newsreader,serif;color:#2b2925">Chalking speckle on the enamel, cracks in the asphalt, faded stall stripes, wear ruts in the road. Nothing broken, nothing boarded. Somebody sweeps here.</div></div>
+    <div><div style="font:700 11px/1 'JetBrains Mono',monospace;letter-spacing:0.1em;color:#6b4560;margin-bottom:7px">THE ICE MACHINE</div><div style="font:400 15px/1.6 Newsreader,serif;color:#2b2925">End-of-strip alcove with ice and two vending machines. Cheap ambient light source at night, and a natural place to hide an item or a note.</div></div>
+  </div>
+
+  <h2 style="font:400 13px/1 'JetBrains Mono',monospace;letter-spacing:0.14em;text-transform:uppercase;color:#6b4560;margin:56px 0 6px">03 · Doors and locks</h2>
+  <p style="font:400 16px/1.6 Newsreader,serif;color:#2b2925;max-width:40em;margin:0 0 18px">Five doors on one facade row. All four rooms locked by default; the office is the only one open at first contact. Each room is its own map id and its own flag, so access can be granted in any order the story wants.</p>
+  <div style="border:1px solid #1c1c1a26">
+    <div style="display:grid;grid-template-columns:1.1fr 0.9fr 1fr 1.6fr;background:#1c1c1a;color:#ede3cb;font:700 11px/1 'JetBrains Mono',monospace;letter-spacing:0.08em;padding:11px 14px;gap:14px">
+      <div>DOOR</div><div>TILE</div><div>MAP ID</div><div>UNLOCK</div>
+    </div>
+    <div style="display:grid;grid-template-columns:1.1fr 0.9fr 1fr 1.6fr;gap:14px;padding:11px 14px;font:400 14px/1.5 'JetBrains Mono',monospace;color:#2b2925;border-bottom:1px solid #1c1c1a1a">
+      <div>Office</div><div>(5, 8)</div><div>motel_office</div><div>Always open</div>
+    </div>
+    <div style="display:grid;grid-template-columns:1.1fr 0.9fr 1fr 1.6fr;gap:14px;padding:11px 14px;font:400 14px/1.5 'JetBrains Mono',monospace;color:#2b2925;border-bottom:1px solid #1c1c1a1a">
+      <div>Room 1</div><div>(7, 8)</div><div>motel_room_1</div><div>motel_room1_open</div>
+    </div>
+    <div style="display:grid;grid-template-columns:1.1fr 0.9fr 1fr 1.6fr;gap:14px;padding:11px 14px;font:400 14px/1.5 'JetBrains Mono',monospace;color:#2b2925;border-bottom:1px solid #1c1c1a1a">
+      <div>Room 2</div><div>(12, 8)</div><div>motel_room_2</div><div>motel_room2_open</div>
+    </div>
+    <div style="display:grid;grid-template-columns:1.1fr 0.9fr 1fr 1.6fr;gap:14px;padding:11px 14px;font:400 14px/1.5 'JetBrains Mono',monospace;color:#2b2925;border-bottom:1px solid #1c1c1a1a">
+      <div>Room 3</div><div>(16, 8)</div><div>motel_room_3</div><div>motel_room3_open · lit at night</div>
+    </div>
+    <div style="display:grid;grid-template-columns:1.1fr 0.9fr 1fr 1.6fr;gap:14px;padding:11px 14px;font:400 14px/1.5 'JetBrains Mono',monospace;color:#2b2925">
+      <div>Room 4</div><div>(20, 8)</div><div>motel_room_4</div><div>motel_room4_open</div>
+    </div>
+  </div>
+  <p style="font:400 15px/1.6 Newsreader,serif;color:#2b2925;max-width:40em;margin:16px 0 0"><strong style="font-weight:600">Locked feedback.</strong> A locked door shouldn't fail silently. Same <span style="font-family:'JetBrains Mono',monospace;font-size:13px">Door</span> node with an <span style="font-family:'JetBrains Mono',monospace;font-size:13px">IsEnabled</span> predicate; when it's false the interaction prompt still fires and returns a line. Rattling a locked handle four times in a row is a cheap, effective way to make the player feel watched.</p>
+
+  <h2 style="font:400 13px/1 'JetBrains Mono',monospace;letter-spacing:0.14em;text-transform:uppercase;color:#6b4560;margin:56px 0 6px">04 · The vacancy sign</h2>
+  <p style="font:400 16px/1.6 Newsreader,serif;color:#2b2925;max-width:40em;margin:0 0 14px">Neon is glass, and glass is bent by hand and paid for by the letter. Nobody buys two panels. The sign carries <strong style="font-weight:600">NO VACANCY</strong> in tube from the day it was installed, and the NO simply doesn't get switched on — which is nearly every night.</p>
+  <p style="font:400 16px/1.6 Newsreader,serif;color:#2b2925;max-width:40em;margin:0 0 22px">The V has a bad transformer and drops out for about half a second every four. It is never remarked on and never fixed, because fixing it costs money the motel doesn't have. That's the point of it.</p>
+
+  <div style="background:#0f1220;border:1px solid #1c1c1a;padding:44px 30px;display:flex;justify-content:center;align-items:center;gap:56px;flex-wrap:wrap">
+    <div style="background:#171310;border:3px solid #2b241d;padding:18px 30px 20px;display:flex;flex-direction:column;align-items:center;gap:6px">
+      <div style="font:700 26px/1 'JetBrains Mono',monospace;letter-spacing:0.16em;color:#63403a">NO</div>
+      <div style="font:700 46px/1 'JetBrains Mono',monospace;letter-spacing:0.16em;color:#e05a3f;display:flex">
+        <span style="animation:vblink 4s steps(1,end) infinite, vglow 4s steps(1,end) infinite">V</span><span style="text-shadow:0 0 10px #e05a3fcc,0 0 26px #e05a3f66">ACANCY</span>
+      </div>
+    </div>
+    <div style="font:400 14px/1.7 'JetBrains Mono',monospace;color:#8e8a80;max-width:19em">4s cycle · V off for 0.55s<br>hard cut, no fade<br>lit tube <span style="color:#e05a3f">#e05a3f</span><br>unlit glass <span style="color:#63403a">#63403a</span> on <span style="color:#ede3cb">#171310</span><br>glow is a light bake, not a shader</div>
+  </div>
+
+  <p style="font:400 16px/1.6 Newsreader,serif;color:#2b2925;max-width:40em;margin:26px 0 18px">Four states ship, all the same glass. Day unlit is the whole panel dark — a dull maroon shape in sunlight, which is correct and worth keeping ugly.</p>
+  <div style="border:1px solid #1c1c1a33"><img src="art/motel_sign_states.png" style="width:100%;display:block" alt="Motel pole sign in four states"></div>
+  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:20px;margin:14px 0 0;font:400 14px/1.55 Newsreader,serif;color:#2b2925">
+    <div><span style="font:700 11px 'JetBrains Mono',monospace;color:#6b4560">DAY · UNLIT</span><br>All tubes dark, NO included. Bulb rail dull pewter.</div>
+    <div><span style="font:700 11px 'JetBrains Mono',monospace;color:#6b4560">NIGHT · V ON</span><br>The default. 3.45s of every 4. NO sits above as dead glass.</div>
+    <div><span style="font:700 11px 'JetBrains Mono',monospace;color:#6b4560">NIGHT · V OFF</span><br>Reads "ACANCY". 0.55s.</div>
+    <div><span style="font:700 11px 'JetBrains Mono',monospace;color:#6b4560">NIGHT · FULL</span><br>NO lights. Same panel, one more circuit. Never in act one.</div>
+  </div>
+  <p style="font:400 15px/1.6 Newsreader,serif;color:#2b2925;max-width:40em;margin:16px 0 0">Two circuits, one panel: NO on its own, VACANCY on another, and the V wired off the second through the failing transformer. The nameplate between MOTEL and the vacancy box is deliberately blank — one ruled line where the motel's name goes. Fill it once the story docs land.</p>
+
+  <h2 style="font:400 13px/1 'JetBrains Mono',monospace;letter-spacing:0.14em;text-transform:uppercase;color:#6b4560;margin:56px 0 6px">05 · Four ways a sign attaches</h2>
+  <p style="font:400 16px/1.6 Newsreader,serif;color:#2b2925;max-width:40em;margin:0 0 18px">The mounting type does the era work, so the lettering can stay plain. Top row day, bottom row night. Every business in town uses exactly one of these four.</p>
+  <div style="border:1px solid #1c1c1a33"><img src="art/signs_mounts.png" style="width:100%;display:block" alt="Four sign mounting types, day and night"></div>
+  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:20px;margin:14px 0 0;font:400 14px/1.55 Newsreader,serif;color:#2b2925">
+    <div><span style="font:700 11px 'JetBrains Mono',monospace;color:#6b4560">POLE</span><br>Set back from the road, meant to be read from a car. Motel, and anything else that expects passing traffic. The most expensive-looking mount in town.</div>
+    <div><span style="font:700 11px 'JetBrains Mono',monospace;color:#6b4560">WALL BAND</span><br>Flush letters on a dark band above the door. Civic and institutional: police station, clinic, anything the town paid for. Lit from below.</div>
+    <div><span style="font:700 11px 'JetBrains Mono',monospace;color:#6b4560">HANGING BRACKET</span><br>Perpendicular to the facade on an iron arm, one bulb over it. Bars and anything on a walkable street — it's the only mount readable side-on.</div>
+    <div><span style="font:700 11px 'JetBrains Mono',monospace;color:#6b4560">WINDOW</span><br>Band sign plus a small neon word in the glass. Stores. The neon word is the open/closed state, so it doubles as a shop-hours tell.</div>
+  </div>
+
+  <h2 style="font:400 13px/1 'JetBrains Mono',monospace;letter-spacing:0.14em;text-transform:uppercase;color:#6b4560;margin:56px 0 6px">06 · Rules for every sign in town</h2>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:26px 34px;margin:0;font:400 15px/1.62 Newsreader,serif;color:#2b2925">
+    <div><strong style="font-weight:600">One 3×5 pixel alphabet.</strong> Every sign in the game uses the same 3×5 glyph set, at 1× for small signs and 2× for the motel's MOTEL panel. No second typeface. It keeps signs readable at 480×270 and makes new signs nearly free to author.</div>
+    <div><strong style="font-weight:600">Two lit colours only.</strong> Neon red <span style="font-family:'JetBrains Mono',monospace;font-size:13px">#e05a3f</span> and aqua <span style="font-family:'JetBrains Mono',monospace;font-size:13px">#5fb9b0</span> — the two reserved palette slots. Incandescent bulbs use the existing lamp amber. Nothing else glows.</div>
+    <div><strong style="font-weight:600">Day and night are two sprites, not a tint.</strong> Unlit day, lit night, same footprint. Swap by time of day; the light pool underneath is a separate additive sprite so it can be reused.</div>
+    <div><strong style="font-weight:600">City hall gets nothing.</strong> Confirmed — no exterior sign. It reads as civic because it's the only masonry facade, which is stronger than lettering. Civic signalling comes in a later pass.</div>
+    <div><strong style="font-weight:600">Signs are where dread lands.</strong> A sign is a legible object with a fixed shape, so a single changed letter is unmissable. Later acts should swap sprites, not add new ones — one letter dead, a word repainted, the vacancy panel showing something it shouldn't.</div>
+    <div><strong style="font-weight:600">Nothing animates but the V.</strong> One flickering element in the whole town. The moment a second thing flickers, the first stops meaning anything.</div>
+  </div>
+
+  <h2 style="font:400 13px/1 'JetBrains Mono',monospace;letter-spacing:0.14em;text-transform:uppercase;color:#6b4560;margin:56px 0 6px">07 · Files and what's next</h2>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:26px">
+    <div style="background:#1c1c1a;padding:20px 22px;border:1px solid #1c1c1a">
+      <div style="font:400 13px/1.85 'JetBrains Mono',monospace;color:#ede3cb;white-space:pre">scene_motel_day.png     416×288
+scene_motel_night.png   416×288
+motel_sign_states.png   376×118
+signs_mounts.png        440×200</div>
+    </div>
+    <div style="font:400 15px/1.62 Newsreader,serif;color:#2b2925">
+      <p style="margin:0 0 12px">These are mockups, not atlases — the tile atlas and <span style="font-family:'JetBrains Mono',monospace;font-size:13px">.tres</span> come after you sign off on the read.</p>
+      <p style="margin:0 0 12px">Then: five motel interiors (office plus four rooms — three sharing one shell, one different), and the per-location signs once <span style="font-family:'JetBrains Mono',monospace;font-size:13px">docs/story/</span> is pushed.</p>
+      <p style="margin:0">Open question: does the motel sit in the existing 48×30 town map, or is it its own map off the road? The mockup assumes its own map.</p>
+    </div>
+  </div>
+
+</div>
+</x-dc>
+</body>
+</html>

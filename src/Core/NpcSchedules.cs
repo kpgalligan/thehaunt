@@ -121,10 +121,15 @@ public static class NpcSchedules
             new NpcPlacement(MapIds.Motel, 8, 2, 0)),
     };
 
+    /// <summary>The gas station's staffed window — shared with the west entry's OPEN
+    /// neon (the window mount doubles as the shop-hours tell), so the sign can never
+    /// lie about whether Dennis is at the counter.</summary>
+    public const int GasOpenMinute = 60, GasCloseMinute = 1140;   // 7:00 AM - 1:00 AM
+
     public static IReadOnlyList<ScheduleEntry> Dennis { get; } = new[]
     {
         new ScheduleEntry(null, null,
-            60, 1140,                                        // 7:00 AM - 1:00 AM
+            GasOpenMinute, GasCloseMinute,
             new NpcPlacement(MapIds.GasStation, 7, 4, 2)),   // open end of the counter
     };
 

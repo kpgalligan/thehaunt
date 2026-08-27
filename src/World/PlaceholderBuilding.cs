@@ -22,6 +22,11 @@ public partial class PlaceholderBuilding : Sprite2D
     /// <summary>Front-face color; roof, plinth and openings are derived shades.</summary>
     public Color Wall { get; init; } = new("9a9a8a");
 
+    /// <summary>True for a building shut so long the doorway is planked over (the
+    /// drive-in's concession stand): no Door node, no handle — the boards ARE the
+    /// answer, so the face has to show them.</summary>
+    public bool Boarded { get; init; }
+
     private const int RoofRows = 2;
 
     public override void _Ready()
@@ -49,8 +54,15 @@ public partial class PlaceholderBuilding : Sprite2D
         // Stone plinth: the bottom row the doorway convention keeps the player off.
         img.FillRect(new Rect2I(0, h - 16, w, 16), plinth);
 
-        // A shut door on the row above the plinth, centered on the face.
+        // A shut door on the row above the plinth, centered on the face — or the
+        // grey plywood over where it was.
         img.FillRect(new Rect2I(w / 2 - 4, h - 30, 8, 14), opening);
+        if (Boarded)
+        {
+            Color plank = Wall.Darkened(0.35f);
+            for (int py = 0; py < 4; py++)
+                img.FillRect(new Rect2I(w / 2 - 5, h - 29 + py * 4, 10, 2), plank);
+        }
 
         // Dark windows every other tile, skipping the door's tile and the ends.
         int windowRow = h - 16 * (FootprintRows > 2 ? 3 : 2) + 4;

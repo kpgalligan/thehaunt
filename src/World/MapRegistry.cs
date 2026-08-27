@@ -15,7 +15,9 @@ public static class MapRegistry
             or MapIds.FarmHouse or MapIds.GeneralStore or MapIds.Barn
             or MapIds.WestEntry or MapIds.Billies or MapIds.Fork
             or MapIds.EastFork or MapIds.EastEntry
-            or MapIds.Motel or MapIds.GasStation or MapIds.BilliesBar or MapIds.Salon;
+            or MapIds.Motel or MapIds.GasStation or MapIds.BilliesBar or MapIds.Salon
+            or MapIds.MotelRoom1 or MapIds.MotelRoom2 or MapIds.MotelRoom3
+            or MapIds.MotelRoom4 or MapIds.DriveIn;
 
     public static MapRoot Create(string mapId) => mapId switch
     {
@@ -34,6 +36,11 @@ public static class MapRegistry
         MapIds.GasStation => new GasStationMap(),
         MapIds.BilliesBar => new BilliesBarMap(),
         MapIds.Salon => new SalonMap(),
+        MapIds.MotelRoom1 => new MotelRoomMap { RoomNumber = 1 },
+        MapIds.MotelRoom2 => new MotelRoomMap { RoomNumber = 2 },
+        MapIds.MotelRoom3 => new MotelRoomMap { RoomNumber = 3 },
+        MapIds.MotelRoom4 => new MotelRoomMap { RoomNumber = 4 },
+        MapIds.DriveIn => new DriveInMap(),
         _ => throw new ArgumentException($"Unknown map id '{mapId}'.", nameof(mapId)),
     };
 }

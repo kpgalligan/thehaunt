@@ -78,30 +78,53 @@ public partial class EastEntryMap : ExteriorMap
 
     private void BuildBuildings()
     {
-        AddChild(new PlaceholderBuilding
+        // Sign mounts per the motel handoff §3: the wall band is the civic mount, so
+        // the police station wears one lit from below; the hardware store's stays
+        // dark — nobody is paying its bill. The salon is a store, so it takes the
+        // window mount, and its OPEN neon runs on Sam's hours exactly.
+        var police = new PlaceholderBuilding
         {
             Name = "PoliceStation",
             TilesWide = PoliceRight - PoliceLeft + 1,
             FootprintRows = PoliceBottom - PoliceTop + 1,
             Wall = new Color("7a8290"),
             Position = Prop.Anchor(PoliceLeft, PoliceBottom, PoliceRight - PoliceLeft + 1),
-        });
-        AddChild(new PlaceholderBuilding
+        };
+        police.AddChild(new WallBandSign { Text = "POLICE", Position = new Vector2(0, -55) });
+        AddChild(police);
+
+        var hardware = new PlaceholderBuilding
         {
             Name = "HardwareStore",
             TilesWide = HardwareRight - HardwareLeft + 1,
             FootprintRows = HardwareBottom - HardwareTop + 1,
             Wall = new Color("8a7a5a"),
             Position = Prop.Anchor(HardwareLeft, HardwareBottom, HardwareRight - HardwareLeft + 1),
+        };
+        hardware.AddChild(new WallBandSign
+        {
+            Text = "HARDWARE",
+            LitAtNight = false,
+            Position = new Vector2(0, -57),
         });
-        AddChild(new PlaceholderBuilding
+        AddChild(hardware);
+
+        var salon = new PlaceholderBuilding
         {
             Name = "Salon",
             TilesWide = SalonRight - SalonLeft + 1,
             FootprintRows = SalonBottom - SalonTop + 1,
             Wall = new Color("9a8a8a"),
             Position = Prop.Anchor(SalonLeft, SalonBottom, SalonRight - SalonLeft + 1),
+        };
+        salon.AddChild(new WallBandSign { Text = "SALON", Position = new Vector2(0, -57) });
+        salon.AddChild(new NeonWordSign
+        {
+            Word = "OPEN",
+            OnAt = ShopHours.IsOpen,
+            Position = new Vector2(-16, -39),
         });
+        AddChild(salon);
 
         AddChild(new LampPost { Position = Prop.Anchor(Lamp.X, Lamp.Y) });
     }

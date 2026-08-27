@@ -201,7 +201,7 @@ public static class DialogueDefs
         }),
         new DialogueNode("motel", new[]
         {
-            new DialogueLine("walt", "Nine rooms. June ran them full once — fresh flowers, the whole business. Now I light two lamps of an evening and that's plenty."),
+            new DialogueLine("walt", "Four rooms. June ran them full once — fresh flowers, the whole business. Now I light two lamps of an evening and that's plenty."),
             new DialogueLine("walt", "Guests come through. Salesmen, hunters, folks who took a wrong turn. They stay a night and move on. Mostly."),
         }, NextNodeId: "hub"),
         new DialogueNode("town", new[]
@@ -226,7 +226,7 @@ public static class DialogueDefs
         new DialogueNode("low", new[]
         {
             new DialogueLine("walt", "June kept the books, you know. I keep them now. The numbers get smaller every year — you'd think they'd take less ink."),
-            new DialogueLine("walt", "Nine rooms. Two lamps. You don't want a room. Nobody wants a room."),
+            new DialogueLine("walt", "Four rooms. Two lamps. You don't want a room. Nobody wants a room."),
         }));
 
     // The west end's one Act-I dread tell: a stranger who is far too content.

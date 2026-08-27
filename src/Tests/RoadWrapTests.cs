@@ -98,7 +98,7 @@ public static class RoadWrapTests
             }
             // Exact, re-pinned whenever an exit or door ships — a loose lower bound
             // would let a deleted edge (a whole map unreachable in play) pass silently.
-            t.AssertEqual(30, references.Count, "the world graph's full edge count");
+            t.AssertEqual(40, references.Count, "the world graph's full edge count");
 
             // Pass 2: every reference resolves — a registered target map with a real
             // marker of that name.
@@ -162,6 +162,19 @@ public static class RoadWrapTests
             t.Assert(map.IsStandable(new Vector2I(19, 10)), "the drive is walkable up to the chain");
             t.Assert(map.GetNodeOrNull<RoadBarrier>("MansionChain") != null, "the chain is drawn");
             t.Assert(!map.IsStandable(new Vector2I(28, 20)), "the shack blocks");
+            t.Assert(map.IsStandable(new Vector2I(33, 28)) && map.IsStandable(new Vector2I(34, 29)),
+                "the drive-in's south mouth is open through the treeline");
+        });
+
+        await CheckFrame(t, MapIds.DriveIn, map =>
+        {
+            t.Assert(map.IsStandable(new Vector2I(14, 0)) && map.IsStandable(new Vector2I(15, 1)),
+                "the drive-in's north mouth is open through its treeline");
+            t.Assert(map.IsStandable(new Vector2I(10, 12)), "the field is walkable");
+            t.Assert(!map.IsStandable(new Vector2I(20, 5)), "the boarded concession blocks");
+            t.Assert(!map.IsStandable(new Vector2I(10, 22)), "the screen's legs block");
+            t.Assert(!map.IsStandable(new Vector2I(6, 10)), "a speaker post blocks");
+            t.Assert(!map.IsStandable(new Vector2I(9, 18)), "a bench blocks");
         });
 
         await CheckFrame(t, MapIds.WestEntry, map =>
@@ -169,7 +182,9 @@ public static class RoadWrapTests
             t.Assert(map.IsStandable(new Vector2I(0, 14)) && map.IsStandable(new Vector2I(0, 15)),
                 "the west mouth — the road out — is open");
             t.Assert(map.IsStandable(new Vector2I(47, 15)), "and the east mouth toward Billie's");
-            t.Assert(!map.IsStandable(new Vector2I(10, 10)), "the motel blocks");
+            t.Assert(!map.IsStandable(new Vector2I(10, 5)), "the motel's room strip blocks");
+            t.Assert(map.IsStandable(new Vector2I(10, 8)), "its walkway is open");
+            t.Assert(map.IsStandable(new Vector2I(10, 10)), "and so is the parking lot");
             t.Assert(!map.IsStandable(new Vector2I(26, 19)), "the gas station blocks");
             t.Assert(!map.IsStandable(new Vector2I(34, 11)), "the fireworks stand blocks");
         });

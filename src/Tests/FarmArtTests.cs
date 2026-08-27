@@ -452,6 +452,10 @@ public static class FarmArtTests
             (MapIds.GasStation, new(5, 8), new(5, 7), new(5, 5), MapIds.WestEntry, "from_gas"),
             (MapIds.BilliesBar, new(7, 11), new(7, 10), new(7, 7), MapIds.Billies, "from_bar"),
             (MapIds.Salon, new(6, 8), new(6, 7), new(6, 5), MapIds.EastEntry, "from_salon"),
+            (MapIds.MotelRoom1, new(4, 6), new(4, 5), new(4, 3), MapIds.WestEntry, "from_room1"),
+            (MapIds.MotelRoom2, new(4, 6), new(4, 5), new(4, 3), MapIds.WestEntry, "from_room2"),
+            (MapIds.MotelRoom3, new(4, 6), new(4, 5), new(4, 3), MapIds.WestEntry, "from_room3"),
+            (MapIds.MotelRoom4, new(4, 6), new(4, 5), new(4, 3), MapIds.WestEntry, "from_room4"),
         };
 
         foreach (var (mapId, door, threshold, inside, target, spawn) in rooms)
@@ -548,6 +552,10 @@ public static class FarmArtTests
             // The back bar is sealed by construction, the store's precedent.
             (MapIds.BilliesBar, new(7, 10), new Rect2I(1, 1, 8, 2)),
             (MapIds.Salon, new(6, 7), new Rect2I(0, 0, 0, 0)),
+            (MapIds.MotelRoom1, new(4, 5), new Rect2I(0, 0, 0, 0)),
+            (MapIds.MotelRoom2, new(4, 5), new Rect2I(0, 0, 0, 0)),
+            (MapIds.MotelRoom3, new(4, 5), new Rect2I(0, 0, 0, 0)),
+            (MapIds.MotelRoom4, new(4, 5), new Rect2I(0, 0, 0, 0)),
         };
 
         foreach (var (mapId, from, sealedByDesign) in rooms)

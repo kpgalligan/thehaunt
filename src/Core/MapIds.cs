@@ -26,10 +26,32 @@ public static class MapIds
     public const string BilliesBar = "billies_bar";
     public const string Salon = "salon";
 
+    // The motor court's guest rooms (docs/designs/design_handoff_motel_signage): each
+    // room is its own map and its own unlock flag, so story can grant access in any
+    // order. Rooms are NOT one map with a variant parameter.
+    public const string MotelRoom1 = "motel_room_1";
+    public const string MotelRoom2 = "motel_room_2";
+    public const string MotelRoom3 = "motel_room_3";
+    public const string MotelRoom4 = "motel_room_4";
+
+    // The dead drive-in theater, off the road south of the east fork
+    // (docs/story/README.md). Jane's long-running refurbishment goal lives here later.
+    public const string DriveIn = "drive_in";
+
+    public static string MotelRoom(int room) => room switch
+    {
+        1 => MotelRoom1,
+        2 => MotelRoom2,
+        3 => MotelRoom3,
+        4 => MotelRoom4,
+        _ => throw new ArgumentOutOfRangeException(nameof(room), room, "The motel has rooms 1-4."),
+    };
+
     public static readonly IReadOnlyList<string> All = new[]
     {
         Farm, Town, TownHall, FarmHouse, GeneralStore, Barn,
         WestEntry, Billies, Fork, EastFork, EastEntry,
         Motel, GasStation, BilliesBar, Salon,
+        MotelRoom1, MotelRoom2, MotelRoom3, MotelRoom4, DriveIn,
     };
 }

@@ -6,7 +6,7 @@ using TheHaunt.World;
 namespace TheHaunt.Tests;
 
 /// <summary>
-/// The three shipped-art TileSets are assembled at RUNTIME — the walkable custom data,
+/// The four runtime TileSets are assembled at RUNTIME — the walkable custom data,
 /// the collision-only blocker cell, the farm's merged town atlas and the interiors'
 /// transparent blocker source exist in no .tres on disk. Each builder runs once, gated by
 /// an ordinary C# static.
@@ -35,6 +35,9 @@ public static class TileSetReloadTests
                 set => Atlas(set, FarmTerrain.TownSource).HasTile(TerrainTiles.Blocker)),
             ("InteriorTerrain", typeof(InteriorTerrain), InteriorTerrain.Get,
                 set => Atlas(set, InteriorTerrain.BlockerSource).HasTile(InteriorTerrain.Blocker)),
+            ("RoadsideTerrain", typeof(RoadsideTerrain), RoadsideTerrain.Get,
+                set => set.HasSource(RoadsideTerrain.SourceId)
+                    && Atlas(set, 0).HasTile(TerrainTiles.Blocker)),
         };
 
         foreach ((string name, Type owner, Func<TileSet> get, Func<TileSet, bool> hasBlocker) in builders)
@@ -72,10 +75,13 @@ public static class TileSetReloadTests
     [SimTest]
     public static void TileSets_LeaveTheSharedResourceCacheUntouched(TestContext t)
     {
-        // Force all three through their builders first.
+        // Force all four through their builders first. RoadsideTerrain grafts its
+        // synthesized source onto a copy of the TOWN .tres, so the TownTerrain row
+        // below is what would trip if it ever built on the cached instance.
         TownTerrain.Get();
         FarmTerrain.Get();
         InteriorTerrain.Get();
+        RoadsideTerrain.Get();
 
         var sets = new (string Name, string Path, int Sources, int CustomLayers)[]
         {

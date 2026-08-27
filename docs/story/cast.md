@@ -18,7 +18,8 @@ deferred reveals, and the dialogue walks up to them and stops.
 ### Walt (motel proprietor) — INVENTED NAME
 Canon: middle-aged alcoholic, gruff, steeped in rumor, unreliable but partly useful;
 quiet mornings, insightful 2–5 PM, maudlin after.
-Invented: the motel is nine rooms and he lights two. His wife June died eleven years
+Invented: he lights two lamps of an evening — the lobby and the one paying room
+(the motel is the handoff's four-room motor court). His wife June died eleven years
 ago — "lost" is all he ever says. The registry is the one thing he keeps precise.
 His 2–5 window is the town's best rumor tap, and the game models it literally: his
 dialogue changes with the clock (grunts before 2 PM, a question hub 2–5, June and
@@ -112,4 +113,10 @@ fuller story stays deferred.
   furniture.
 - Interiors invented to house the cast: the bar room (hearth nook, sealed back bar),
   the motel lobby (two windows: one lit, one dark), the salon (checker floor), the
-  gas station shop (one empty shelf). The buildings' exteriors remain placeholders.
+  gas station shop (one empty shelf). 2026-08-27, from the motel/signage handoff: the
+  motel is now the drawn four-room motor court — rooms 1/2/4 share a shell, room 3 is
+  Pell's (lit window; the radio behind the locked door is heard,
+  not yet drawn — the furniture atlas has no radio piece), all four locked in Act I.
+  The other road buildings still wear placeholder faces, now with their sign mounts.
+- The drive-in (docs/story/README.md) has no cast yet: it is shut, boarded, and
+  marquee-dead ("CLO ED"). Jane's refurbishment goal will need a story seam later.

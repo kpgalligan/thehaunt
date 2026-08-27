@@ -17,7 +17,12 @@ namespace TheHaunt.World;
 /// </summary>
 public abstract partial class ExteriorMap : MapRoot
 {
-    protected enum Surface { Grass, Dirt, Gravel, Cobble, Woods }
+    /// <summary>
+    /// Asphalt and Concrete paint from the generated roadside source, so a map that
+    /// uses them must build its ground with <see cref="RoadsideTerrain.Get"/> — the
+    /// plain town set does not carry that source.
+    /// </summary>
+    protected enum Surface { Grass, Dirt, Gravel, Cobble, Woods, Asphalt, Concrete }
 
     protected abstract int MapWidth { get; }
     protected abstract int MapHeight { get; }
@@ -71,6 +76,16 @@ public abstract partial class ExteriorMap : MapRoot
         {
             for (int x = 0; x < MapWidth; x++)
             {
+                if (_surface[x, y] is Surface.Asphalt or Surface.Concrete)
+                {
+                    Vector2I roadside = _surface[x, y] == Surface.Asphalt
+                        ? Pick(RoadsideTiles.Asphalt, x, y)
+                        : PaintConcrete(x, y);
+                    ground.SetCell(new Vector2I(x, y), RoadsideTerrain.SourceId,
+                        RoadsideTiles.ForAct(roadside, CurrentAct));
+                    continue;
+                }
+
                 Vector2I tile = _surface[x, y] switch
                 {
                     Surface.Dirt => PaintDirt(x, y),
@@ -85,6 +100,13 @@ public abstract partial class ExteriorMap : MapRoot
         AddChild(ground);
         return ground;
     }
+
+    /// <summary>The kerb draws itself: a walkway cell with the lot directly below
+    /// takes the curb tile ("curb along its south edge", motel handoff).</summary>
+    private Vector2I PaintConcrete(int x, int y) =>
+        At(x, y + 1) == Surface.Asphalt
+            ? RoadsideTiles.ConcreteCurb
+            : Pick(RoadsideTiles.Concrete, x, y);
 
     private Vector2I PaintGrass(int x, int y)
     {

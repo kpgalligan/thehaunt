@@ -13,6 +13,13 @@ public partial class Sign : Area2D, IInteractable
 
     [Export] public string Message { get; set; } = "";
 
+    /// <summary>
+    /// False where the sign is already drawn by real art (the motel's pole sign, the
+    /// drive-in's marquee): the node still carries its read area and its blocker, it
+    /// just draws nothing — the same contract as <see cref="Door.DrawPlaceholder"/>.
+    /// </summary>
+    [Export] public bool DrawPlaceholder { get; set; } = true;
+
     public string PromptText => "Read";
 
     private Label _label = null!;
@@ -59,7 +66,8 @@ public partial class Sign : Area2D, IInteractable
         CollisionMask = 0;
         Monitorable = true;
 
-        AddChild(new Sprite2D { Texture = BuildTexture() });
+        if (DrawPlaceholder)
+            AddChild(new Sprite2D { Texture = BuildTexture() });
 
         AddChild(new CollisionShape2D
         {

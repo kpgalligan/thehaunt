@@ -8,7 +8,8 @@ namespace TheHaunt.World;
 /// Abe's shack sits south of the road — he camped here twenty years ago and never
 /// left, and never bought property either, which matters more than it looks. North of
 /// the road a drive runs toward the mansion and dead-ends at a chain; the ruin itself
-/// stays out of frame (docs/story/README.md). The shack ships as a
+/// stays out of frame (docs/story/README.md). South, east of the shack, a second
+/// driveway drops through the trees to the dead drive-in. The shack ships as a
 /// <see cref="PlaceholderBuilding"/> until it has art.
 /// </summary>
 public partial class EastForkMap : ExteriorMap
@@ -28,6 +29,11 @@ public partial class EastForkMap : ExteriorMap
     private const int ChainLeft = 19, ChainRight = 20, ChainRow = 5;
 
     private const int ShackLeft = 27, ShackTop = 19, ShackRight = 29, ShackBottom = 20;
+
+    // The drive-in's driveway: south off the road, through the treeline at the
+    // frame's bottom edge ("off the side of the road, west of the east entry",
+    // docs/story/README.md).
+    private const int TheaterDriveLeft = 33, TheaterDriveRight = 34;
 
     public override void _EnterTree()
     {
@@ -66,6 +72,9 @@ public partial class EastForkMap : ExteriorMap
 
         // A worn patch around the shack: twenty years of one man's feet.
         Fill(ShackLeft - 1, ShackTop, ShackRight + 1, ShackBottom + 1, Surface.Dirt);
+
+        // The drive-in's driveway, south through the woods border.
+        Fill(TheaterDriveLeft, RoadBottom + 1, TheaterDriveRight, Height - 1, Surface.Dirt);
     }
 
     private void BuildObstacles(TileSet tileSet)
@@ -102,6 +111,10 @@ public partial class EastForkMap : ExteriorMap
         spawns.AddChild(SpawnMarker("default", 24, 15));
         spawns.AddChild(SpawnMarker("from_town", 2, 15));
         spawns.AddChild(SpawnMarker("from_east_entry", 37, 15));
+        // Two rows clear of the south exit (rows 28-29): the arrival frame must not
+        // start inside the trigger, or the exit never re-fires and the open border
+        // rows below it lead off the world.
+        spawns.AddChild(SpawnMarker("from_drive_in", 33, Height - 4));
         AddChild(spawns);
     }
 
@@ -121,5 +134,7 @@ public partial class EastForkMap : ExteriorMap
     {
         AddRoadExit("WestExit", MapIds.Town, "from_east_fork", 0, RoadTop);
         AddRoadExit("EastExit", MapIds.EastEntry, "from_east_fork", Width - 1, RoadTop);
+        AddRoadExit("SouthExit", MapIds.DriveIn, "from_road",
+            TheaterDriveLeft, Height - 2, widthTiles: 2);
     }
 }
