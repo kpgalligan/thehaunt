@@ -94,7 +94,7 @@ public static class DialogueDefs
         }),
         new DialogueNode("why_leave", new[]
         {
-            new DialogueLine("mayor", "Try it, if you must — everyone does, once. Walk out any road as far as you like. You'll simply arrive back where you tried to leave."),   // [KEVIN]
+            new DialogueLine("mayor", "Try it, if you must — everyone does, once. Drive out past the west road and you'll come rolling in from the east. Leave east, and you'll come in from the west."),   // [KEVIN]
             new DialogueLine("mayor", "Something in this town wills it so. It has never once let an owner go."),   // [KEVIN]
         }, NextNodeId: "hub"),
         new DialogueNode("selling", new[]

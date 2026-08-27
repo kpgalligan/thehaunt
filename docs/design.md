@@ -3,7 +3,7 @@
 ## Canon (user-established — do not alter without Kevin)
 
 - **Setting**: a small New England town. It appears on no map.
-- **The hook**: If you own property in town, you cannot leave. If you attempt to do so, you simply arrive back where you tried to leave (or maybe wrap around?). You can sell, if you can find a buyer, but nobody that has left has ever come back. Either because they can't return, or because they die when they leave. Nobody knows for sure. Selling is obviously difficult, because few strangers find the town, and those that visit for trade have heard the stories. Whether they believe them or not, they rarely buy. The town itself is pleasant. The compelled residents try hard to make life as enjoyable as possible. But the evil that stalks the town periodically "wakes up" and demands tribute.
+- **The hook**: If you own property in town, you cannot leave. If you attempt to do so, you are wrapped around to the other side: drive out past the west entry and you come rolling in from the east, and vice versa (settled in `docs/story/README.md`, implemented as the `RoadWrap` rule). You can sell, if you can find a buyer, but nobody that has left has ever come back. Either because they can't return, or because they die when they leave. Nobody knows for sure. Selling is obviously difficult, because few strangers find the town, and those that visit for trade have heard the stories. Whether they believe them or not, they rarely buy. The town itself is pleasant. The compelled residents try hard to make life as enjoyable as possible. But the evil that stalks the town periodically "wakes up" and demands tribute.
 - **Tone of the opening** (Kevin, answering open question 1): the start is entirely cozy,
   except for some NPC conversations. The dread seeps in through dialogue before anything
   else.
@@ -17,7 +17,10 @@
   the facility. The following morning the road is cleared and a repair crew from town
   arrives — surprised, in a bad way, to find a new owner. They tell the player to attend
   the town hall meeting that night, where the mayor explains the curse. That's the intro;
-  the rest of the story plays out later.
+  the rest of the story plays out later. *(NOTE, 2026-08-26: `docs/story/README.md` §Main
+  Character now gives Jane a partly different backstory — married, a child lost in a fall,
+  a divorce — where this bullet says lost touch with friends, parents died, no siblings.
+  Both are Kevin-authored; reconcile before writing dialogue that leans on either.)*
 - **Combat** (Kevin, answering open question 2): real-time, Stardew-style.
 - **The antagonist**: a supernatural, malevolent force in town. It enforces the no-leaving
   rule and manifests various evil entities the player must ultimately contend with.
@@ -55,7 +58,9 @@
    wine brew from special grapes. To be discussed in detail before building (Phase 4).
 4. Calendar events (festivals? malevolence-driven "bad nights"?). TBD later. The periodic
    tribute demand (now canon) will need a cadence and a cost.
-5. Names: town, NPCs, the malevolence itself — all unnamed canon so far. Do not invent. These are all TBD.
+5. Names: the town and the malevolence itself stay unnamed — do not invent. `docs/story/README.md`
+   (Kevin, 2026-08-26) is the expanding lore doc and now names some cast (Jane, Billie, Bud, Sam,
+   Abe) and the road-strip locations; anything not named there is still TBD.
 
 ## Systems roadmap
 
@@ -68,8 +73,13 @@
   (blocked road → first planting → crew arrival → town-hall meeting) shipped 2026-08-25.
   **Phase 3b (shipped 2026-08-25)**: general store (interior map, Shopkeeper 9-5, seed
   buying), farmhouse interior (bed/table/storage chest, save v4), itemized overnight
-  sales report on waking, Tab controls panel. Remaining as Phase 3c:
-  connections/relationship mechanics, more of the town.
+  sales report on waking, Tab controls panel. **Phase 3c (started 2026-08-26)**: the road
+  strip from `docs/story/README.md` — west_entry, billies (+ the covered pit), fork,
+  east_fork (Abe's shack, chained mansion drive), east_entry — as placeholder-art maps,
+  the farm rerouted through the fork, and the leave-town wrap (west edge ⇄ east edge)
+  implemented and walk-tested. Still remaining: connections/relationship mechanics,
+  enlarging the town centre (clinic, Stumble Inn, homes, fountain square), interiors and
+  NPCs for the new frames.
 - **Phase 4 — Mining & fishing**: plus the unique specialties (design with Kevin first).
 - **Phase 5 — The malevolence**: entity manifestations, combat, weapons/special items,
   quest framework, escalation, endgame.

@@ -89,11 +89,13 @@ public static class TownArtTests
             foreach (Vector2I wall in new[] { new Vector2I(20, 6), new Vector2I(27, 11), new Vector2I(8, 8) })
                 t.Assert(!map.IsStandable(wall), $"building footprint {wall} blocks");
 
-            // The map limit is woods, and it opens only at the west road mouth.
+            // The map limit is woods, and it opens only at the two road mouths.
             foreach (Vector2I edge in new[] { new Vector2I(0, 0), new Vector2I(47, 29), new Vector2I(24, 0) })
                 t.Assert(!map.IsStandable(edge), $"woods border {edge} blocks");
             t.Assert(map.IsStandable(new Vector2I(0, 14)) && map.IsStandable(new Vector2I(0, 15)),
-                "the west road mouth stays open for the farm exit");
+                "the west road mouth stays open for the fork exit");
+            t.Assert(map.IsStandable(new Vector2I(47, 14)) && map.IsStandable(new Vector2I(47, 15)),
+                "the east road mouth stays open for the east fork exit");
 
             // Plaza dressing blocks, but never a tile the intro stages an NPC on.
             t.Assert(!map.IsStandable(new Vector2I(25, 19)), "the well blocks");
@@ -105,7 +107,7 @@ public static class TownArtTests
             }
 
             // Spawn markers land somewhere the player can actually stand.
-            foreach (string spawn in new[] { "from_farm", "from_hall", "from_store" })
+            foreach (string spawn in new[] { "from_fork", "from_east_fork", "from_hall", "from_store" })
             {
                 Vector2 position = map.GetSpawn(spawn);
                 var tile = new Vector2I(

@@ -98,7 +98,7 @@ public static class MapSeedTests
 
             t.AssertEqual(recipe.OfKind(PlacementKinds.Exit).Count(), exits.Count,
                 "and the road exit came from the file too");
-            t.AssertEqual(MapIds.Town, exits[0].TargetMapId, "leading east to town");
+            t.AssertEqual(MapIds.Fork, exits[0].TargetMapId, "leading east to the fork");
         }
         finally
         {

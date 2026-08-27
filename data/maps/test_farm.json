@@ -19,7 +19,7 @@
     {"kind": "prop", "id": "tree_leafy", "x": 33, "y": 12},
     {"kind": "scatter", "id": "rock_large", "x": 13, "y": 13},
     {"kind": "sign", "id": "BlockadeSign", "x": 36, "y": 13, "text": "The storm brought half the hillside down. No getting through today."},
-    {"kind": "exit", "id": "town", "x": 38, "y": 14, "h": 2, "spawn": "from_farm", "w": 2},
+    {"kind": "exit", "id": "fork", "x": 38, "y": 14, "h": 2, "spawn": "from_farm", "w": 2},
     {"kind": "spawn", "id": "default", "x": 20, "y": 15},
     {"kind": "spawn", "id": "road", "x": 35, "y": 15},
     {"kind": "scatter", "id": "rock_large", "x": 10, "y": 18},

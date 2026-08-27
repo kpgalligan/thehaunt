@@ -4,24 +4,26 @@ using TheHaunt.Core;
 namespace TheHaunt.World;
 
 /// <summary>
-/// The town exterior, 48x30 tiles, painted from the art handoff's terrain sheet
+/// The town centre, 48x30 tiles, painted from the art handoff's terrain sheet
 /// (docs/designs/design_handoff_town_art). Grass with an east-west dirt road on rows
-/// 14-15 (continuous with the farm road), a woods edge instead of a wall for the map
-/// limit, gravel aprons under the two building facades, a cobbled plaza south of the
-/// road, and a west-edge MapExit back to the farm — always enabled: leaving town is
-/// never gated. No bed, no farmland (IsTillable stays base false).
+/// 14-15 (continuous with every other frame of the strip), a woods edge instead of a
+/// wall for the map limit, gravel aprons under the two building facades, a cobbled
+/// plaza south of the road, and a road mouth at each end — west to the fork, east to
+/// the east fork. Both always enabled: leaving town is never gated. No bed, no
+/// farmland (IsTillable stays base false).
 ///
 /// Buildings and props are drawn as base-anchored sprites in elevation (front face
 /// only, no side walls). Their collision is a transparent tile on the Obstacles layer,
 /// so the geometry the player runs into is unchanged from the procedural placeholder:
 /// same footprints, same two door cells.
 /// </summary>
-public partial class TownMap : MapRoot
+public partial class TownMap : ExteriorMap
 {
     private const int Width = 48;
     private const int Height = 30;
 
-    private const TerrainTiles.Act CurrentAct = TerrainTiles.Act.One;
+    protected override int MapWidth => Width;
+    protected override int MapHeight => Height;
 
     // Town hall: footprint x20-27, y6-11; the facade is 8x8 tiles and overhangs the
     // top two rows. Door cell unchanged.
@@ -43,10 +45,6 @@ public partial class TownMap : MapRoot
 
     private const string TownHallPath = "res://assets/sprites/town/building_townhall.png";
     private static readonly Rect2 TownHallSource = new(0, 0, 128, 128);
-
-    private enum Surface { Grass, Dirt, Gravel, Cobble, Woods }
-
-    private Surface[,] _surface = new Surface[Width, Height];
 
     // Props, as (source rect, base tile, width in tiles). Every one of these blocks.
     private static readonly (Rect2 Source, int X, int Y, int Tiles)[] PlazaProps =
@@ -92,24 +90,14 @@ public partial class TownMap : MapRoot
 
     private void BuildSurfaces()
     {
-        _surface = new Surface[Width, Height];
+        ResetSurfaces();
 
-        // The map limit reads as forest that turns you around, not as a wall.
-        for (int y = 0; y < Height; y++)
+        // Road, continuous with the fork's rows 14-15, open at both mouths — west to
+        // the fork, east to the east fork.
+        for (int x = 0; x < Width; x++)
         {
-            for (int x = 0; x < Width; x++)
-            {
-                bool border = x == 0 || x == Width - 1 || y == 0 || y == Height - 1;
-                _surface[x, y] = border ? Surface.Woods : Surface.Grass;
-            }
-        }
-
-        // Road, continuous with the farm's rows 14-15, open at the west mouth where
-        // the farm exit sits.
-        for (int x = 0; x < Width - 1; x++)
-        {
-            _surface[x, RoadTop] = Surface.Dirt;
-            _surface[x, RoadBottom] = Surface.Dirt;
+            Set(x, RoadTop, Surface.Dirt);
+            Set(x, RoadBottom, Surface.Dirt);
         }
 
         // Ground under the facades: hidden by the sprite, gravel so the aprons and
@@ -123,109 +111,27 @@ public partial class TownMap : MapRoot
         // x23/x24 (only x23 is the collision cell), so its path is two tiles wide to
         // sit under the doorway rather than off to one side of it.
         Fill(DoorX, ApronRow, DoorX + 1, 13, Surface.Dirt);
-        _surface[StoreDoorX, ApronRow] = Surface.Dirt;
-        _surface[StoreDoorX, 13] = Surface.Dirt;
+        Set(StoreDoorX, ApronRow, Surface.Dirt);
+        Set(StoreDoorX, 13, Surface.Dirt);
 
         // Plaza, its apron, and the path down to it from the road. The cobble edge set
         // is drawn over dirt, so the plaza sits in a one-tile apron rather than butting
         // straight into grass.
-        _surface[PlazaCentre.X, 16] = Surface.Dirt;
+        Set(PlazaCentre.X, 16, Surface.Dirt);
         Fill(PlazaLeft - 1, PlazaTop - 1, PlazaRight + 1, PlazaBottom + 1, Surface.Dirt);
         Fill(PlazaLeft, PlazaTop, PlazaRight, PlazaBottom, Surface.Cobble);
     }
 
-    private void Fill(int x0, int y0, int x1, int y1, Surface surface)
-    {
-        for (int y = y0; y <= y1; y++)
-            for (int x = x0; x <= x1; x++)
-                _surface[x, y] = surface;
-    }
-
-    private Surface At(int x, int y) =>
-        x < 0 || y < 0 || x >= Width || y >= Height ? Surface.Woods : _surface[x, y];
-
-    // Dirt, gravel and cobble are all "made ground": the dirt-over-grass set only
-    // draws an edge where a cell actually meets grass or woods.
-    private bool IsGrassy(int x, int y) => At(x, y) is Surface.Grass or Surface.Woods;
-
-    // ------------------------------------------------------------------
-    // Ground / Obstacles
-    // ------------------------------------------------------------------
-
-    private void BuildGround(TileSet tileSet)
-    {
-        var ground = new TileMapLayer { Name = "Ground", TileSet = tileSet };
-        for (int y = 0; y < Height; y++)
-        {
-            for (int x = 0; x < Width; x++)
-            {
-                Vector2I tile = _surface[x, y] switch
-                {
-                    Surface.Dirt => PaintDirt(x, y),
-                    Surface.Gravel => Pick(TerrainTiles.Gravel, x, y),
-                    Surface.Cobble => PaintCobble(x, y),
-                    Surface.Woods => PaintWoods(x, y),
-                    _ => PaintGrass(x, y),
-                };
-                ground.SetCell(new Vector2I(x, y), 0, TerrainTiles.ForAct(tile, CurrentAct));
-            }
-        }
-        AddChild(ground);
-    }
-
-    private Vector2I PaintGrass(int x, int y)
-    {
-        // Detail tiles never adjacent to each other: the checkerboard parity rules out
-        // any orthogonal neighbour before the frequency test runs, so the draw below is
-        // over half the cells and the rates double — 3% clover, 2% stones, and the bare
-        // patch rarer still. Much past that and it reads as noise.
-        if ((x + y) % 2 == 0)
-        {
-            int roll = Hash(x, y) % 100;
-            if (roll < 6) return TerrainTiles.GrassClover;
-            if (roll < 10) return TerrainTiles.GrassStones;
-            if (roll < 11) return TerrainTiles.GrassBare;
-        }
-        return Pick(TerrainTiles.Grass, x, y);
-    }
-
-    // The road is two rows deep, so both of its rows carry a grass edge and neither
-    // can hold a wheel rut without eating it — rut_h/rut_v wait for a wider street.
-    private Vector2I PaintDirt(int x, int y)
-    {
-        bool grassN = IsGrassy(x, y - 1), grassE = IsGrassy(x + 1, y);
-        bool grassS = IsGrassy(x, y + 1), grassW = IsGrassy(x - 1, y);
-        if (grassN || grassE || grassS || grassW)
-            return TerrainTiles.DirtEdge(grassN, grassE, grassS, grassW);
-
-        Vector2I? inner = TerrainTiles.DirtInnerCorner(
-            IsGrassy(x + 1, y - 1), IsGrassy(x + 1, y + 1),
-            IsGrassy(x - 1, y + 1), IsGrassy(x - 1, y - 1));
-        return inner ?? Pick(TerrainTiles.Dirt, x, y);
-    }
-
-    private Vector2I PaintCobble(int x, int y)
-    {
-        Vector2I? kerb = TerrainTiles.Kerb(
-            At(x, y - 1) != Surface.Cobble, At(x + 1, y) != Surface.Cobble,
-            At(x, y + 1) != Surface.Cobble, At(x - 1, y) != Surface.Cobble);
-        if (kerb is { } edge)
-            return edge;
-        // The one Act I dread tell in this map: a paving stone at the plaza centre
-        // that is a slightly wrong shape. It is never pointed at and never repeated.
-        return x == PlazaCentre.X && y == PlazaCentre.Y
+    // The one Act I dread tell in this map: a paving stone at the plaza centre that is
+    // a slightly wrong shape. It is never pointed at and never repeated.
+    protected override Vector2I CobbleField(int x, int y) =>
+        x == PlazaCentre.X && y == PlazaCentre.Y
             ? TerrainTiles.CobbleWorn
-            : Pick(TerrainTiles.Cobble, x, y);
-    }
+            : base.CobbleField(x, y);
 
-    private static Vector2I PaintWoods(int x, int y)
-    {
-        if (x == 0 && y == 0) return TerrainTiles.WoodsCornerSe;
-        if (x == Width - 1 && y == 0) return TerrainTiles.WoodsCornerSw;
-        if (x == Width - 1 && y == Height - 1) return TerrainTiles.WoodsCornerNw;
-        if (x == 0 && y == Height - 1) return TerrainTiles.WoodsCornerNe;
-        return Pick(TerrainTiles.Woods, x, y);
-    }
+    // ------------------------------------------------------------------
+    // Obstacles
+    // ------------------------------------------------------------------
 
     private void BuildObstacles(TileSet tileSet)
     {
@@ -243,19 +149,6 @@ public partial class TownMap : MapRoot
             obstacles.SetCell(coord, 0, TerrainTiles.Blocker);
 
         AddChild(obstacles);
-    }
-
-    private static void Block(TileMapLayer layer, int x0, int y0, int x1, int y1, int gapX, int gapY)
-    {
-        for (int y = y0; y <= y1; y++)
-        {
-            for (int x = x0; x <= x1; x++)
-            {
-                if (x == gapX && y == gapY)
-                    continue; // the Door node carries this cell's blocker
-                layer.SetCell(new Vector2I(x, y), 0, TerrainTiles.Blocker);
-            }
-        }
     }
 
     // ------------------------------------------------------------------
@@ -329,12 +222,9 @@ public partial class TownMap : MapRoot
     private void BuildSpawns()
     {
         var spawns = new Node2D { Name = "Spawns" };
-        spawns.AddChild(new Marker2D
-        {
-            Name = "from_farm",
-            // >= 1 tile clear of the west exit area (spawn-clearance rule).
-            Position = new Vector2(2 * TileSize + 8, 15 * TileSize + 8), // (40, 248)
-        });
+        // >= 1 tile clear of each road-mouth exit area (spawn-clearance rule).
+        spawns.AddChild(SpawnMarker("from_fork", 2, 15));
+        spawns.AddChild(SpawnMarker("from_east_fork", 45, 15));
         spawns.AddChild(new Marker2D
         {
             Name = "from_hall",
@@ -361,19 +251,9 @@ public partial class TownMap : MapRoot
 
     private void BuildTravel()
     {
-        // West road mouth back to the farm — always enabled (IsEnabled null).
-        var exit = new MapExit
-        {
-            Name = "FarmExit",
-            TargetMapId = MapIds.Farm,
-            TargetSpawnId = "road",
-            Position = new Vector2(8, 15 * TileSize), // center of tiles (0,14)-(0,15)
-        };
-        exit.AddChild(new CollisionShape2D
-        {
-            Shape = new RectangleShape2D { Size = new Vector2(16, 32) },
-        });
-        AddChild(exit);
+        // Road mouths — always enabled (IsEnabled null): leaving town is never gated.
+        AddRoadExit("WestExit", MapIds.Fork, "from_town", 0, RoadTop);
+        AddRoadExit("EastExit", MapIds.EastFork, "from_town", Width - 1, RoadTop);
 
         // Both doorways are drawn into their facade, so the Door nodes contribute
         // their blocker and their prompt only.

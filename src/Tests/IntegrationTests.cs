@@ -419,7 +419,7 @@ public static class IntegrationTests
             // Travel farm -> town -> hall, all before 18:00: the meeting must NOT fire.
             t.Assert(Clock.Instance.Now.MinuteOfDay < IntroRules.MeetingStartMinuteOfDay,
                 "still before 18:00 when heading to the hall");
-            await TravelTo(t, MapIds.Town, "from_farm", "farm to town");
+            await TravelTo(t, MapIds.Town, "from_fork", "farm to town");
             await TravelTo(t, MapIds.TownHall, "entry", "town to hall");
             await t.WaitFrames(30);
             t.Assert(WorldSim.Instance.ActiveDialogue == null, "no meeting beat before 18:00");
@@ -497,7 +497,7 @@ public static class IntegrationTests
                 "meeting still pending the next morning");
 
             // Next evening in the hall the beat fires — no day term, nothing was missed.
-            await TravelTo(t, MapIds.Town, "from_farm", "farm to town");
+            await TravelTo(t, MapIds.Town, "from_fork", "farm to town");
             await TravelTo(t, MapIds.TownHall, "entry", "town to hall");
             await t.WaitFrames(30);
             t.Assert(WorldSim.Instance.ActiveDialogue == null,

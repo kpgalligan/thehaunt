@@ -8,7 +8,7 @@ namespace TheHaunt.World;
 /// The farm, 40x30 tiles, painted from the farm art handoff's sheets
 /// (docs/designs/design_handoff_farm_interiors). Pasture — rougher and darker than the
 /// town's grass, so the two maps never read as the same field — with a woods edge for the
-/// map limit, a track from the farmhouse door east to the town road, the barn across the
+/// map limit, a track from the farmhouse door east to the road out, the barn across the
 /// yard, and a fenced pen in the south-west.
 ///
 /// Layer child order = draw order: Ground, FarmSoil, Crops, Obstacles. Ground carries
@@ -292,7 +292,7 @@ public partial class TestMap : MapRoot
 
         recipe.Add(PlacementKinds.ShippingBin, FarmBuildings.BinId, 10, 8);
 
-        MapPlacement road = recipe.Add(PlacementKinds.Exit, MapIds.Town, 38, 14);
+        MapPlacement road = recipe.Add(PlacementKinds.Exit, MapIds.Fork, 38, 14);
         road.SetText(PlacementFields.Spawn, "from_farm");
         road.SetInt(PlacementFields.Width, 2);
         road.SetInt(PlacementFields.Height, 2);
@@ -311,7 +311,7 @@ public partial class TestMap : MapRoot
         if (_roadExit == null)
         {
             throw new MapRecipeException(_recipeSource,
-                $"has no '{PlacementKinds.Exit}' to '{MapIds.Town}'; the road east is how the farm is left.");
+                $"has no '{PlacementKinds.Exit}' to '{MapIds.Fork}'; the road east is how the farm is left.");
         }
         if (_blockadeSign == null)
         {
@@ -348,8 +348,8 @@ public partial class TestMap : MapRoot
             }
         }
 
-        // The wagon road, continuous with the town's rows 14-15 and drawn from the same
-        // sheet — it is literally the same road.
+        // The wagon road, drawn from the same sheet as the road strip's rows 14-15 —
+        // it curves south out of frame and comes into the fork from the north.
         for (int x = RoadWest; x < Width; x++)
         {
             _surface[x, RoadTop] = Surface.Road;

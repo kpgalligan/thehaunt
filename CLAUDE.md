@@ -3,8 +3,10 @@
 A 2D life sim game (Stardew Valley-like) built with Godot 4.7 (.NET build) and C#.
 Premise: a small New England town, hidden from every map, where buying property binds
 you to the town under a malevolent force — cozy town sim (farming, mining, fishing)
-layered under a supernatural endgame. `docs/design.md` holds the canon and the roadmap;
-check with the user before inventing lore (names and specialties are deliberately undecided).
+layered under a supernatural endgame. `docs/design.md` holds the canon and the roadmap,
+and `docs/story/README.md` is the expanding lore doc (locations, cast, the wrap-around
+roads); check with the user before inventing lore beyond what those two state (most
+names and specialties are deliberately undecided).
 
 The architecture contracts are `docs/foundation-spec.md` (clock/save/state base),
 `docs/phase2-spec.md` (items/inventory, farming, stamina, economy), and
@@ -45,12 +47,16 @@ redraw, scale or filter them.
 
 ## Structure
 
-- `src/Core/` — PURE C# (no `using Godot`, test-enforced): GameTime/calendar, ClockModel, GameData + save DTOs, migrations, item/crop defs (code registries), InventoryData, FarmActions, OvernightSim + ShippedLine; storage: StackOps/StorageData/StorageIds; shop: ShopCatalog (+ ShopEntry/BuyResult)/ShopHours; story: StoryKeys/IntroRules/BarnRules/MapIds, DialogueDef(s)/DialogueSession/DialogueSelector, NpcDef(s)/NpcSchedules
+- `src/Core/` — PURE C# (no `using Godot`, test-enforced): GameTime/calendar, ClockModel, GameData + save DTOs, migrations, item/crop defs (code registries), InventoryData, FarmActions, OvernightSim + ShippedLine; storage: StackOps/StorageData/StorageIds; shop: ShopCatalog (+ ShopEntry/BuyResult)/ShopHours; story: StoryKeys/IntroRules/BarnRules/MapIds/RoadWrap, DialogueDef(s)/DialogueSession/DialogueSelector, NpcDef(s)/NpcSchedules
 - `src/Systems/` — the four autoloads, in registration order: GameState, Clock, SaveService, WorldSim (the single gameplay-mutation bus — all model writes flow through it, incl. story flags, travel requests, the dialogue session, chest/shop Menu sessions, transfers, and purchases; UI subscribes to its events)
 - `src/World/` — MapRoot base (owns NPC views + IsStandable + IsInterior + the shared
-  scatter hash), MapRegistry, the exteriors TestMap/TownMap and the InteriorMap base with
+  scatter hash), MapRegistry, the exteriors TestMap (farm) and the ExteriorMap base
+  (surface grid + shared town-sheet painters) carrying TownMap and the road strip
+  WestEntryMap/BilliesMap/ForkMap/EastForkMap/EastEntryMap, and the InteriorMap base with
   TownHallMap/FarmHouseMap/GeneralStoreMap/BarnMap on it (all programmatic), IInteractable,
-  Bed, Sign, ShippingBin, Chest, ShopCounter, MapExit, Door, NpcView, PlaceholderSprites;
+  Bed, Sign, ShippingBin, Chest, ShopCounter, MapExit, Door, NpcView, PlaceholderSprites,
+  PlaceholderBuilding/RoadBarrier/PitCover (code-built stand-ins for buildings with no
+  art yet, chained-off roads, and the pit);
   art layer: TileSetTools (walkable derivation + blockers) and the three named-coordinate
   tables TerrainTiles/FarmTiles/InteriorTiles with their TileSets TownTerrain/FarmTerrain/
   InteriorTerrain/CropTiles, Prop + the sheets TownProps/FarmBuildings/Furniture,
