@@ -4,7 +4,7 @@ namespace TheHaunt.World;
 
 /// <summary>
 /// Procedural 16x22 character sprites. Superseded for the player and NPCs by the
-/// drawn sheet behind <see cref="CharacterSprite"/>, and deliberately kept: the art
+/// drawn cast sheets behind <see cref="CharacterSprite"/>, and deliberately kept: the art
 /// handoff asks that the procedural placeholders keep working so a new map or cast
 /// member can ship before its art exists. Hair, skin, and eye colors are common
 /// stock; the tunic color is what tells characters apart.

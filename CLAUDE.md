@@ -14,7 +14,7 @@ The architecture contracts are `docs/foundation-spec.md` (clock/save/state base)
 `docs/phase3b-spec.md` (storage/chest + save v4, general store + buy flow, overnight
 report, Menu phase, help panel). Read them before touching Core/Systems code — public signatures and semantics are specified there.
 
-The art contract is `docs/designs/` — three handoffs, all binding.
+The art contract is `docs/designs/` — five handoffs, all binding.
 `design_handoff_town_art/` is the base: palette, projection, tile grammar, lighting keys
 and the act-by-act dread escalation, with `reference/The Haunt - Art Direction.dc.html`
 as the full bible. `design_handoff_farm_interiors/` is incremental on top of it (farm
@@ -37,6 +37,20 @@ the START (acquisition seam deliberately unbuilt), and it is parked outside the
 farmhouse every morning regardless of where it was left (overriding the handoff's
 "stays where left forever"). CAUTION: both scooter sheets are authored facing RIGHT
 and flip for LEFT — mirrored from character.png's left-facing convention.
+`design_handoff_cast_sprites/` (2026-08-27) ships PRODUCTION sheets: Jane's new
+`character.png` (in-place replacement — modern wardrobe, no more tunic) and the four
+packed cast atlases copied to `assets/sprites/cast/` (west/billies/east/town; one
+96x96 block per character, block order fixed by its README). `NpcDef` names a sheet +
+block; `BodyColor` and the whole tunic-recolor channel are gone. `art/gen_cast.js` is
+the wardrobe source of truth — changing clothes is a spec edit + re-run, never a
+repaint; the standalone `cast_<id>.png` files and the stale `cast.png` are unshipped.
+Dread accents (plum/bile-green) appear on NO garment in Act I (test-guarded), Sam is
+never gendered, Bud's cap carries no insignia. Because the riding sheet is character.png
+composited onto the deck, replacing character.png made it stale: `scooter_rider.png` is
+now DERIVED art, recomposited by `tools/regen_scooter_rider.py` from the scooter
+handoff's recipe tables — rerun it whenever character.png changes. The regenerated
+sheet mirrors the profile row so Jane faces the direction of travel (the original
+composite left the rider unmirrored — facing backward — under the old art's hat).
 
 ## Toolchain
 
@@ -103,10 +117,13 @@ and flip for LEFT — mirrored from character.png's left-facing convention.
 - `addons/haunt_mapper/` — the EditorPlugin: HauntMapper, MapperDock, MapperOverlay, OverlayLayers.
   All of it inside `#if TOOLS`; enabled from project.godot's `[editor_plugins]`
 - `src/Main.cs` + `scenes/Main.tscn` — composition root: boot, map loading, sleep + travel flows
-- `assets/sprites/` — `character.png`, `lights.png`; `town/` (terrain + its TileSet, both
-  facades, props); `farm/` (farm terrain + crops TileSets, farm buildings, barn);
-  `interior/` (interior TileSet + furniture). `assets/audio` and `assets/fonts` are still
-  empty. Tool-use animations, seasonal variants and animals are still undrawn.
+- `assets/sprites/` — `character.png` (Jane), `lights.png`; `cast/` (the four packed
+  cast atlases); `town/` (terrain + its TileSet, both facades, props); `farm/` (farm
+  terrain + crops TileSets, farm buildings, barn); `interior/` (interior TileSet +
+  furniture). `assets/audio` and `assets/fonts` are still empty. Tool-use animations,
+  seasonal variants and animals are still undrawn.
+- `tools/` — `regen_scooter_rider.py`, the one-shot that recomposites
+  `scooter_rider.png` from the current `character.png` (see the cast handoff note).
 - `data/maps/` — map recipes, one JSON per map id, canonical one-placement-per-line. Only
   `test_farm.json` exists so far; every other map still holds its placements as C# literals.
 

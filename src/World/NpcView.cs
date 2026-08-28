@@ -21,7 +21,8 @@ namespace TheHaunt.World;
 public partial class NpcView : Area2D, IInteractable
 {
     public string RoleId { get; init; } = "";
-    public Color Tunic { get; init; } = new("4a6ab0");
+    public string SheetPath { get; init; } = CharacterSprites.SheetPath;
+    public int SheetBlock { get; init; }
 
     public string PromptText => "Talk";
 
@@ -61,7 +62,7 @@ public partial class NpcView : Area2D, IInteractable
         CollisionMask = 0;
         Monitorable = true;
 
-        _sprite = new CharacterSprite { Tunic = Tunic };
+        _sprite = new CharacterSprite { SheetPath = SheetPath, SheetBlock = SheetBlock };
         AddChild(_sprite);
         _sprite.SetFacing(_facing);
 

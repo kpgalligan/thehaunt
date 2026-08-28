@@ -18,8 +18,6 @@ public partial class PlayerController : CharacterBody2D, IPersistentSystem
         "hotbar_6", "hotbar_7", "hotbar_8", "hotbar_9", "hotbar_10",
     };
 
-    private static readonly Color TunicColor = new("4a6ab0");
-
     public int Facing { get; private set; } // 0=down 1=left 2=right 3=up
     public InteractionProbe Probe { get; private set; } = null!;
 
@@ -44,7 +42,7 @@ public partial class PlayerController : CharacterBody2D, IPersistentSystem
         CollisionLayer = 1;
         CollisionMask = 1;
 
-        _sprite = new CharacterSprite { Tunic = TunicColor };
+        _sprite = new CharacterSprite(); // Jane's sheet is the default
         AddChild(_sprite);
 
         AddChild(new CollisionShape2D

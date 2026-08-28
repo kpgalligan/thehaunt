@@ -22,24 +22,17 @@ public partial class CharacterSprite : Node2D
     public static readonly Vector2 CellOffset = new(0, -CharacterSprites.CellHeight / 2 + 8);
 
     private Sprite2D? _sprite;
-    private Color _tunic = new("4a6ab0");
     private int _facing;
     private bool _moving;
     private bool _riding;
     private float _elapsed;
     private int _frame;
 
-    /// <summary>Set before the node enters the tree; changing it later reloads the sheet.</summary>
-    public Color Tunic
-    {
-        get => _tunic;
-        set
-        {
-            _tunic = value;
-            if (_sprite != null)
-                _sprite.Texture = CurrentSheet();
-        }
-    }
+    /// <summary>The character's drawn sheet. Jane's walk sheet by default.</summary>
+    public string SheetPath { get; init; } = CharacterSprites.SheetPath;
+
+    /// <summary>The character's 96px block index inside a packed cast atlas.</summary>
+    public int SheetBlock { get; init; }
 
     public override void _Ready()
     {
@@ -122,14 +115,14 @@ public partial class CharacterSprite : Node2D
         if (_sprite == null)
             return;
         // Riding columns ARE the cycle (0-5); on the walk sheet the cycle frames sit
-        // after the two idle columns.
+        // after the two idle columns. The riding sheet is Jane's alone — block 0.
         int column = _riding ? (_moving ? _frame : 0)
             : _moving ? CharacterSprites.IdleFrames + _frame : _frame;
-        _sprite.RegionRect = CharacterSprites.Region(_facing, column);
+        _sprite.RegionRect = CharacterSprites.Region(_riding ? 0 : SheetBlock, _facing, column);
         _sprite.FlipH = _riding
             ? CharacterSprites.RiderFlipH(_facing) : CharacterSprites.FlipH(_facing);
     }
 
     private Texture2D CurrentSheet() =>
-        _riding ? CharacterSprites.RiderSheet(_tunic) : CharacterSprites.Sheet(_tunic);
+        CharacterSprites.Sheet(_riding ? CharacterSprites.RiderSheetPath : SheetPath);
 }

@@ -13,7 +13,7 @@ public static class NpcTests
         // Boundary + priority semantics pinned on a locally built def, so the assertions
         // survive any re-staging of the shipped table: entries are start-inclusive /
         // end-exclusive, and the FIRST passing entry wins.
-        var overlapping = new NpcDef("test_npc", "Test", "#ffffff", new[]
+        var overlapping = new NpcDef("test_npc", "Test", CharacterSprites.SheetPath, 0, new[]
         {
             new ScheduleEntry(null, null, 120, 600, new NpcPlacement(MapIds.Town, 1, 1, 0)),
             new ScheduleEntry(null, null, 0, 1200, new NpcPlacement(MapIds.Farm, 2, 2, 1)),
@@ -38,7 +38,7 @@ public static class NpcTests
         t.AssertEqual(At(300), At(300), "same inputs resolve identically");
 
         // Flag gates: RequiresFlag absent or ForbidsFlag present skips the entry.
-        var gated = new NpcDef("test_gated", "Test", "#ffffff", new[]
+        var gated = new NpcDef("test_gated", "Test", CharacterSprites.SheetPath, 0, new[]
         {
             new ScheduleEntry("test.required", "test.forbidden", 0, 1200,
                 new NpcPlacement(MapIds.TownHall, 3, 3, 2)),
@@ -56,7 +56,7 @@ public static class NpcTests
             "ForbidsFlag present: entry skipped, npc absent");
 
         // No matching window at all: null = absent.
-        var windowed = new NpcDef("test_window", "Test", "#ffffff", new[]
+        var windowed = new NpcDef("test_window", "Test", CharacterSprites.SheetPath, 0, new[]
         {
             new ScheduleEntry(null, null, 500, 600, new NpcPlacement(MapIds.Farm, 4, 4, 3)),
         });

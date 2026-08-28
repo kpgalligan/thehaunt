@@ -378,11 +378,16 @@ public sealed record NpcDef(string Id, string DisplayRole, string BodyColor,
     IReadOnlyList<ScheduleEntry> Schedule);        // FIRST match wins
 ```
 
+*(Amended 2026-08-27, cast-sprites handoff: `BodyColor` is replaced by
+`SpriteSheet` — a res:// path to a packed cast atlas — plus `SpriteBlock`, the
+character's 96px block index in it. Identity is a drawn sheet, not a tunic recolor.)*
+
 ### 4.2 `src/Core/NpcDefs.cs` — role ids only (names FORBIDDEN)
 
 `mayor` ("Mayor"), `foreman` ("Foreman"), `crew_worker_a` / `crew_worker_b`
 ("Repair Worker"). Display strings are role labels, `[KEVIN]`. Tunic colors: distinct,
-implementer's choice `[KEVIN]`.
+implementer's choice `[KEVIN]` *(amended 2026-08-27: tunics retired — each row names its
+`cast_town.png` block per the cast-sprites handoff)*.
 
 ### 4.3 `src/Core/NpcSchedules.cs`
 

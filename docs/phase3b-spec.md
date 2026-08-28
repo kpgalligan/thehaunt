@@ -228,7 +228,8 @@ BuyItem validation). Refusals flash "Not enough money" / "Inventory full" on the
 
 ### 3.5 Shopkeeper NPC
 
-`NpcDefs` += `new NpcDef("shopkeeper", "Shopkeeper", "#b08a4a" /* [KEVIN] */, NpcSchedules.Shopkeeper)`.
+`NpcDefs` += `new NpcDef("shopkeeper", "Shopkeeper", "#b08a4a" /* [KEVIN] */, NpcSchedules.Shopkeeper)`
+*(amended 2026-08-27: the tunic hex became `cast_town.png` block 4 — cast-sprites handoff)*.
 `NpcSchedules.Shopkeeper`: ONE entry — `new ScheduleEntry(null, null, ShopHours.OpenMinute,
 ShopHours.CloseMinute, new NpcPlacement(MapIds.GeneralStore, 6, 3, 0))` — behind the counter
 facing down, absent otherwise, never on farm/town/town_hall (intro staging untouched).

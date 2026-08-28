@@ -193,7 +193,12 @@ public partial class MapRoot : Node2D
         {
             if (!_npcViews.TryGetValue(def.Id, out NpcView? view))
             {
-                view = new NpcView { RoleId = def.Id, Tunic = new Color(def.BodyColor) };
+                view = new NpcView
+                {
+                    RoleId = def.Id,
+                    SheetPath = def.SpriteSheet,
+                    SheetBlock = def.SpriteBlock,
+                };
                 _npcViews[def.Id] = view;
                 AddChild(view);
             }
