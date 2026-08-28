@@ -64,6 +64,7 @@ public partial class Main : Node2D
         var map = MapRegistry.Create(mapId);
         _currentMap = map;
         _mapHost.AddChild(map);
+        WorldSim.Instance.EnsureObstacles(map);   // first visit grows the field's trees and rocks
         map.ApplyState(SaveService.Instance.Current.GetMap(map.MapId));
         // Boot order: the Lighting node's own _Ready ran before the save was loaded,
         // so the first correct tint is the one applied here.
@@ -129,6 +130,7 @@ public partial class Main : Node2D
                 WorldSim.Instance.ParkScooterAt(fromMapId, fromTile, fromFacing);
             _currentMap = map;
             _mapHost.AddChild(map);
+            WorldSim.Instance.EnsureObstacles(map);   // first visit grows the field's trees and rocks
             map.ApplyState(SaveService.Instance.Current.GetMap(map.MapId));
             _lighting.SetMap(map);                                   // interior/exterior key, set while black
             WorldSim.Instance.CompleteTravel(map.MapId);             // model write via the bus + NPC sync

@@ -356,6 +356,43 @@ public static class SaveTests
     }
 
     [SimTest]
+    public static void Save_ObjectsSanitized(TestContext t)
+    {
+        // Load repair for MapState.Objects mirrors the shipping bin's: null elements
+        // and id-less records are dropped, damage clamps non-negative, a null LIST
+        // becomes empty — the obstacle path dereferences this on every boot, so a
+        // hand-edited save must die on load repair, never in EnsureObstacles. Unknown
+        // ids are KEPT (object deletion is data loss).
+        const string json = """
+            {"SaveVersion":6,"TotalMinutes":0,
+             "Maps":{"test_farm":{"Tiles":[],"Objects":[
+                null,
+                {"X":1,"Y":1,"ObjectId":null},
+                {"X":2,"Y":2,"ObjectId":""},
+                {"X":3,"Y":3,"ObjectId":"tree","HitsTaken":-7},
+                {"X":4,"Y":4,"ObjectId":"future.shrine","HitsTaken":2}]},
+             "town":{"Objects":null}}}
+            """;
+        SaveService service = SaveService.Instance;
+        try
+        {
+            service.DeserializeFrom(json);
+            MapState farm = service.Current.GetMap("test_farm");
+            t.AssertEqual(2, farm.Objects.Count, "exactly the two well-formed records survive");
+            t.AssertEqual("tree", farm.Objects[0].ObjectId, "the tree survives");
+            t.AssertEqual(0, farm.Objects[0].HitsTaken, "with its damage clamped to zero");
+            t.AssertEqual("future.shrine", farm.Objects[1].ObjectId, "the unknown object is kept");
+            t.AssertEqual(2, farm.Objects[1].HitsTaken, "with its damage intact");
+            t.AssertEqual(0, service.Current.GetMap("town").Objects.Count,
+                "a null Objects list loads as empty, not as a boot crash");
+        }
+        finally
+        {
+            service.NewGame();
+        }
+    }
+
+    [SimTest]
     public static void Save_NoGodotTypesInDtos(TestContext t)
     {
         var offenders = new List<string>();
@@ -756,6 +793,36 @@ public static class SaveTests
                 "second migration pass serializes byte-identically");
             t.AssertEqual(0, service.Current.Storages.Count,
                 "Storages still empty on the second pass");
+        }
+        finally
+        {
+            service.NewGame();
+        }
+    }
+
+    [SimTest]
+    public static void Save_MigrationV5ToV6(TestContext t)
+    {
+        // v6 is a pure version-gate bump for the field obstacles: nothing rewritten,
+        // absent ObstaclesSeeded reads false (the farm generates on next visit) and
+        // absent HitsTaken reads 0. The proof is defaults plus byte-identity.
+        string json = ReadFixture(t, "v5_minimal.json");
+        SaveService service = SaveService.Instance;
+        try
+        {
+            service.DeserializeFrom(json);
+            t.AssertEqual(SaveMigrations.CurrentVersion, service.Current.SaveVersion, "version bumped");
+            MapState farm = service.Current.GetMap("test_farm");
+            t.Assert(!farm.ObstaclesSeeded, "a v5 farm has never been seeded");
+            t.AssertEqual(1, farm.Objects.Count, "the v5 object survives");
+            t.AssertEqual("future.relic", farm.Objects[0].ObjectId, "with its unknown id preserved");
+            t.AssertEqual(0, farm.Objects[0].HitsTaken, "and undamaged");
+            t.Assert(farm.GetTile(5, 5)?.Kind == "tilled", "the tilled plot survives");
+
+            string firstPass = service.SerializeToString();
+            service.DeserializeFrom(firstPass);
+            t.AssertEqual(firstPass, service.SerializeToString(),
+                "second migration pass serializes byte-identically");
         }
         finally
         {

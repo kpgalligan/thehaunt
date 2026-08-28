@@ -343,6 +343,16 @@ public partial class MapRoot : Node2D
     // O(1) incremental visual update for one tile's record (null = no record).
     public virtual void RefreshTile(int x, int y, TileRecord? record) { }
 
+    /// <summary>
+    /// Cells this map offers ObstacleGen to scatter field obstacles on — the "certain
+    /// areas" of the generation rule. Empty in the base: a map with no candidate area
+    /// simply never generates, which is every map but the farm today.
+    /// </summary>
+    public virtual IReadOnlyList<Vector2I> ObstacleCandidates() => Array.Empty<Vector2I>();
+
+    // Incremental visual resync after one obstacle changed (struck, felled, broken).
+    public virtual void RefreshObstacle(int x, int y, PlacedObjectRecord? record) { }
+
     // Hydrate visuals from the model after instancing. No-op in the base.
     public virtual void ApplyState(MapState state) { }
 }

@@ -28,6 +28,17 @@ gating, GetTree().Paused ownership) are in src/CLAUDE.md.
 - `OvernightCompleted` fires mid-advance while the screen is black — subscribers latch,
   never display, in the handler (the report card is shown later, by Main's sleep flow).
 
+## Field obstacles
+
+- `WorldSim.EnsureObstacles(map)` is the one generation trigger: Main calls it between
+  AddChild and ApplyState on both map-load paths. Once per map per save
+  (`MapState.ObstaclesSeeded`); candidates come from the map view
+  (`MapRoot.ObstacleCandidates`); the player's footing ring, the parked scooter, and
+  every NPC staging slot the map's schedules can ever host are excluded model-side, and the SEED is rolled here (`GD.Randi`) — Core's ObstacleGen
+  stays deterministic under an explicit seed. Tool strikes flow through
+  `UseSelectedItem` like everything else: Struck/Felled/Broken refresh the view via
+  `map.RefreshObstacle`, and the finals fire InventoryChanged for the yield.
+
 ## Flags, sessions, transfers, scooter
 
 - All flag writes go through `WorldSim.SetStoryFlag` (only-if-absent; on a NEW set:

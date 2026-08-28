@@ -366,10 +366,10 @@ public static class FarmTests
     }
 
     [SimTest]
-    public static void Farm_AxeAndPickHaveNoActionYet(TestContext t)
+    public static void Farm_AxeAndPickIgnoreOpenGround(TestContext t)
     {
-        // The tools handoff ships the items and work animations ahead of felling
-        // and rock-breaking: until those land, swinging either is a stamina-free
+        // Felling and rock-breaking live on the obstacle branch (ObstacleTests):
+        // with nothing standing on the cell, swinging either is a stamina-free
         // NoEffect on every tile (the animation still plays; the model refuses).
         var data = GameData.NewGame();
         InventoryData inv = data.Player.Inventory;

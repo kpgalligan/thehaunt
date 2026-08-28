@@ -312,7 +312,12 @@ public static class FarmArtTests
             t.Assert(map.IsStandable(new Vector2I(6, 3)), "the farmhouse roof overhang stays walkable");
             t.Assert(map.IsStandable(new Vector2I(27, 4)), "the barn roof overhang stays walkable");
 
-            // Only a tree's trunk cell is solid — the player walks under the branches.
+            // Trees are save-state obstacles now (ObstacleGen); only a trunk cell is
+            // solid — the player walks under the branches. ObstacleViewTests goes deep;
+            // this keeps the trunk/canopy rule visible beside the rest of the geometry.
+            MapState farmState = SaveService.Instance.Current.GetMap(MapIds.Farm);
+            farmState.Objects.Add(new PlacedObjectRecord { X = 3, Y = 12, ObjectId = ObstacleDefs.Tree });
+            map.ApplyState(farmState);
             t.Assert(!map.IsStandable(new Vector2I(3, 12)), "a tree trunk blocks");
             t.Assert(map.IsStandable(new Vector2I(2, 12)) && map.IsStandable(new Vector2I(4, 12)),
                 "the canopy either side of it does not");

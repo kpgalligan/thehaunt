@@ -143,6 +143,17 @@ public partial class WorldSim : Node
                 }
                 StaminaChanged?.Invoke(data.Player.Stamina, data.Player.MaxStamina);
                 break;
+
+            case ActionOutcome.Struck:
+            case ActionOutcome.Felled:
+            case ActionOutcome.Broken:
+                map.RefreshObstacle(tile.X, tile.Y, data.GetMap(mapId).GetObject(tile.X, tile.Y));
+                if (outcome is ActionOutcome.Felled or ActionOutcome.Broken)
+                {
+                    InventoryChanged?.Invoke();   // the yield landed
+                }
+                StaminaChanged?.Invoke(data.Player.Stamina, data.Player.MaxStamina);
+                break;
         }
 
         // Story trigger observed at the bus — FarmActions stays story-free. Only-if-absent
@@ -153,6 +164,75 @@ public partial class WorldSim : Node
         }
 
         return outcome;
+    }
+
+    /// <summary>
+    /// One-shot field-obstacle generation for a freshly built map view (Main calls it
+    /// between AddChild and ApplyState, so the first paint already shows the trees).
+    /// Gated on <see cref="MapState.ObstaclesSeeded"/>: once per map per save, and a
+    /// map offering no candidate cells is left unseeded so a future build that gains
+    /// an area still generates. The player's own footing (and its ring) is excluded —
+    /// a save must never wake up inside a rock.
+    /// </summary>
+    public void EnsureObstacles(MapRoot map)
+    {
+        GameData data = SaveService.Instance.Current;
+        MapState state = data.GetMap(map.MapId);
+        if (state.ObstaclesSeeded)
+        {
+            return;
+        }
+        IReadOnlyList<Vector2I> candidates = map.ObstacleCandidates();
+        if (candidates.Count == 0)
+        {
+            return;
+        }
+
+        var blocked = new HashSet<Vector2I>();
+        if (data.Player.MapId == map.MapId && data.Player.HasPosition)
+        {
+            var feet = new Vector2I(
+                Mathf.FloorToInt(data.Player.X / MapRoot.TileSize),
+                Mathf.FloorToInt((data.Player.Y + 6) / MapRoot.TileSize));
+            for (int dy = -1; dy <= 1; dy++)
+            {
+                for (int dx = -1; dx <= 1; dx++)
+                {
+                    blocked.Add(new Vector2I(feet.X + dx, feet.Y + dy));
+                }
+            }
+        }
+        ScooterData scooter = data.Scooter;
+        if (!scooter.Mounted && scooter.MapId == map.MapId)
+        {
+            blocked.Add(new Vector2I(scooter.TileX, scooter.TileY));
+        }
+        // Every NPC staging slot this map can ever host (whole schedule, not just
+        // what resolves now) — a beat must never stage somebody inside a boulder.
+        foreach (NpcDef def in NpcDefs.All.Values)
+        {
+            foreach (ScheduleEntry entry in def.Schedule)
+            {
+                if (entry.Placement.MapId == map.MapId)
+                {
+                    blocked.Add(new Vector2I(entry.Placement.TileX, entry.Placement.TileY));
+                }
+            }
+        }
+
+        var open = new List<(int X, int Y)>(candidates.Count);
+        foreach (Vector2I cell in candidates)
+        {
+            if (!blocked.Contains(cell))
+            {
+                open.Add((cell.X, cell.Y));
+            }
+        }
+
+        // The layout is random per save ON PURPOSE; determinism for tests lives in
+        // ObstacleGen's explicit seed, not here.
+        state.Objects.AddRange(ObstacleGen.Generate(open, state, unchecked((int)GD.Randi())));
+        state.ObstaclesSeeded = true;
     }
 
     public bool DepositSelectedToBin()

@@ -5,6 +5,11 @@ public sealed class MapState
     public List<TileRecord> Tiles { get; set; } = new();
     public List<PlacedObjectRecord> Objects { get; set; } = new();
 
+    // Whether ObstacleGen has run for this map. Distinct from Objects being empty:
+    // a player who cleared every tree still has a seeded farm, and an old save that
+    // predates obstacles (absent -> false) gets its first generation on next visit.
+    public bool ObstaclesSeeded { get; set; }
+
     // Runtime index: packed coord -> position in Tiles. Not serialized; rebuilt on load.
     private readonly Dictionary<long, int> _index = new();
 
@@ -46,6 +51,33 @@ public sealed class MapState
         Tiles.RemoveAt(last);
         _index.Remove(key);
         return true;
+    }
+
+    // Objects stay a plain list (a few dozen entries at most): linear scan, no index.
+    public PlacedObjectRecord? GetObject(int x, int y)
+    {
+        foreach (PlacedObjectRecord obj in Objects)
+        {
+            if (obj.X == x && obj.Y == y)
+            {
+                return obj;
+            }
+        }
+        return null;
+    }
+
+    /// <summary>True if an object stood at (x, y) and was removed.</summary>
+    public bool RemoveObject(int x, int y)
+    {
+        for (int i = 0; i < Objects.Count; i++)
+        {
+            if (Objects[i].X == x && Objects[i].Y == y)
+            {
+                Objects.RemoveAt(i);
+                return true;
+            }
+        }
+        return false;
     }
 
     // Call after deserialization. Compacts duplicate (X, Y) records (last wins) so the

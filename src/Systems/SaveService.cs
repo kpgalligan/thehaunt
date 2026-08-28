@@ -244,6 +244,16 @@ public partial class SaveService : Node
         foreach (MapState map in data.Maps.Values)
         {
             map.RebuildIndex();
+            // Objects gets the bin's repair: degenerate records (null element, no id)
+            // are dropped and damage clamps non-negative; unknown ids are KEPT. The
+            // obstacle path dereferences this list on every boot, so a hand-edited
+            // null here must die on load repair, not in EnsureObstacles.
+            map.Objects ??= new List<PlacedObjectRecord>();
+            map.Objects.RemoveAll(obj => obj is null || string.IsNullOrEmpty(obj.ObjectId));
+            foreach (PlacedObjectRecord obj in map.Objects)
+            {
+                obj.HitsTaken = Math.Max(0, obj.HitsTaken);
+            }
         }
 
         Current = data;

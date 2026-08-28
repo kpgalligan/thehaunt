@@ -90,7 +90,7 @@ public static class IntegrationTests
             t.Assert(!map.IsTillable(5, 5), "farmhouse facade wall (5,5) not tillable");
             t.Assert(!map.IsTillable(9, 4), "farmhouse facade wall (9,4) not tillable");
             t.Assert(!map.IsTillable(7, 7), "farmhouse door tile (7,7) not tillable");
-            t.Assert(!map.IsTillable(5, 12), "relocated stone (5,12) not tillable");
+            t.Assert(!map.IsTillable(17, 25), "the fallen log (17,25) not tillable");
             t.Assert(!map.IsTillable(12, 8), "sign tile (12,8) not tillable");
             t.Assert(!map.IsTillable(10, 8), "shipping-bin tile (10,8) not tillable");
             t.Assert(map.IsTillable(20, 25), "clear grass tile (20,25) stays tillable");
@@ -119,6 +119,12 @@ public static class IntegrationTests
             await t.WaitFrames(5);
 
             t.Assert(main.GetNodeOrNull<Node2D>("World/Player") != null, "World/Player exists after boot");
+
+            // Main's boot path seeds the field obstacles (EnsureObstacles between
+            // AddChild and ApplyState) — the one call the shipping game relies on.
+            MapState farm = SaveService.Instance.Current.GetMap(MapIds.Farm);
+            t.Assert(farm.ObstaclesSeeded, "boot seeded the farm's obstacles");
+            t.Assert(farm.Objects.Count > 0, $"and something grew ({farm.Objects.Count})");
 
             long dayBefore = Clock.Instance.Now.DayIndex;
             GameState.Instance.TransitionTo(GameState.Phase.Sleeping);

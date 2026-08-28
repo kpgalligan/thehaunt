@@ -56,7 +56,8 @@ Each directory's CLAUDE.md carries its contracts — read it before working ther
   `assets/audio` and `assets/fonts` are still empty
 - `data/maps/` — map recipes: CONTENT, not save state; one JSON per map id
 - `docs/designs/` — the six binding art handoff bundles
-- `tools/` — asset-derivation one-shots (`regen_scooter_rider.py`)
+- `tools/` — asset-derivation one-shots (`regen_scooter_rider.py`,
+  `gen_item_icons.py` — the inventory icon atlas)
 
 ## Project-wide conventions
 

@@ -18,9 +18,8 @@ public static class ItemDefs
             new ItemDef("hoe", "Hoe", ItemCategory.Tool, 1, 0, "#8a5a3a", ToolKind.Hoe, StaminaCost: 2),
             new ItemDef("watering_can", "Watering Can", ItemCategory.Tool, 1, 0, "#6a8ab0", ToolKind.WateringCan, StaminaCost: 1),
             new ItemDef("scythe", "Scythe", ItemCategory.Tool, 1, 0, "#9a9a9a", ToolKind.Scythe, StaminaCost: 1),
-            // Axe and pickaxe (tools handoff): the items and work animations ship
-            // now; felling and rock-breaking land later — until they do,
-            // FarmActions answers NoEffect and charges no stamina.
+            // Axe and pickaxe (tools handoff): work the field obstacles —
+            // FarmActions' obstacle branch, ObstacleDefs for hits and yields.
             new ItemDef("axe", "Axe", ItemCategory.Tool, 1, 0, "#7a6a5c", ToolKind.Axe, StaminaCost: 2),
             new ItemDef("pick", "Pickaxe", ItemCategory.Tool, 1, 0, "#575a58", ToolKind.Pick, StaminaCost: 2),
             // Seed SellPrice is always half the shop buy price (ratified rule; the
@@ -33,6 +32,11 @@ public static class ItemDefs
             new ItemDef("greenbean", "Green Bean", ItemCategory.Crop, 99, 40, "#4a9a4a"),
             new ItemDef("potato", "Potato", ItemCategory.Crop, 99, 40, "#c9a86a"),
             new ItemDef("cauliflower", "Cauliflower", ItemCategory.Crop, 99, 175, "#e8e8d8"),
+            // Field-clearing yields (ObstacleDefs): trees and stumps drop lumber,
+            // rocks drop stone. Cheap to sell on purpose — they are building
+            // materials first, and the crafting that spends them lands later.
+            new ItemDef("lumber", "Lumber", ItemCategory.Material, 99, 2, "#8a6a42"),
+            new ItemDef("stone", "Stone", ItemCategory.Material, 99, 2, "#8d8f8a"),
         };
         return defs.ToDictionary(d => d.Id);
     }

@@ -127,6 +127,16 @@ What lives here:
 - Soil is an autotile, so `TestMap.RefreshTile` repaints a five-cell plus, not one
   cell: tilling changes this cell's tile AND its four neighbours' edges.
 - The Crops layer is Y-sorted because crop cells are 16x32 and overhang the row above.
+- Field obstacles are VIEWS of `MapState.Objects` (never recipe content — a drawn tree
+  that ignored the axe beside one that falls would be the map lying): `TestMap.SyncObstacles`
+  diffs them on every ApplyState/RefreshObstacle — stump/rock cells paint the farm
+  sheet's own solid tiles into the Obstacles layer (the RoadBlock precedent, so
+  IsTillable/IsStandable refuse them for free), a tree is a Y-sorted canopy `Prop`
+  plus a trunk Blocker at the record's cell. `TestMap.ObstacleCandidates` is the
+  farm's "certain areas" answer: open pasture minus reservations, the pen, recipe
+  scatter, and a one-tile ring around every spawn. The bare-tree pick hashes the
+  trunk cell — allowed HERE because a save record never moves (the identity-from-
+  coordinate ban protects draggable placements).
 - The barn's three drawn states are two monotone flags through `BarnRules`, never an
   int in one flag — a flag's value in this model is the day it was stamped, not a
   level. Nothing advances them yet; that seam is deliberately empty.

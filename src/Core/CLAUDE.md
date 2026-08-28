@@ -3,8 +3,10 @@
 PURE C# — no `using Godot`, test-enforced (SourceRulesTests); this is what keeps the
 model testable without a scene tree. What lives here: GameTime/calendar, ClockModel,
 GameData + save DTOs (PlayerData/MapState/TileRecord/ItemStackRecord/PlacedObjectRecord,
-SaveJsonContext), migrations (SaveMigrations.CurrentVersion = 5), item/crop defs (code
-registries ItemDefs/CropDefs), InventoryData, FarmActions, OvernightSim + ShippedLine;
+SaveJsonContext), migrations (SaveMigrations.CurrentVersion = 6), item/crop/obstacle defs (code
+registries ItemDefs/CropDefs/ObstacleDefs), InventoryData, FarmActions, ObstacleGen
+(seeded one-shot field generation — WorldSim owns the trigger and the randomness),
+OvernightSim + ShippedLine;
 storage: StackOps/StorageData/StorageIds; scooter: ScooterData/ScooterRules;
 WorkAnimation (the tool work loop's pure timing/interruption contract — the tile
 mutation fires on ENTRY to its impact frame, never at press time); shop:
@@ -30,6 +32,15 @@ NpcDef(s)/NpcSchedules.
   advances the barn flags yet; that seam is deliberately empty.
 - Story-flag ids live as constants in `StoryKeys` — a validation test enforces that
   every flag referenced by dialogue defs resolves to a constant there.
+- Field obstacles (tree/stump/rock) are PlacedObjectRecords in MapState.Objects —
+  a SHARED seam: an ObjectId ObstacleDefs does not know is preserved untouched, never
+  struck, never destroyed. The record's (X, Y) is its one solid cell (a tree's trunk);
+  FarmActions' obstacle branch owns the whole cell (the matching tool strikes, hits
+  accumulate in HitsTaken, the FINAL hit pays the yield all-or-nothing — harvest
+  precedent — and everything else refuses, so nothing can till under a standing
+  obstacle whatever the view said). `MapState.ObstaclesSeeded` means "ObstacleGen has
+  run here", which is NOT "Objects is empty" — a cleared field stays cleared, and an
+  old save generates on its next visit.
 - Storage containers live in GameData.Storages (id -> StorageData); unknown storage
   keys and item ids are preserved verbatim; transfers/purchases go through WorldSim
   (TransferToStorage/TransferToInventory/BuyItem — checks strictly before mutations).

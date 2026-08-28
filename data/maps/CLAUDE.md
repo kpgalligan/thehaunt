@@ -25,6 +25,11 @@ graphical editor is the Haunt Mapper (`scenes/editor/MapStage.tscn` +
   fixed order, "\n" endings on every platform. Serialising the same recipe twice is
   byte-identical, and so is a load/save cycle. Values are strings, numbers and bools
   only — an object or array value cannot be held to one line per placement.
+- Scatter/prop placements are DECORATIVE-ONLY on maps with field obstacles: the
+  farm's clearable trees, stumps and boulders are save state (ObstacleGen seeds
+  them; the axe and pick clear them), so its recipe keeps only the fallen log. A
+  drawn obstacle that ignored the axe beside an identical one that falls would be
+  the map lying about its own rules.
 - Terrain painting stays generative and has no representation here; what moves into
   data is what a person would otherwise drag: props, scatter, spawn markers, doors,
   exits, signs, furniture and the interactables.

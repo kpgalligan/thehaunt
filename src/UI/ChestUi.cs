@@ -15,7 +15,6 @@ public partial class ChestUi : Control
 {
     private const int Columns = 10;   // hotbar width; chest capacity 20 renders as 2 rows
     private const int SlotSize = 20;
-    private const int IconSize = 10;
 
     private GridContainer _chestGrid = null!;
     private GridContainer _inventoryGrid = null!;
@@ -269,7 +268,7 @@ public partial class ChestUi : Control
 
     private static void PaintSlot(Button button, ItemStackRecord? stack)
     {
-        var icon = button.GetChild<ColorRect>(0);
+        var icon = button.GetChild<TextureRect>(0);
         var glyph = button.GetChild<Label>(1);
         var count = button.GetChild<Label>(2);
 
@@ -281,12 +280,10 @@ public partial class ChestUi : Control
             return;
         }
 
-        ItemDef? def = ItemDefs.TryGet(stack.ItemId);
-        icon.Visible = true;
-        icon.Color = def is not null && Color.HtmlIsValid(def.IconColor)
-            ? Color.FromHtml(def.IconColor)
-            : new Color(0.42f, 0.42f, 0.42f); // unknown id: gray '?', preserved never dropped
-        glyph.Visible = def is null;
+        Texture2D? texture = ItemIcons.For(stack.ItemId);
+        icon.Texture = texture;
+        icon.Visible = texture is not null;
+        glyph.Visible = texture is null;   // unknown id: '?', preserved never dropped
         count.Text = stack.Count.ToString();
         count.Visible = stack.Count > 1;
     }
@@ -300,15 +297,13 @@ public partial class ChestUi : Control
         };
 
         // Child order is PaintSlot's contract: 0 = icon, 1 = '?' glyph, 2 = count.
-        var icon = new ColorRect
+        var icon = new TextureRect
         {
-            CustomMinimumSize = new Vector2(IconSize, IconSize),
+            StretchMode = TextureRect.StretchModeEnum.KeepCentered,
             MouseFilter = MouseFilterEnum.Ignore,
             Visible = false,
         };
-        icon.SetAnchorsAndOffsetsPreset(LayoutPreset.Center, LayoutPresetMode.Minsize);
-        icon.GrowHorizontal = GrowDirection.Both;
-        icon.GrowVertical = GrowDirection.Both;
+        icon.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
         button.AddChild(icon);
 
         var glyph = new Label
