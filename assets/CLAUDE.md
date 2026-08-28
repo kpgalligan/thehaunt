@@ -1,0 +1,38 @@
+# assets/ — shipped art
+
+Everything under `assets/sprites/` is shipped handoff art, copied verbatim from the
+`docs/designs/` bundles' `art/` folders — NEVER redraw, scale, or filter these PNGs.
+If something looks wrong in-engine, it is an import setting or a note for the artist,
+never a reason to touch the pixels.
+
+## Inventory
+
+- `sprites/character.png` — Jane (96x96 walk sheet; the cast handoff replaced it in
+  place); `sprites/lights.png` — glow falloffs + the flame strip.
+- `sprites/cast/` — the four packed cast atlases (`cast_west/billies/east/town`; one
+  96x96 block per character, block order fixed by the cast handoff's README).
+- `sprites/town/` — town terrain + its TileSet, both facades, props.
+- `sprites/farm/` — farm terrain + crops TileSets, farm buildings, barn.
+- `sprites/interior/` — interior TileSet + furniture.
+- `sprites/scooter_rider.png` + `sprites/scooter_parked.png` — the scooter sheets.
+  CAUTION: both are authored facing RIGHT and flip for LEFT — mirrored from
+  character.png's left-facing convention.
+- `audio/` and `fonts/` are still empty. Tool-use animations, seasonal variants and
+  animals are still undrawn.
+
+## Derived art
+
+`scooter_rider.png` is DERIVED, not hand-kept: the rider is character.png composited
+onto the scooter deck. Whenever `character.png` changes, rerun
+`python3 tools/regen_scooter_rider.py` from the repo root (it reads the old sheet's
+wheels before overwriting; see its docstring and the cast-sprites section of
+`docs/designs/CLAUDE.md` for the mirroring and knee-bend story).
+
+## Import settings
+
+- Every imported PNG must keep Filter: Nearest and Mipmaps: off — one wrong filter is
+  the difference between pixel art and mush. (Everything here is native 16px-tile
+  pixel art for the 480x270 viewport; character/crop/furniture cells are 16x32.)
+- After adding or changing an asset, re-import: `godot-mono --headless --import`.
+- Commit the `.import` sidecar beside each PNG; never commit `.godot/` (the generated
+  import cache).
