@@ -50,7 +50,11 @@ composited onto the deck, replacing character.png made it stale: `scooter_rider.
 now DERIVED art, recomposited by `tools/regen_scooter_rider.py` from the scooter
 handoff's recipe tables — rerun it whenever character.png changes. The regenerated
 sheet mirrors the profile row so Jane faces the direction of travel (the original
-composite left the rider unmirrored — facing backward — under the old art's hat).
+composite left the rider unmirrored — facing backward — under the old art's hat),
+and composites her in two parts with a slight knee-bend: at 29px she cannot fit
+whole between the cell top and the deck, so her legs lift to land her feet on the
+deck while head and torso lift only as far as the cell allows (both measured from
+the sheet, so a repaint lands correctly without touching the tool).
 
 ## Toolchain
 

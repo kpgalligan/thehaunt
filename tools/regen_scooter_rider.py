@@ -20,6 +20,13 @@ pre-cast-handoff character.png, with two deliberate divergences, both from the
     scooter's direction.
   * The forearm reaching to the handlebar is COAT, Jane's chore-shirt green
     (green-mid #457539) — the original used her old plum coat.
+  * The rider composites in two parts with a slight knee-bend. The old art was
+    27px tall, so one 6px lift put its feet on the deck and clipped 1px of hat;
+    the cast-handoff Jane is 29px in a cell with only 26 rows above the deck, so
+    a single lift cannot fit her. Her legs lift so her feet land on the deck,
+    her head and torso lift only as far as the cell top allows, and the torso
+    overlaps the top of the thighs — the riding crouch hides the difference.
+    Both lifts are measured from the sheet, so a repaint changes nothing here.
 
 The wheels (the per-column spoke rotation) are authored art with no recipe in the
 handoff; they are carried over pixel-for-pixel from the previous scooter_rider.png,
@@ -125,16 +132,40 @@ def cellget(px, w, cx, cy, x, y):
     return tuple(px[o:o + 4])
 
 
-def draw_rider(cell, char, row, lift, mirror):
-    # Idle frame A (col 0) on every column; only the bob moves the rider.
-    for y in range(32):
-        sy = y + lift
-        if sy > 31:
-            continue
-        for x in range(16):
-            cp = cellget(char, 96, 0, row, 15 - x if mirror else x, sy)
-            if cp[3]:
-                cell.set(x, y, cp)
+LEGS_SPLIT = 20   # gen_cast.js draws legs at yL=20; everything above is head/torso
+
+
+def measure(char):
+    # Vertical extent of idle frame A (col 0) across all three rows: the lifts are
+    # derived from the art, not hardcoded to one paint of it.
+    ys = [y for r in (0, 1, 2) for y in range(32) for x in range(16)
+          if cellget(char, 96, 0, r, x, y)[3]]
+    return min(ys), max(ys)
+
+
+def rider_lifts(char, b):
+    # Feet land on the deck's top row (25); bob frames sink the rider 1px while
+    # the scooter rises 1px, per the original sheet's convention. The upper body
+    # lifts only as far as keeps the head inside the cell; the difference is the
+    # knee-bend (0 when the art is short enough to fit whole).
+    top, bottom = measure(char)
+    legs = bottom - 25 - b
+    upper = max(0, min(legs, top - b))
+    return upper, legs
+
+
+def draw_rider(cell, char, row, upper_lift, legs_lift, mirror):
+    # Idle frame A (col 0) on every column; only the bob moves the rider. Legs
+    # first, upper body over them — the overlap rows are the bent knee.
+    for part_lift, y0, y1 in ((legs_lift, LEGS_SPLIT, 31), (upper_lift, 0, LEGS_SPLIT - 1)):
+        for sy in range(y0, y1 + 1):
+            y = sy - part_lift
+            if y < 0 or y > 31:
+                continue
+            for x in range(16):
+                cp = cellget(char, 96, 0, row, 15 - x if mirror else x, sy)
+                if cp[3]:
+                    cell.set(x, y, cp)
 
 
 def handlebar(cell, x, y, w):
@@ -172,7 +203,8 @@ def main():
     out = bytearray(96 * 96 * 4)
     for c in range(6):
         b = BOB[c]
-        barY, deckY, wheelY, lift = 16 - b, 25 - b, 29 - b, 6 - b
+        barY, deckY, wheelY = 16 - b, 25 - b, 29 - b
+        upper_lift, legs_lift = rider_lifts(char, b)
         for r in (0, 1, 2):
             cell = Cell()
             if r == 1:
@@ -187,7 +219,7 @@ def main():
                 cell.rect(3, deckY, 10, 2, DECK)
                 cell.rect(4, deckY, 8, 1, DECK_HI)
                 cell.rect(11, barY + 2, 2, deckY - barY - 2, DECK_DK)   # stem behind
-                draw_rider(cell, char, 1, lift, mirror=True)
+                draw_rider(cell, char, 1, upper_lift, legs_lift, mirror=True)
                 cell.rect(11, barY + 2, 2, 4, DECK_DK)                  # stem in front
                 handlebar(cell, 9, barY, 7)
                 cell.rect(7, barY + 2, 4, 2, COAT)                      # forearm
@@ -196,13 +228,13 @@ def main():
                 cell.set(14, barY + 4, STONE_BASE)                      # housing
                 shadow(cell, 1, b)
             elif r == 0:
-                draw_rider(cell, char, 0, lift, mirror=False)
+                draw_rider(cell, char, 0, upper_lift, legs_lift, mirror=False)
                 scooter_front_back(cell, b)
                 shadow(cell, 0, b)
                 handlebar(cell, 2, barY, 12)
             else:
                 handlebar(cell, 2, barY, 12)
-                draw_rider(cell, char, 2, lift, mirror=False)
+                draw_rider(cell, char, 2, upper_lift, legs_lift, mirror=False)
                 scooter_front_back(cell, b)
                 shadow(cell, 2, b)
             for y in range(32):
