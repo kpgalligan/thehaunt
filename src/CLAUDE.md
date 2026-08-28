@@ -39,6 +39,7 @@ sleep + travel flows. Each subdirectory carries its own CLAUDE.md with its local
   (x*16+8, y*16+8). Physics layers: 1 = world/blocking, 2 = interactable areas.
 - Characters are 16x32 with feet on the bottom row (one tile of floor, one tile of
   overhang). Right is a horizontal flip of left; the sheet holds down/left/up only.
-  EXCEPTION: the two scooter sheets are authored facing right and flip for left
-  (`RiderFlipH`/`ParkedFlipH`). Furniture and crops follow the same rule: a 16x32
-  piece stands on its cell and overhangs the one above it.
+  EXCEPTION: the two scooter sheets and the four tool work sheets are authored
+  facing right and flip for left (`RiderFlipH`/`ParkedFlipH`/`WorkFlipH`).
+  Furniture and crops follow the same rule: a 16x32 piece stands on its cell and
+  overhangs the one above it.

@@ -16,7 +16,7 @@ public partial class TestRunner : Node
     // art + 2 TileSet guards + 5 map recipe format + 2 map seed + 4 map editor + 2 source
     // rules + 5 road strip/wrap + 6 road cast + 6 motel/signage + 7 scooter + 1 travel
     // carry). Re-pin to the exact count whenever tests ship.
-    private const int MinimumExpectedTests = 145;
+    private const int MinimumExpectedTests = 152;
 
     public override async void _Ready()
     {

@@ -1,6 +1,6 @@
 # docs/designs/ — the art contract
 
-The five handoff bundles here ARE the art contract — all binding. Each `README.md` is
+The six handoff bundles here ARE the art contract — all binding. Each `README.md` is
 its integration brief; every `reference/` render and `.dc.html` document is a design
 target, not an asset. What differs per bundle is precedence and kind — whether its
 `art/` PNGs ship as-is or are re-authored in code — as follows.
@@ -58,3 +58,24 @@ and composites her in two parts with a slight knee-bend: at 29px she cannot fit
 whole between the cell top and the deck, so her legs lift to land her feet on the
 deck while head and torso lift only as far as the cell allows (both measured from
 the sheet, so a repaint lands correctly without touching the tool).
+
+## design_handoff_tools_animations (2026-08-28) — production sheets
+
+Ships PRODUCTION sheets: the four tool work sheets (`tool_hoe/can/axe/pick.png`,
+64x192 each) copied to `assets/sprites/tools/` — 4 frame columns (windup, strike,
+impact, recover; 90/90/140/90 ms) by 6 rows (tier x facing: down, side), 16x32
+cells; `gen_tools.js` is their source of truth (evaluated after `gen_cast.js`'s
+shared scope, so Jane stays single-sourced). Binding behaviour: the tile mutation
+fires on ENTRY to the impact frame (WorkAnimation pins the whole contract).
+Kevin amended the interruption rule: a press COMMITS one full cycle — a tap is
+one completed action — dropping the handoff's release-before-impact cancel;
+tiers (basic/dad-level/pro) differ by head material ONLY and stop at three by
+design; both hands stay on the tool; idle-with-tool is deliberately not authored.
+Tier state does not exist in the model yet — everything renders basic. CAUTION:
+the side rows swing on the figure's RIGHT and flip for LEFT (the README's row
+table; scooter convention), BUT the body underneath is drawn from gen_cast's
+left-facing primitives, so the face reads away from the swing — an authoring
+inconsistency to fix in the generator (mirror the side body), never in the PNGs.
+The README's up-facing answer is adopted: not authored, down rows reused. The
+scythe predates this handoff and has no work sheet — it stays on the instant-use
+path until authored.

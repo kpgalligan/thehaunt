@@ -230,4 +230,84 @@ public static class TownArtTests
         t.AssertEqual(new Rect2(96 + 2 * 16, 32, 16, 32), CharacterSprites.Region(1, 1, 2),
             "block 1 offsets the whole grid by 96px");
     }
+
+    [SimTest]
+    public static void ToolSheets_MatchTheHandoffGrid(TestContext t)
+    {
+        // Tools handoff: every tool work sheet is 64x192 — 4 frame columns by
+        // 6 tier-x-facing rows of 16x32 cells — and every cell holds a drawn
+        // frame (an empty cell means the generator's row order drifted).
+        var kinds = new[] { ToolKind.Hoe, ToolKind.WateringCan, ToolKind.Axe, ToolKind.Pick };
+        var reserved = new[] { new Color("6b4560"), new Color("7d8f4a") };
+        Image jane = GD.Load<Texture2D>(CharacterSprites.SheetPath).GetImage();
+        int janeFeet = BottomOpaqueRow(jane, 0, 0);
+
+        foreach (ToolKind kind in kinds)
+        {
+            string? path = CharacterSprites.WorkSheet(kind);
+            t.Assert(path != null, $"{kind}: work sheet mapped");
+            Image image = GD.Load<Texture2D>(path!).GetImage();
+            t.AssertEqual(64, image.GetWidth(), $"{kind}: sheet width");
+            t.AssertEqual(192, image.GetHeight(), $"{kind}: sheet height");
+
+            for (int row = 0; row < 6; row++)
+            {
+                for (int frame = 0; frame < CharacterSprites.WorkFrames; frame++)
+                {
+                    int drawn = 0;
+                    for (int y = 0; y < 32; y++)
+                    {
+                        for (int x = 0; x < 16; x++)
+                        {
+                            Color pixel = image.GetPixel(frame * 16 + x, row * 32 + y);
+                            if (pixel.A == 0f)
+                                continue;
+                            drawn++;
+                            foreach (Color accent in reserved)
+                            {
+                                t.Assert(!pixel.IsEqualApprox(accent),
+                                    $"{kind} row {row} frame {frame} wears a reserved dread accent");
+                            }
+                        }
+                    }
+                    t.Assert(drawn > 100, $"{kind}: row {row} frame {frame} holds a figure ({drawn}px)");
+                }
+
+                // The windup and recover frames stand on the walk sheet's exact
+                // foot row, so entering and leaving a swing never pops vertically
+                // (the lean frames dip by design). If Jane's sheet is ever
+                // regenerated, the tool sheets must be regenerated with it.
+                t.AssertEqual(janeFeet, BottomOpaqueRow(image, 0, row),
+                    $"{kind}: row {row} windup feet on Jane's foot row");
+                t.AssertEqual(janeFeet, BottomOpaqueRow(image, 3, row),
+                    $"{kind}: row {row} recover feet on Jane's foot row");
+            }
+        }
+
+        // The scythe has no authored work animation — it stays on the instant path.
+        t.Assert(CharacterSprites.WorkSheet(ToolKind.Scythe) == null, "scythe has no work sheet");
+
+        // Row = tier * 2 + side; up reuses down; the side rows swing on the
+        // figure's RIGHT (handoff row table) and flip for LEFT, like the scooter.
+        t.AssertEqual(new Rect2(3 * 16, 5 * 32, 16, 32), CharacterSprites.WorkRegion(2, 2, 3),
+            "pro side recover cell");
+        t.AssertEqual(new Rect2(0, 4 * 32, 16, 32), CharacterSprites.WorkRegion(2, 3, 0),
+            "facing up reuses the down row");
+        t.Assert(CharacterSprites.WorkFlipH(1) && !CharacterSprites.WorkFlipH(2)
+            && !CharacterSprites.WorkFlipH(0) && !CharacterSprites.WorkFlipH(3),
+            "side rows flip for LEFT only");
+    }
+
+    private static int BottomOpaqueRow(Image image, int column, int row)
+    {
+        for (int y = 31; y >= 0; y--)
+        {
+            for (int x = 0; x < 16; x++)
+            {
+                if (image.GetPixel(column * 16 + x, row * 32 + y).A > 0f)
+                    return y;
+            }
+        }
+        return -1;
+    }
 }

@@ -3,9 +3,11 @@
 PURE C# — no `using Godot`, test-enforced (SourceRulesTests); this is what keeps the
 model testable without a scene tree. What lives here: GameTime/calendar, ClockModel,
 GameData + save DTOs (PlayerData/MapState/TileRecord/ItemStackRecord/PlacedObjectRecord,
-SaveJsonContext), migrations (SaveMigrations.CurrentVersion = 4), item/crop defs (code
+SaveJsonContext), migrations (SaveMigrations.CurrentVersion = 5), item/crop defs (code
 registries ItemDefs/CropDefs), InventoryData, FarmActions, OvernightSim + ShippedLine;
-storage: StackOps/StorageData/StorageIds; scooter: ScooterData/ScooterRules; shop:
+storage: StackOps/StorageData/StorageIds; scooter: ScooterData/ScooterRules;
+WorkAnimation (the tool work loop's pure timing/interruption contract — the tile
+mutation fires on ENTRY to its impact frame, never at press time); shop:
 ShopCatalog (+ ShopEntry/BuyResult)/ShopHours; story: StoryKeys/IntroRules/BarnRules/
 MotelRules/MapIds/RoadWrap, DialogueDef(s)/DialogueSession/DialogueSelector,
 NpcDef(s)/NpcSchedules.

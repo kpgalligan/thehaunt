@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Bitter:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+  body { margin:0; background:#171310; }
+  a { color:#f2b95c; }
+  a:hover { color:#ffd98a; }
+  @keyframes work4 { from { background-position-x: 0; } to { background-position-x: -384px; } }
+</style>
+</helmet>
+
+<div style="min-height:100vh; background:#171310; color:#ede3cb; font-family:'IBM Plex Mono',monospace; padding:56px 64px 96px; display:flex; flex-direction:column; gap:48px;">
+
+  <div style="display:flex; flex-direction:column; gap:10px; max-width:900px;">
+    <div style="font-size:12px; letter-spacing:0.22em; text-transform:uppercase; color:#86ad5c;">The Haunt · art</div>
+    <h1 style="font-family:Bitter,serif; font-size:44px; font-weight:700; margin:0; letter-spacing:-0.01em;">Tools &amp; work animations</h1>
+    <p style="margin:0; font-size:14px; line-height:1.7; color:#b8b5a5; max-width:62ch; text-wrap:pretty;">Four tools, three tiers each, baked into Jane's frames. Four frames per action — windup, strike, impact, recover — for down and side facings. Side facing mirrors for left. No particle effects: the engine owns dirt, chips and splash.</p>
+  </div>
+
+  <div style="display:flex; flex-wrap:wrap; gap:20px;">
+    <div style="border:1px solid #453a2e; padding:16px 20px; display:flex; flex-direction:column; gap:6px; min-width:180px;">
+      <div style="font-size:11px; letter-spacing:0.16em; text-transform:uppercase; color:#7a7a7a;">Cell</div>
+      <div style="font-size:20px; font-family:Bitter,serif;">16 × 32 px</div>
+    </div>
+    <div style="border:1px solid #453a2e; padding:16px 20px; display:flex; flex-direction:column; gap:6px; min-width:180px;">
+      <div style="font-size:11px; letter-spacing:0.16em; text-transform:uppercase; color:#7a7a7a;">Sheet</div>
+      <div style="font-size:20px; font-family:Bitter,serif;">64 × 192 px</div>
+    </div>
+    <div style="border:1px solid #453a2e; padding:16px 20px; display:flex; flex-direction:column; gap:6px; min-width:180px;">
+      <div style="font-size:11px; letter-spacing:0.16em; text-transform:uppercase; color:#7a7a7a;">Rows</div>
+      <div style="font-size:20px; font-family:Bitter,serif;">6 · tier × facing</div>
+    </div>
+    <div style="border:1px solid #453a2e; padding:16px 20px; display:flex; flex-direction:column; gap:6px; min-width:180px;">
+      <div style="font-size:11px; letter-spacing:0.16em; text-transform:uppercase; color:#7a7a7a;">Files</div>
+      <div style="font-size:20px; font-family:Bitter,serif;">4 sheets</div>
+    </div>
+  </div>
+
+  <sc-for list="{{ tools }}" as="tool" hint-placeholder-count="4">
+    <div style="display:flex; flex-direction:column; gap:20px; padding-top:36px; border-top:1px solid #2b241d;">
+      <div style="display:flex; align-items:baseline; gap:20px; flex-wrap:wrap;">
+        <h2 style="font-family:Bitter,serif; font-size:28px; font-weight:600; margin:0;">{{ tool.name }}</h2>
+        <div style="font-size:13px; color:#86ad5c;">{{ tool.job }}</div>
+        <div style="font-size:12px; color:#7a7a7a; margin-left:auto;">art/{{ tool.file }}</div>
+      </div>
+
+      <div style="display:grid; grid-template-columns:repeat(3, minmax(280px, 1fr)); gap:24px;">
+        <sc-for list="{{ tool.tiers }}" as="tier" hint-placeholder-count="3">
+          <div style="background:#1f1a15; border:1px solid #2b241d; display:flex; flex-direction:column;">
+            <div style="padding:14px 18px; display:flex; flex-direction:column; gap:4px; border-bottom:1px solid #2b241d;">
+              <div style="font-size:12px; letter-spacing:0.16em; text-transform:uppercase; color:#f2b95c;">{{ tier.label }}</div>
+              <div style="font-size:12px; color:#b8b5a5;">{{ tier.note }}</div>
+            </div>
+            <div style="display:flex; gap:0; background:var(--ground,#4a7c3a);">
+              <div style="flex:1; display:flex; align-items:flex-end; justify-content:center; padding:20px 0 12px;">
+                <div style="width:96px; height:192px; image-rendering:pixelated; background-image:url('art/{{ tool.file }}'); background-size:384px 1152px; background-repeat:no-repeat; background-position-y:{{ tier.downY }}; animation:work4 var(--spd,0.72s) steps(4) infinite;"></div>
+              </div>
+              <div style="flex:1; display:flex; align-items:flex-end; justify-content:center; padding:20px 0 12px;">
+                <div style="width:96px; height:192px; image-rendering:pixelated; background-image:url('art/{{ tool.file }}'); background-size:384px 1152px; background-repeat:no-repeat; background-position-y:{{ tier.sideY }}; animation:work4 var(--spd,0.72s) steps(4) infinite;"></div>
+              </div>
+            </div>
+            <div style="display:flex; padding:10px 18px 14px; gap:8px; font-size:11px; color:#7a7a7a; letter-spacing:0.1em; text-transform:uppercase;">
+              <div style="flex:1; text-align:center;">down</div>
+              <div style="flex:1; text-align:center;">side</div>
+            </div>
+          </div>
+        </sc-for>
+      </div>
+
+      <sc-if value="{{ showStrips }}" hint-placeholder-val="{{ true }}">
+        <div style="display:flex; flex-direction:column; gap:10px;">
+          <div style="font-size:11px; letter-spacing:0.16em; text-transform:uppercase; color:#7a7a7a;">Frames — dad-level, down · windup · strike · impact · recover</div>
+          <div style="display:flex; gap:2px; background:#4a7c3a; padding:2px; width:max-content;">
+            <sc-for list="{{ frameCols }}" as="col" hint-placeholder-count="4">
+              <div style="width:64px; height:128px; image-rendering:pixelated; background-image:url('art/{{ tool.file }}'); background-size:256px 768px; background-repeat:no-repeat; background-position:{{ col.x }} -256px;"></div>
+            </sc-for>
+          </div>
+        </div>
+      </sc-if>
+    </div>
+  </sc-for>
+
+  <div style="display:flex; flex-direction:column; gap:20px; padding-top:36px; border-top:1px solid #2b241d;">
+    <h2 style="font-family:Bitter,serif; font-size:28px; font-weight:600; margin:0;">Engine integration</h2>
+    <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(300px,1fr)); gap:24px;">
+      <div style="display:flex; flex-direction:column; gap:10px;">
+        <div style="font-size:12px; letter-spacing:0.16em; text-transform:uppercase; color:#f2b95c;">Row order</div>
+        <div style="font-size:13px; line-height:1.9; color:#b8b5a5;">0 basic down · 1 basic side<br>2 dad down · 3 dad side<br>4 pro down · 5 pro side</div>
+      </div>
+      <div style="display:flex; flex-direction:column; gap:10px;">
+        <div style="font-size:12px; letter-spacing:0.16em; text-transform:uppercase; color:#f2b95c;">Timing</div>
+        <div style="font-size:13px; line-height:1.9; color:#b8b5a5;">4 frames, hold impact one extra tick.<br>Suggested 90/90/140/90 ms.<br>Fire the tile-change on frame 3.</div>
+      </div>
+      <div style="display:flex; flex-direction:column; gap:10px;">
+        <div style="font-size:12px; letter-spacing:0.16em; text-transform:uppercase; color:#f2b95c;">Left facing</div>
+        <div style="font-size:13px; line-height:1.9; color:#b8b5a5;">Mirror the side rows horizontally.<br>Up facing is not authored — reuse<br>the down rows or queue it next.</div>
+      </div>
+      <div style="display:flex; flex-direction:column; gap:10px;">
+        <div style="font-size:12px; letter-spacing:0.16em; text-transform:uppercase; color:#f2b95c;">Source</div>
+        <div style="font-size:13px; line-height:1.9; color:#b8b5a5;">art/gen_tools.js, run after the<br>shared part of art/gen_cast.js.<br>Tier colors live in one TIER table.</div>
+      </div>
+    </div>
+    <div style="font-size:13px; line-height:1.8; color:#b8b5a5; max-width:70ch; text-wrap:pretty; border-left:2px solid #453a2e; padding-left:16px;">The watering can's pour frame includes a short water column at the spout, since without it the pose reads as holding rather than watering. Delete the <span style="color:#ede3cb;">stream</span> block in gen_tools.js if the engine's particle system should own that too.</div>
+  </div>
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;frameMs&quot;:{&quot;editor&quot;:&quot;range&quot;,&quot;default&quot;:180,&quot;min&quot;:80,&quot;max&quot;:320,&quot;step&quot;:20,&quot;unit&quot;:&quot;ms&quot;,&quot;tsType&quot;:&quot;number&quot;,&quot;section&quot;:&quot;Playback&quot;},&quot;showStrips&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Playback&quot;},&quot;ground&quot;:{&quot;editor&quot;:&quot;color&quot;,&quot;default&quot;:&quot;#4a7c3a&quot;,&quot;options&quot;:[&quot;#4a7c3a&quot;,&quot;#8a6a45&quot;,&quot;#7a7a7a&quot;,&quot;#2b241d&quot;],&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Playback&quot;}}">
+class Component extends DCLogic {
+  componentDidMount(){ this.sync(); }
+  componentDidUpdate(){ this.sync(); }
+  sync(){
+    const r = document.documentElement.style;
+    r.setProperty('--spd', (this.props.frameMs ?? 180) * 4 / 1000 + 's');
+    r.setProperty('--ground', this.props.ground ?? '#4a7c3a');
+  }
+  renderVals(){
+    const tier = (label, note, row) => ({ label, note, downY: -row * 192 + 'px', sideY: -(row + 1) * 192 + 'px' });
+    const set = (basic, dad, pro) => [tier('Basic', basic, 0), tier('Dad-level', dad, 2), tier('Pro', pro, 4)];
+    return {
+      showStrips: this.props.showStrips ?? true,
+      frameCols: [0, 1, 2, 3].map(i => ({ x: -i * 64 + 'px' })),
+      tools: [
+        { name: 'Hoe', job: 'Clearing land', file: 'tool_hoe.png',
+          tiers: set('Pitted iron blade, inherited with the farm', 'Stamped steel blade off a garage wall', 'Dark forged blade, ground edge') },
+        { name: 'Watering can', job: 'Watering crops', file: 'tool_can.png',
+          tiers: set('Half-rusted galvanized body', 'Bright steel body and spout', 'Forged body, longer reach') },
+        { name: 'Axe', job: 'Clearing trees', file: 'tool_axe.png',
+          tiers: set('Chipped iron bit', 'Steel bit, factory grind', 'Forged bit, heavier head') },
+        { name: 'Pickaxe', job: 'Clearing rocks', file: 'tool_pick.png',
+          tiers: set('Worn iron bar', 'Steel bar, painted ends', 'Forged bar, twin points') }
+      ]
+    };
+  }
+}
+
+</script>
+</body>
+</html>

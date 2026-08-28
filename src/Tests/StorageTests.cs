@@ -129,11 +129,12 @@ public static class StorageTests
             StorageData chest = data.GetStorage(StorageIds.FarmHouseChest);
 
             // Unknown id into the chest: transfers normally at max stack 1.
-            inv.Slots[5] = new ItemStackRecord { ItemId = "mystery_relic", Count = 1 };
+            // (Slot 7 is the kit's first empty slot since the axe/pick grant.)
+            inv.Slots[7] = new ItemStackRecord { ItemId = "mystery_relic", Count = 1 };
             Dictionary<string, int> before = Totals(data, StorageIds.FarmHouseChest);
-            t.Assert(WorldSim.Instance.TransferToStorage(StorageIds.FarmHouseChest, 5),
+            t.Assert(WorldSim.Instance.TransferToStorage(StorageIds.FarmHouseChest, 7),
                 "unknown id deposits");
-            t.Assert(inv.SlotAt(5) == null, "source slot vacated");
+            t.Assert(inv.SlotAt(7) == null, "source slot vacated");
             AssertStack(t, chest.Slots[0], "mystery_relic", 1, "unknown id landed in the chest");
 
             // An unknown OVER-stack (hand-edited or future save) withdraws at max
@@ -144,8 +145,8 @@ public static class StorageTests
                 "unknown over-stack withdraws");
             t.Assert(chest.Slots[3] == null, "chest source slot vacated");
             t.AssertEqual(2, inv.CountOf("future.artifact"), "both units arrived in the inventory");
-            AssertStack(t, inv.SlotAt(5), "future.artifact", 1, "first unit split at max stack 1");
-            AssertStack(t, inv.SlotAt(6), "future.artifact", 1, "second unit split at max stack 1");
+            AssertStack(t, inv.SlotAt(7), "future.artifact", 1, "first unit split at max stack 1");
+            AssertStack(t, inv.SlotAt(8), "future.artifact", 1, "second unit split at max stack 1");
 
             // And the relic comes back out too — nothing is ever destroyed.
             t.Assert(WorldSim.Instance.TransferToInventory(StorageIds.FarmHouseChest, 0),

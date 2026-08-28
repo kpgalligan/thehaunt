@@ -11,7 +11,7 @@ names and specialties are deliberately undecided).
 Context is split into directory-scoped CLAUDE.md files: this file keeps only what is
 project-wide, and each directory below documents its own contracts. The architecture
 specs (docs/*-spec.md) and the cross-cutting code rules are in `src/CLAUDE.md`; the
-art contract (five binding handoffs) is in `docs/designs/CLAUDE.md`.
+art contract (six binding handoffs) is in `docs/designs/CLAUDE.md`.
 
 ## Toolchain
 
@@ -29,7 +29,9 @@ art contract (five binding handoffs) is in `docs/designs/CLAUDE.md`.
   instead of the map default, e.g. to frame a corner; `--screenshot-frames <n>` delays the
   capture, e.g. past a beat's staging timer; `--add-minutes <n>` advances the clock in-memory,
   e.g. into shop hours or dusk; `--open-ui <chest|shop|help>` pops a UI after boot;
-  `--ride` mounts the scooter after boot, for capturing the riding sprite)
+  `--ride` mounts the scooter after boot, for capturing the riding sprite;
+  `--work-tool <itemId>` selects that tool and holds use_tool from boot, for capturing
+  the work loop — boot physics catch-up outruns the frame count, so expect mid-loop)
 - Edit a map graphically: `godot-mono --path . --editor` — full workflow in
   `src/EditorTools/CLAUDE.md` (Save in the Haunt Mapper dock; Ctrl+S saves the SCENE,
   not the map)
@@ -53,7 +55,7 @@ Each directory's CLAUDE.md carries its contracts — read it before working ther
 - `assets/` — shipped handoff art (never redraw; import rules in assets/CLAUDE.md);
   `assets/audio` and `assets/fonts` are still empty
 - `data/maps/` — map recipes: CONTENT, not save state; one JSON per map id
-- `docs/designs/` — the five binding art handoff bundles
+- `docs/designs/` — the six binding art handoff bundles
 - `tools/` — asset-derivation one-shots (`regen_scooter_rider.py`)
 
 ## Project-wide conventions

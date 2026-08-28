@@ -217,7 +217,11 @@ public static class SaveTests
             AssertStack(t, inv.SlotAt(2), "scythe", 1, "migrated slot 2");
             AssertStack(t, inv.SlotAt(3), "turnip_seeds", 15, "migrated slot 3");
             AssertStack(t, inv.SlotAt(4), "greenbean_seeds", 5, "migrated slot 4");
-            for (int i = 5; i < InventoryData.Capacity; i++)
+            // Slots 5-6 are the v4→v5 axe/pick grant landing in their preferred
+            // starter-kit slots (the chain carries v1 fixtures all the way up).
+            AssertStack(t, inv.SlotAt(5), "axe", 1, "migrated slot 5");
+            AssertStack(t, inv.SlotAt(6), "pick", 1, "migrated slot 6");
+            for (int i = 7; i < InventoryData.Capacity; i++)
             {
                 t.Assert(inv.SlotAt(i) == null, $"migrated slot {i} empty");
             }
@@ -752,6 +756,64 @@ public static class SaveTests
                 "second migration pass serializes byte-identically");
             t.AssertEqual(0, service.Current.Storages.Count,
                 "Storages still empty on the second pass");
+        }
+        finally
+        {
+            service.NewGame();
+        }
+    }
+
+    [SimTest]
+    public static void Save_MigrationV4ToV5(TestContext t)
+    {
+        string json = ReadFixture(t, "v4_minimal.json");
+        SaveService service = SaveService.Instance;
+        try
+        {
+            service.DeserializeFrom(json);
+            InventoryData inv = service.Current.Player.Inventory;
+            // The grant lands in the tools' preferred starter-kit slots when free.
+            AssertStack(t, inv.SlotAt(0), "hoe", 1, "v4 slot 0 survives");
+            AssertStack(t, inv.SlotAt(5), "axe", 1, "axe granted at slot 5");
+            AssertStack(t, inv.SlotAt(6), "pick", 1, "pick granted at slot 6");
+
+            // Idempotence: re-serializing and re-loading the migrated data must be
+            // byte-identical — the only-if-absent guard makes a second pass a no-op.
+            string firstPass = service.SerializeToString();
+            service.DeserializeFrom(firstPass);
+            t.AssertEqual(firstPass, service.SerializeToString(),
+                "second migration pass serializes byte-identically");
+
+            // Occupied preferred slot: the grant falls back to the FIRST free slot
+            // (not fill-forward past it), and an owned tool is never duplicated.
+            const string crowded = """
+                {"SaveVersion":4,"TotalMinutes":0,"Player":{"Inventory":{"Slots":[
+                    {"ItemId":"axe","Count":1},{"ItemId":"turnip","Count":3},null,
+                    {"ItemId":"hoe","Count":1},null,{"ItemId":"scythe","Count":1},
+                    {"ItemId":"turnip_seeds","Count":4},null,null,null],
+                    "SelectedSlot":0}}}
+                """;
+            service.DeserializeFrom(crowded);
+            inv = service.Current.Player.Inventory;
+            t.AssertEqual(1, inv.CountOf("axe"), "owned axe not duplicated");
+            AssertStack(t, inv.SlotAt(2), "pick", 1, "pick fell back to first free slot");
+            t.Assert(inv.SlotAt(4) == null, "later holes untouched");
+
+            // Full inventory: the grant is skipped outright, nothing is displaced.
+            const string full = """
+                {"SaveVersion":4,"TotalMinutes":0,"Player":{"Inventory":{"Slots":[
+                    {"ItemId":"turnip","Count":1},{"ItemId":"turnip","Count":1},
+                    {"ItemId":"turnip","Count":1},{"ItemId":"turnip","Count":1},
+                    {"ItemId":"turnip","Count":1},{"ItemId":"turnip","Count":1},
+                    {"ItemId":"turnip","Count":1},{"ItemId":"turnip","Count":1},
+                    {"ItemId":"turnip","Count":1},{"ItemId":"turnip","Count":1}],
+                    "SelectedSlot":0}}}
+                """;
+            service.DeserializeFrom(full);
+            inv = service.Current.Player.Inventory;
+            t.AssertEqual(0, inv.CountOf("axe"), "full inventory: axe grant skipped");
+            t.AssertEqual(0, inv.CountOf("pick"), "full inventory: pick grant skipped");
+            t.AssertEqual(10, inv.CountOf("turnip"), "full inventory: nothing displaced");
         }
         finally
         {

@@ -2,7 +2,7 @@ namespace TheHaunt.Core;
 
 public enum ItemCategory { Tool, Seed, Crop, Material }
 
-public enum ToolKind { Hoe, WateringCan, Scythe }
+public enum ToolKind { Hoe, WateringCan, Scythe, Axe, Pick }
 
 public sealed record ItemDef(
     string Id,

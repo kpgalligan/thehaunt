@@ -147,6 +147,14 @@ What lives here:
 - CAUTION: both scooter sheets (`scooter_rider.png` 96x96, `scooter_parked.png` 48x32,
   three views) are authored facing RIGHT and flip for LEFT (`RiderFlipH`/`ParkedFlipH`)
   — mirrored from character.png's left-facing convention.
+- Tool work sheets (tools handoff, `assets/sprites/tools/`): 64x192 per tool — 4
+  frame columns by 6 rows (tier x facing: down, side; row = tier*2 + side), 16x32
+  cells. The swing is baked into Jane's frames (no overlay layer): working is a
+  sheet + row selection like riding, but the FRAME is pushed by PlayerController
+  (`CharacterSprite.SetWorking`), never advanced in _Process — the impact timing is
+  gameplay. Side rows swing on the figure's RIGHT and flip for LEFT (WorkFlipH;
+  scooter convention); up is not authored and reuses down; tiers all render basic
+  until tier state exists. The scythe has no work sheet (instant path).
 - `scooter_rider.png` is DERIVED art: character.png composited onto the deck by
   `tools/regen_scooter_rider.py` from the scooter handoff's recipe tables — rerun it
   whenever character.png changes. The tool mirrors the profile row so Jane faces the

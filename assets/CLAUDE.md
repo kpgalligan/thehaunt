@@ -17,8 +17,13 @@ never a reason to touch the pixels.
 - `sprites/scooter_rider.png` + `sprites/scooter_parked.png` — the scooter sheets.
   CAUTION: both are authored facing RIGHT and flip for LEFT — mirrored from
   character.png's left-facing convention.
-- `audio/` and `fonts/` are still empty. Tool-use animations, seasonal variants and
-  animals are still undrawn.
+- `sprites/tools/` — the four tool work sheets (`tool_hoe/can/axe/pick.png`, 64x192:
+  4 frame columns by 6 tier-x-facing rows of 16x32 cells; tools handoff). The swing
+  is baked into Jane's frames — there is no separate tool overlay. Their side rows
+  also flip for LEFT (and the sheets must be regenerated together with
+  character.png — a foot-row test pins them to Jane's walk sheet).
+- `audio/` and `fonts/` are still empty. Seasonal variants and animals are still
+  undrawn.
 
 ## Derived art
 

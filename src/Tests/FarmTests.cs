@@ -9,11 +9,13 @@ public static class FarmTests
     private const string MapId = "farm";
 
     // Starter-kit slot layout (see StarterKit.Apply): 0 hoe, 1 watering can,
-    // 2 scythe, 3 turnip seeds, 4 greenbean seeds.
+    // 2 scythe, 3 turnip seeds, 4 greenbean seeds, 5 axe, 6 pick.
     private const int HoeSlot = 0;
     private const int CanSlot = 1;
     private const int ScytheSlot = 2;
     private const int TurnipSeedSlot = 3;
+    private const int AxeSlot = 5;
+    private const int PickSlot = 6;
 
     [SimTest]
     public static void Farm_Transitions(TestContext t)
@@ -361,6 +363,32 @@ public static class FarmTests
             service.NewGame();
             GameState.Instance.TransitionTo(GameState.Phase.Playing);
         }
+    }
+
+    [SimTest]
+    public static void Farm_AxeAndPickHaveNoActionYet(TestContext t)
+    {
+        // The tools handoff ships the items and work animations ahead of felling
+        // and rock-breaking: until those land, swinging either is a stamina-free
+        // NoEffect on every tile (the animation still plays; the model refuses).
+        var data = GameData.NewGame();
+        InventoryData inv = data.Player.Inventory;
+        data.GetMap(MapId).SetTile(new TileRecord { X = 1, Y = 1, Kind = "tilled" });
+
+        foreach ((int slot, string id) in new[] { (AxeSlot, "axe"), (PickSlot, "pick") })
+        {
+            AssertStack(t, inv.SlotAt(slot), id, $"starter kit holds the {id}");
+            inv.SelectedSlot = slot;
+            AssertRefusal(t, data, 1, 1, today: 10, tillable: true,
+                ActionOutcome.NoEffect, $"{id} on a tilled tile");
+            AssertRefusal(t, data, 2, 2, today: 10, tillable: true,
+                ActionOutcome.NoEffect, $"{id} on empty tillable ground");
+        }
+    }
+
+    private static void AssertStack(TestContext t, ItemStackRecord? stack, string itemId, string label)
+    {
+        t.Assert(stack != null && stack.ItemId == itemId && stack.Count == 1, label);
     }
 
     private static void AssertRefusal(TestContext t, GameData data, int x, int y, long today,

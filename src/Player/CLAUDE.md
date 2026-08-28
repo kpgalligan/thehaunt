@@ -28,6 +28,16 @@ interaction focus and drives the prompt.
   by ScooterRules.SpeedMultiplier.
 - All gameplay mutations go through WorldSim (SelectSlot, UseSelectedItem, scooter
   calls) — the controller never writes the model outside Write/ReadState.
+- The work loop (tools handoff): a tool with an authored work sheet
+  (CharacterSprites.WorkSheet != null) swings through Core's WorkAnimation on
+  use_tool — the player is PLANTED for the swing (no walking, interact, or hotbar),
+  the target tile is locked at the windup, and WorldSim.UseSelectedItem fires on
+  ENTRY to the impact frame, never at press time. Everything else — seeds, the
+  scythe, any use while riding — keeps the instant path. A press COMMITS one full
+  cycle — a tap is one completed action (Kevin's amendment; the handoff's
+  release-before-impact cancel is dropped); holding repeats, a held direction ends
+  the loop at the cycle boundary, and losing PlayerHasControl mid-swing is the one
+  thing that cancels the pose outright. All test-pinned in WorkAnimation.
 
 ## Geometry (from the code)
 

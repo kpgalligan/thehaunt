@@ -18,6 +18,11 @@ public static class ItemDefs
             new ItemDef("hoe", "Hoe", ItemCategory.Tool, 1, 0, "#8a5a3a", ToolKind.Hoe, StaminaCost: 2),
             new ItemDef("watering_can", "Watering Can", ItemCategory.Tool, 1, 0, "#6a8ab0", ToolKind.WateringCan, StaminaCost: 1),
             new ItemDef("scythe", "Scythe", ItemCategory.Tool, 1, 0, "#9a9a9a", ToolKind.Scythe, StaminaCost: 1),
+            // Axe and pickaxe (tools handoff): the items and work animations ship
+            // now; felling and rock-breaking land later — until they do,
+            // FarmActions answers NoEffect and charges no stamina.
+            new ItemDef("axe", "Axe", ItemCategory.Tool, 1, 0, "#7a6a5c", ToolKind.Axe, StaminaCost: 2),
+            new ItemDef("pick", "Pickaxe", ItemCategory.Tool, 1, 0, "#575a58", ToolKind.Pick, StaminaCost: 2),
             // Seed SellPrice is always half the shop buy price (ratified rule; the
             // Shop_SeedResaleIsHalfBuy invariant test enforces it).
             new ItemDef("turnip_seeds", "Turnip Seeds", ItemCategory.Seed, 99, 10, "#c8b060", PlantsCropId: "turnip"),

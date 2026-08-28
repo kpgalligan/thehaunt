@@ -1,4 +1,5 @@
 using Godot;
+using TheHaunt.Core;
 
 namespace TheHaunt.World;
 
@@ -56,4 +57,35 @@ public static class CharacterSprites
 
     public static Texture2D Sheet(string path) => GD.Load<Texture2D>(path)
         ?? throw new InvalidOperationException($"Character sheet missing at '{path}'.");
+
+    // ---- Tool work sheets (tools-animations handoff) ----------------------
+    // 64x192 per tool: 4 columns (windup, strike, impact, recover) by 6 rows —
+    // row = tier * 2 + (0 down, 1 side); tiers 0 basic, 1 dad-level, 2 pro. Up
+    // rows are not authored and reuse down. The animation is baked into Jane's
+    // frames (no overlay layer), so working is a sheet + row selection like
+    // riding is. CAUTION: like the scooter sheets, the side rows swing on the
+    // figure's RIGHT (the handoff's row table) and flip for LEFT — mirrored
+    // from the walk sheets' left-facing convention.
+
+    public const int WorkFrames = 4;
+    public const int WorkTiers = 3;
+
+    /// <summary>The tool's work sheet, or null for tools with no authored work
+    /// animation (the scythe stays on the instant-use path).</summary>
+    public static string? WorkSheet(ToolKind tool) => tool switch
+    {
+        ToolKind.Hoe => "res://assets/sprites/tools/tool_hoe.png",
+        ToolKind.WateringCan => "res://assets/sprites/tools/tool_can.png",
+        ToolKind.Axe => "res://assets/sprites/tools/tool_axe.png",
+        ToolKind.Pick => "res://assets/sprites/tools/tool_pick.png",
+        _ => null,
+    };
+
+    /// <summary>Source rect for one work cell. Facing up reuses the down row.</summary>
+    public static Rect2 WorkRegion(int tier, int facing, int frame) => new(
+        frame * CellWidth,
+        (tier * 2 + (Row(facing) == 1 ? 1 : 0)) * CellHeight,
+        CellWidth, CellHeight);
+
+    public static bool WorkFlipH(int facing) => facing == 1;
 }

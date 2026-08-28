@@ -224,6 +224,12 @@ public partial class Main : Node2D
             // Dev-only: pop one of the 3b UIs after boot so --screenshot can capture it.
             if (args[i] == "--open-ui")
                 CallDeferred(nameof(OpenUiForScreenshot), args[i + 1]);
+
+            // Dev-only: select the named tool item and hold use_tool from boot, so
+            // --screenshot can capture the work animation (e.g. --work-tool hoe
+            // --screenshot-frames 16 lands around the impact frame).
+            if (args[i] == "--work-tool")
+                CallDeferred(nameof(HoldToolForScreenshot), args[i + 1]);
         }
 
         // Dev-only (flag, no value): mount the scooter after boot so --screenshot can
@@ -236,6 +242,22 @@ public partial class Main : Node2D
     }
 
     private void MountScooterForScreenshot() => WorldSim.Instance.MountScooter();
+
+    // Deferred so the boot's LoadMap/phase state has fully settled first. The held
+    // action never releases; the loop repeats until the process exits.
+    private void HoldToolForScreenshot(string itemId)
+    {
+        InventoryData inv = SaveService.Instance.Current.Player.Inventory;
+        for (int i = 0; i < inv.Slots.Count; i++)
+        {
+            if (inv.SlotAt(i)?.ItemId == itemId)
+            {
+                WorldSim.Instance.SelectSlot(i);
+                Input.ActionPress("use_tool");
+                return;
+            }
+        }
+    }
 
     // Deferred so the boot's LoadMap/phase state has fully settled first.
     private void OpenUiForScreenshot(string which)
