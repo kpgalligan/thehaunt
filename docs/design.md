@@ -125,10 +125,11 @@
   derived purely from story-flag pairs (hand-out/completion), a J quest log,
   completion toasts, the farm mailbox with its raised-flag signal, and the previous
   owner's farewell letter (Kevin's copy verbatim, in LetterDefs) which hands out the
-  first quest ("Plant a Few Crops", completed by watering a planted tile). NOTE: the
-  letter says the tools and seeds wait IN THE BARN — the game still hands the starter
-  kit straight to the player's inventory at NewGame; reconcile with Kevin before
-  changing either. Still
+  first quest ("Plant a Few Crops", completed by watering a planted tile). Resolved
+  2026-08-28: the letter's promise is now mechanical truth — NewGame stocks the starter
+  kit into a chest in the barn (StarterKit -> StorageIds.BarnChest) and the player
+  starts empty-handed; fetching the tools is the first errand. Old saves keep their
+  inventory-granted kit (frozen migrations) and their barn chest starts empty. Still
   remaining:
   connections/relationship mechanics, enlarging the town centre (clinic, Stumble Inn,
   homes, fountain square), shop catalogs for the gas station and fireworks stand,

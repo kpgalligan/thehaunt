@@ -24,7 +24,8 @@ public static class IntegrationTests
         // by tool use or the overnight repaint, must crash a later cycle.
         try
         {
-            SaveService.Instance.NewGame(); // clock -> 0, starter kit, MapId "test_farm"
+            SaveService.Instance.NewGame(); // clock -> 0, MapId "test_farm"
+            TestKit.Fetch(SaveService.Instance.Current); // kit in hand, not in the barn chest
             // Crew staging pre-stamped once: with the road cleared and the arrival beat
             // pending, every cycle's NPC sync must spawn crew views on the fresh map — a
             // leaked view or a stale registration on a freed map must crash a later
@@ -70,7 +71,8 @@ public static class IntegrationTests
         TestMap? map = null;
         try
         {
-            service.NewGame(); // clock -> day 0, starter kit
+            service.NewGame(); // clock -> day 0
+            TestKit.Fetch(service.Current); // kit in hand, not in the barn chest
             service.Current.Player.MapId = "test_farm";
             map = new TestMap { MapId = "test_farm" };
             t.Host.AddChild(map);
@@ -201,7 +203,8 @@ public static class IntegrationTests
         TestMap? map = null;
         try
         {
-            service.NewGame(); // clock -> day 0, starter kit
+            service.NewGame(); // clock -> day 0
+            TestKit.Fetch(service.Current); // kit in hand, not in the barn chest
             service.Current.Player.MapId = "test_farm";
             map = new TestMap { MapId = "test_farm" };
             t.Host.AddChild(map);
@@ -289,6 +292,7 @@ public static class IntegrationTests
             WorldSim.Instance.SetStoryFlag(StoryKeys.CrewArrivalDone);
             WorldSim.Instance.SetStoryFlag(StoryKeys.MeetingDone);
 
+            TestKit.Fetch(SaveService.Instance.Current); // kit in hand, not in the barn chest
             // Stand on the dirt patch so the farming happens under the player's feet.
             var tile = new Vector2I(20, 14);
             maybePlayer!.GlobalPosition = new Vector2(tile.X * 16 + 8, tile.Y * 16 + 8);
@@ -374,6 +378,7 @@ public static class IntegrationTests
                 "morning 2: road still blocked without planting");
             AssertBlockade(t, main, present: true, "morning 2");
 
+            TestKit.Fetch(SaveService.Instance.Current); // kit in hand, not in the barn chest
             // First planting (day 1) via the bus.
             var tile = new Vector2I(20, 14); // dirt rectangle, obstacle-free
             WorldSim.Instance.SelectSlot(0); // hoe
@@ -542,6 +547,7 @@ public static class IntegrationTests
                     && GameState.Instance.Current == GameState.Phase.Playing, 2),
                 "Esc closed the mailbox session");
 
+            TestKit.Fetch(SaveService.Instance.Current); // kit in hand, not in the barn chest
             // The letter's ask, via the bus. Watering EMPTY tilled soil must not
             // complete it — the stamp needs a crop under the can.
             var tile = new Vector2I(20, 14); // dirt rectangle, obstacle-free
@@ -909,6 +915,7 @@ public static class IntegrationTests
             await t.WaitFrames(5);
             t.AssertEqual(0L, Clock.Instance.Now.TotalMinutes, "boots fresh (no leaked autosave)");
 
+            TestKit.Fetch(SaveService.Instance.Current); // kit in hand, not in the barn chest
             // First planting on day 0: the road clears at the next dawn.
             var tile = new Vector2I(20, 14); // dirt rectangle, obstacle-free
             WorldSim.Instance.SelectSlot(0); // hoe

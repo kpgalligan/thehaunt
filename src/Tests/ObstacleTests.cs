@@ -18,7 +18,7 @@ public static class ObstacleTests
     [SimTest]
     public static void Obstacle_AxeFellsATreeIntoAStump(TestContext t)
     {
-        var data = GameData.NewGame();
+        var data = TestKit.NewGameWithKit();
         MapState map = data.GetMap(MapId);
         map.Objects.Add(new PlacedObjectRecord { X = 4, Y = 4, ObjectId = ObstacleDefs.Tree });
         data.Player.Inventory.SelectedSlot = AxeSlot;
@@ -47,7 +47,7 @@ public static class ObstacleTests
     [SimTest]
     public static void Obstacle_StumpAndRockBreakForYields(TestContext t)
     {
-        var data = GameData.NewGame();
+        var data = TestKit.NewGameWithKit();
         MapState map = data.GetMap(MapId);
         map.Objects.Add(new PlacedObjectRecord { X = 4, Y = 4, ObjectId = ObstacleDefs.Stump });
         map.Objects.Add(new PlacedObjectRecord { X = 8, Y = 4, ObjectId = ObstacleDefs.Rock });
@@ -85,7 +85,7 @@ public static class ObstacleTests
     [SimTest]
     public static void Obstacle_WrongToolAndUnknownObjectsRefuse(TestContext t)
     {
-        var data = GameData.NewGame();
+        var data = TestKit.NewGameWithKit();
         MapState map = data.GetMap(MapId);
         map.Objects.Add(new PlacedObjectRecord { X = 4, Y = 4, ObjectId = ObstacleDefs.Tree });
         map.Objects.Add(new PlacedObjectRecord { X = 8, Y = 4, ObjectId = ObstacleDefs.Rock });
@@ -111,7 +111,7 @@ public static class ObstacleTests
     [SimTest]
     public static void Obstacle_RefusalsLeaveTheModelUntouched(TestContext t)
     {
-        var data = GameData.NewGame();
+        var data = TestKit.NewGameWithKit();
         MapState map = data.GetMap(MapId);
         map.Objects.Add(new PlacedObjectRecord { X = 4, Y = 4, ObjectId = ObstacleDefs.Rock, HitsTaken = 2 });
         InventoryData inv = data.Player.Inventory;

@@ -17,6 +17,7 @@ public static class ObstacleViewTests
     {
         SaveService.Instance.NewGame();
         GameData data = SaveService.Instance.Current;
+        TestKit.Fetch(data); // axe in hand at the starter slot
         MapState state = data.GetMap(MapIds.Farm);
         state.Objects.Add(new PlacedObjectRecord { X = 20, Y = 20, ObjectId = ObstacleDefs.Tree });
         state.Objects.Add(new PlacedObjectRecord { X = 24, Y = 20, ObjectId = ObstacleDefs.Rock });

@@ -36,9 +36,9 @@ public static class InventoryTests
             }
         }
 
-        var player = new PlayerData();
-        StarterKit.Apply(player);
-        foreach (ItemStackRecord? stack in player.Inventory.Slots)
+        var data = new GameData();
+        StarterKit.Apply(data);
+        foreach (ItemStackRecord? stack in data.GetStorage(StorageIds.BarnChest).Slots)
         {
             if (stack == null)
             {

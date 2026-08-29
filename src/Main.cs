@@ -289,6 +289,11 @@ public partial class Main : Node2D
                 return;
             }
         }
+        // A fresh boot has empty hands (the kit waits in the barn chest) — conjure the
+        // named tool into slot 0 rather than walking the errand. In-memory only.
+        inv.Slots[0] = new ItemStackRecord { ItemId = itemId, Count = 1 };
+        WorldSim.Instance.SelectSlot(0);
+        Input.ActionPress("use_tool");
     }
 
     // Deferred so the boot's LoadMap/phase state has fully settled first.

@@ -22,8 +22,8 @@ public sealed class GameData
     }
 
     // Lazy-create mirroring GetMap; new storages are normalized to their known
-    // capacity (unknown ids stay un-padded). NewGame ships an empty dict — the
-    // chest materializes on first open.
+    // capacity (unknown ids stay un-padded). NewGame stocks only the barn chest
+    // (StarterKit) — every other chest materializes on first open.
     public StorageData GetStorage(string id)
     {
         if (!Storages.TryGetValue(id, out var storage))
@@ -53,14 +53,14 @@ public sealed class GameData
     }
 
     // Defaults: time 0, player MapId "test_farm", HasPosition false,
-    // 500g, full stamina, the starter kit in hand.
+    // 500g, full stamina, empty hands — the starter kit waits in the barn chest.
     public static GameData NewGame()
     {
         var data = new GameData();
         data.Player.Money = 500;
         data.Player.Stamina = 100;
         data.Player.MaxStamina = 100;
-        StarterKit.Apply(data.Player);
+        StarterKit.Apply(data);
         return data;
     }
 }

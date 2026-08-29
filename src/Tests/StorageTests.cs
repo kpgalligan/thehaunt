@@ -66,6 +66,7 @@ public static class StorageTests
         {
             service.NewGame();
             GameData data = service.Current;
+            TestKit.Fetch(data); // kit in hand: the mirror direction packs around it
             InventoryData inv = data.Player.Inventory;
             StorageData chest = data.GetStorage(StorageIds.FarmHouseChest);
 
@@ -125,6 +126,7 @@ public static class StorageTests
         {
             service.NewGame();
             GameData data = service.Current;
+            TestKit.Fetch(data); // kit in hand: slot 7 is the first empty slot below
             InventoryData inv = data.Player.Inventory;
             StorageData chest = data.GetStorage(StorageIds.FarmHouseChest);
 

@@ -126,6 +126,15 @@ public partial class BarnMap : InteriorMap
 
     protected override void BuildInteractables()
     {
+        // The chest holding the previous owner's tools and seeds (StarterKit stocks it
+        // on a new game — the farewell letter sends the player here). Beside the
+        // workbench; no chest piece on the interior sheet, so the procedural placeholder.
+        AddChild(new Chest
+        {
+            Name = "Chest",
+            StorageId = StorageIds.BarnChest,
+            Position = new Vector2(11 * TileSize + 8, 8 * TileSize + 8), // (184, 136)
+        });
         AddChild(new Door
         {
             Name = "YardDoor",

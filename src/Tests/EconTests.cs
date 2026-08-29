@@ -13,6 +13,7 @@ public static class EconTests
         try
         {
             service.NewGame();
+            TestKit.Fetch(service.Current); // kit in hand: the hoe below sits in slot 0
             InventoryData inv = service.Current.Player.Inventory;
             inv.Slots[5] = new ItemStackRecord { ItemId = "turnip", Count = 7 };
             inv.Slots[6] = new ItemStackRecord { ItemId = "turnip", Count = 4 };
@@ -213,6 +214,7 @@ public static class EconTests
 
             // No room: seeds stack topped to max and every slot occupied.
             service.Current.Player.Money = 10_000;
+            TestKit.Fetch(service.Current); // kit in hand: slot 3 holds the starter seeds
             InventoryData inv = service.Current.Player.Inventory;
             inv.Slots[3]!.Count = 99; // starter turnip seeds -> max stack
             for (int i = 0; i < InventoryData.Capacity; i++)

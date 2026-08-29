@@ -254,20 +254,22 @@ public static class SaveTests
     public static void Save_MigratedKitMatchesNewGame(TestContext t)
     {
         // Drift guard: if the starter kit ever changes, this MUST fail — the fix is a
-        // conscious decision (a new migration step), never editing the frozen v1→v2 migration.
+        // conscious decision (a new migration step), never editing the frozen migrations.
+        // The launch-era kit lands in a migrated save's INVENTORY (frozen JSON); a new
+        // game stocks the same kit into the barn chest. The two must stay stack-for-stack
+        // identical, slot i of one against slot i of the other.
         string json = ReadFixture(t, "v1_minimal.json");
         SaveService service = SaveService.Instance;
         try
         {
             service.DeserializeFrom(json);
             InventoryData migrated = service.Current.Player.Inventory;
-            InventoryData fresh = GameData.NewGame().Player.Inventory;
+            StorageData fresh = GameData.NewGame().GetStorage(StorageIds.BarnChest);
 
-            t.AssertEqual(fresh.SelectedSlot, migrated.SelectedSlot, "selected slot matches new game");
-            t.AssertEqual(fresh.Slots.Count, migrated.Slots.Count, "slot count matches new game");
+            t.AssertEqual(0, migrated.SelectedSlot, "selected slot boots at 0 in both");
             for (int i = 0; i < fresh.Slots.Count; i++)
             {
-                ItemStackRecord? expected = fresh.SlotAt(i);
+                ItemStackRecord? expected = fresh.Slots[i];
                 ItemStackRecord? actual = migrated.SlotAt(i);
                 if (expected == null)
                 {
@@ -891,9 +893,12 @@ public static class SaveTests
     [SimTest]
     public static void Save_MigratedStorageMatchesNewGame(TestContext t)
     {
-        // Drift guard: if NewGame ever gains pre-filled storages, this MUST fail — the
-        // fix is a conscious decision (a new migration step), never editing the frozen
-        // v3→v4 migration. An empty dict IS correct: the chest materializes on first open.
+        // Drift guard: a migrated save's Storages stay EMPTY — the frozen migrations
+        // grant the launch kit straight to the player's inventory, so stocking the barn
+        // chest too would double-grant it; old saves' chests materialize on first open.
+        // A new game ships exactly one pre-filled storage, the barn chest (StarterKit).
+        // If NewGame ever gains another, this MUST fail — the fix is a conscious
+        // decision (a new migration step), never editing the frozen v3→v4 migration.
         string json = ReadFixture(t, "v3_minimal.json");
         SaveService service = SaveService.Instance;
         try
@@ -902,11 +907,9 @@ public static class SaveTests
             Dictionary<string, StorageData> migrated = service.Current.Storages;
             Dictionary<string, StorageData> fresh = GameData.NewGame().Storages;
 
-            t.AssertEqual(fresh.Count, migrated.Count, "storage count matches new game");
-            foreach (string key in fresh.Keys)
-            {
-                t.Assert(migrated.ContainsKey(key), $"storage '{key}' matches new game");
-            }
+            t.AssertEqual(0, migrated.Count, "migrated Storages empty (kit already in inventory)");
+            t.AssertEqual(1, fresh.Count, "new game ships only the stocked barn chest");
+            t.Assert(fresh.ContainsKey(StorageIds.BarnChest), "and that storage is the barn chest");
         }
         finally
         {

@@ -333,7 +333,8 @@ public static class StoryTests
         TestMap? map = null;
         try
         {
-            service.NewGame(); // clock -> day 0, starter kit, MapId "test_farm"
+            service.NewGame(); // clock -> day 0, MapId "test_farm"
+            TestKit.Fetch(service.Current); // kit in hand, not in the barn chest
             map = new TestMap { MapId = MapIds.Farm };
             t.Host.AddChild(map);
             await t.WaitFrames(1);
@@ -384,6 +385,7 @@ public static class StoryTests
             t.AssertEqual(0L, Clock.Instance.Now.TotalMinutes, "boots fresh (no leaked autosave)");
 
             // Plant on day 0 so the road clears at dawn 1 and the crew beat pends.
+            TestKit.Fetch(SaveService.Instance.Current); // kit in hand, not in the barn chest
             var tile = new Vector2I(20, 14);
             WorldSim.Instance.SelectSlot(0); // hoe
             t.AssertEqual(ActionOutcome.Tilled, WorldSim.Instance.UseSelectedItem(tile), "till");

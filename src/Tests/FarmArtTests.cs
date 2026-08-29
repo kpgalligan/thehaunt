@@ -165,6 +165,7 @@ public static class FarmArtTests
         // it. Without that, a plot grows a grass seam down the middle that only a map
         // reload repairs.
         SaveService.Instance.NewGame();
+        TestKit.Fetch(SaveService.Instance.Current); // hoe in hand, not in the barn chest
         var map = new TestMap { MapId = MapIds.Farm };
         t.Host.AddChild(map);
         await t.WaitFrames(1);
