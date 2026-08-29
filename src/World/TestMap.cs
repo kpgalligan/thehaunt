@@ -124,6 +124,7 @@ public partial class TestMap : MapRoot
     // every ApplyState read of them is honest.
     private MapExit? _roadExit;
     private Sign? _blockadeSign;
+    private Mailbox? _mailbox;
     private BarnFacade _barn = null!;    // built unconditionally in BuildStructures
     private MapState? _pendingState;     // ApplyState arrived before _Ready built the layers
 
@@ -262,6 +263,10 @@ public partial class TestMap : MapRoot
                 "The storm brought half the hillside down. No getting through today.");
 
         recipe.Add(PlacementKinds.ShippingBin, FarmBuildings.BinId, 10, 8);
+
+        // On the door apron, west of the walked track (x7-8) — (9,8) east of it is
+        // the scooter's home frontage (ScooterRules) and stays clear.
+        recipe.Add(PlacementKinds.Mailbox, "mailbox", 6, 8);
 
         // The south mouth's first border row. One row deep on purpose: the mouth is
         // WIDER than deep, which is how GetArrival knows the cross axis to carry an
@@ -656,6 +661,10 @@ public partial class TestMap : MapRoot
         _blockadeSign!.SetPresent(!cleared);
 
         _barn.SetState(BarnRules.StateOf(data));
+
+        // The mailbox's raised-flag signal is a GameData derivation like the road and
+        // the barn: every repaint path re-derives it, so a read stamp lowers it live.
+        _mailbox?.Refresh();
     }
 
     private void PaintTile(MapState state, int x, int y, long todayIndex)
@@ -899,6 +908,23 @@ public partial class TestMap : MapRoot
             _reservedTiles.Add(sign.Cell);
             if (sign.Id == BlockadeSignId)
                 _blockadeSign = post;
+        }
+
+        foreach (MapPlacement box in _recipe.OfKind(PlacementKinds.Mailbox))
+        {
+            _mailbox = new Mailbox
+            {
+                Name = box.Id,
+                Position = Centre(box),
+            };
+            // Direct child of the y-sorted map, NOT of the flat Interactables unit:
+            // the box overhangs the farmhouse plinth row, and inside Interactables
+            // (which sorts as one unit at y=0) the facade Prop would draw over the
+            // whole sprite — an invisible mailbox whose flag nobody can see.
+            AddChild(_mailbox);
+            // Reserved like a sign's cell: keeps the hoe off it, keeps ObstacleGen
+            // from growing a tree under it, and puts it on the editor overlay.
+            _reservedTiles.Add(box.Cell);
         }
 
         foreach (MapPlacement bin in _recipe.OfKind(PlacementKinds.ShippingBin))

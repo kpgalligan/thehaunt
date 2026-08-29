@@ -6,7 +6,7 @@ namespace TheHaunt.UI;
 /// <summary>Tab-toggled controls overlay. Pure non-modal: no phase change, the clock
 /// keeps running and the player keeps control; the root ignores mouse ALWAYS and nothing
 /// here takes focus. Force-hides whenever the new phase lacks control, so it can never
-/// underlap the modal UIs (dialogue, chest, shop, pause). Godot's built-in ui_focus_next
+/// underlap the modal UIs (dialogue, chest, shop, mailbox, pause). Godot's built-in ui_focus_next
 /// keeps Tab deliberately: focused Controls consume Tab in the GUI stage before
 /// _UnhandledInput, and those contexts all lack PlayerHasControl anyway.</summary>
 public partial class HelpPanel : Control
@@ -72,6 +72,7 @@ public partial class HelpPanel : Control
         vbox.AddChild(MakeRow("Use Tool — Left Click / C"));
         vbox.AddChild(MakeRow("Hotbar — 1-0 / Mouse Wheel"));
         vbox.AddChild(MakeRow("Chest/Shop — Arrows select, E move/buy, Esc close"));
+        vbox.AddChild(MakeRow("Quests — J"));
         vbox.AddChild(MakeRow("Pause — Esc"));
         vbox.AddChild(MakeRow("Controls — Tab"));
     }

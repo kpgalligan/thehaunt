@@ -156,6 +156,17 @@ public partial class Main : Node2D
         {
             await _fade.FadeOut();
             Clock.Instance.AdvanceToDayStart();
+            // The overslept summons: told to attend the town meeting and went to bed
+            // instead. Stamp intro.overslept (stages the mayor, selects the beat
+            // variant) and relocate the wake to the hall while the screen is still
+            // black — both BEFORE the autosave, so quitting mid-morning reloads into
+            // the same relocated morning. The beat itself fires off the finally's
+            // return to Playing, through the director's normal deferred check.
+            if (IntroRules.WakesAtTownHall(SaveService.Instance.Current))
+            {
+                WorldSim.Instance.SetStoryFlag(StoryKeys.Overslept);
+                WakeAt(MapIds.TownHall, "entry");
+            }
             SaveService.Instance.Save();
             await _fade.FadeIn();
             // Money is credited + autosaved above, so quitting mid-card loses only the
@@ -182,6 +193,25 @@ public partial class Main : Node2D
             _sleepFlowRunning = false;
             GameState.Instance.TransitionTo(GameState.Phase.Playing);
         }
+    }
+
+    // The sleep flow's scripted relocation (IntroRules.WakesAtTownHall): the same
+    // swap RunTravel's middle performs, minus the fades (the sleep fade already owns
+    // the black) and minus the doorstep scooter parking (OvernightSim has already
+    // parked it home). Runs before the morning autosave, which then captures the new
+    // map and position through PlayerController.WriteState.
+    private void WakeAt(string mapId, string spawnId)
+    {
+        _currentMap?.QueueFree();
+        var map = MapRegistry.Create(mapId);
+        _currentMap = map;
+        _mapHost.AddChild(map);
+        WorldSim.Instance.EnsureObstacles(map);   // no-op on interiors (no candidates)
+        map.ApplyState(SaveService.Instance.Current.GetMap(map.MapId));
+        _lighting.SetMap(map);
+        WorldSim.Instance.CompleteTravel(map.MapId);
+        _player.GlobalPosition = map.GetSpawn(spawnId);
+        _player.ApplyCameraLimits(map.GetCameraLimits());
     }
 
     private void HandleCmdlineArgs()
@@ -274,6 +304,19 @@ public partial class Main : Node2D
                 break;
             case "help":
                 Input.ParseInputEvent(new InputEventAction { Action = "toggle_help", Pressed = true });
+                break;
+            case "mail":
+                WorldSim.Instance.OpenMailbox();
+                break;
+            case "letter":
+                // Mail panel with the first letter opened: the queued Enter activates
+                // the focused list row through the GUI stage next frame.
+                WorldSim.Instance.OpenMailbox();
+                Input.ParseInputEvent(new InputEventKey { Keycode = Key.Enter, PhysicalKeycode = Key.Enter, Pressed = true });
+                Input.ParseInputEvent(new InputEventKey { Keycode = Key.Enter, PhysicalKeycode = Key.Enter, Pressed = false });
+                break;
+            case "quests":
+                Input.ParseInputEvent(new InputEventAction { Action = "toggle_quests", Pressed = true });
                 break;
         }
     }

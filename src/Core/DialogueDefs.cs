@@ -22,6 +22,7 @@ public static class DialogueDefs
         {
             BuildCrewArrival(),
             BuildTownMeeting(),
+            BuildTownMeetingOverslept(),
             BuildForemanWait(),
             BuildForemanAfter(),
             BuildMayorAfter(),
@@ -102,6 +103,26 @@ public static class DialogueDefs
     // and returns to the hub; the exit choice is the only terminal path and sets
     // MeetingDone (re-raising on hub re-entry would be harmless — only-if-absent).
     private static DialogueDef BuildTownMeeting() => Def("intro_town_meeting", "open",
+        TownMeetingNodes());
+
+    // The overslept summons (Kevin's copy, 2026-08-28): the player was told to
+    // attend and went to bed instead, so Main's sleep flow relocated the wake to
+    // the hall (IntroRules.WakesAtTownHall) and this variant opens with the walk
+    // the player never saw. Same meeting nodes after the narration, so the copy
+    // and the terminal MeetingDone stamp can never diverge between the two doors
+    // into the meeting.
+    private static DialogueDef BuildTownMeetingOverslept() => Def(
+        "intro_town_meeting_overslept", "nap",
+        new[]
+        {
+            new DialogueNode("nap", new[]
+            {
+                new DialogueLine("", "(After a much needed nap, you made your way to City Hall. It sounded important...)"),
+            }, NextNodeId: "open"),
+        }.Concat(TownMeetingNodes()).ToArray());
+
+    private static DialogueNode[] TownMeetingNodes() => new[]
+    {
         new DialogueNode("open", new[]
         {
             new DialogueLine("mayor", "Ah — our new neighbor. Come in, take a seat."),   // [KEVIN]
@@ -137,7 +158,8 @@ public static class DialogueDefs
         {
             new DialogueLine("mayor", "Then that's enough for one night. It isn't the life you planned. It wasn't for any of us."),   // [KEVIN]
             new DialogueLine("mayor", "But it's a good town, and we look after our own. Go home, get some sleep. Your farm will want you in the morning."),   // [KEVIN]
-        }, SetsFlag: StoryKeys.MeetingDone));
+        }, SetsFlag: StoryKeys.MeetingDone),
+    };
 
     private static DialogueDef BuildForemanWait() => Def("foreman_wait", "wait",
         new DialogueNode("wait", new[]

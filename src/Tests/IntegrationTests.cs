@@ -92,6 +92,7 @@ public static class IntegrationTests
             t.Assert(!map.IsTillable(7, 7), "farmhouse door tile (7,7) not tillable");
             t.Assert(!map.IsTillable(17, 25), "the fallen log (17,25) not tillable");
             t.Assert(!map.IsTillable(12, 8), "sign tile (12,8) not tillable");
+            t.Assert(!map.IsTillable(6, 8), "mailbox tile (6,8) not tillable");
             t.Assert(!map.IsTillable(10, 8), "shipping-bin tile (10,8) not tillable");
             t.Assert(map.IsTillable(20, 25), "clear grass tile (20,25) stays tillable");
         }
@@ -476,7 +477,186 @@ public static class IntegrationTests
     }
 
     [SimTest]
-    public static async Task Integration_MeetingMissedRecovers(TestContext t)
+    public static async Task Integration_MailboxLetterQuestFlow(TestContext t)
+    {
+        // The whole first-morning chain: unread mail signalled at the box, the
+        // farewell letter read through the probe + session UI, the quest handed out,
+        // and the letter's own ask (till, plant, water) completing it with a toast.
+        Node? main = null;
+        try
+        {
+            main = GD.Load<PackedScene>("res://scenes/Main.tscn").Instantiate();
+            t.Host.AddChild(main);
+            await t.WaitFrames(5);
+            t.AssertEqual(0L, Clock.Instance.Now.TotalMinutes, "boots fresh (no leaked autosave)");
+
+            // Story quiet so no beat steals control mid-test.
+            WorldSim.Instance.SetStoryFlag(StoryKeys.CrewArrivalDone);
+            WorldSim.Instance.SetStoryFlag(StoryKeys.MeetingDone);
+
+            var maybeMailbox = FindNode<Mailbox>(main);
+            t.Assert(maybeMailbox != null, "the farm builds its mailbox");
+            t.Assert(maybeMailbox!.HasUnread, "first arrival: the mailbox signals unread mail");
+
+            // Walk up: player on the door apron (7,8), facing left at the box (6,8).
+            var player = main.GetNodeOrNull<PlayerController>("World/Player")!;
+            player.GlobalPosition = new Vector2(7 * 16 + 8, 8 * 16 + 8);
+            player.Probe.SetFacing(1);
+            t.Assert(await t.WaitUntil(() => player.Probe.Focused is Mailbox, 2),
+                "probe focuses the mailbox");
+            t.AssertEqual("Mail", player.Probe.Focused!.PromptText, "focused prompt text");
+
+            // E opens the session; the opening press must NOT also open a letter
+            // (the _openedFrame guard) — the read stamp is the tell.
+            await PressKey(t, Key.E);
+            t.Assert(await t.WaitUntil(() => WorldSim.Instance.MailboxOpen, 2),
+                "interact opened the mailbox session");
+            t.AssertEqual(GameState.Phase.Menu, GameState.Instance.Current,
+                "mailbox session runs in the Menu phase");
+            var mailUi = FindNode<MailboxUi>(main)!;
+            t.Assert(mailUi.Visible, "mail panel shown");
+            t.Assert(AnyTextContains(mailUi, "From the previous owner"),
+                "the farewell letter is listed");
+            t.Assert(!SaveService.Instance.Current.HasFlag(StoryKeys.FarewellRead),
+                "the opening press did not read the letter");
+
+            // Second E opens the focused letter: body up, read stamped, quest handed
+            // out, and the box's raised flag drops on the repaint the stamp triggers.
+            await PressKey(t, Key.E);
+            t.Assert(await t.WaitUntil(
+                () => SaveService.Instance.Current.HasFlag(StoryKeys.FarewellRead), 2),
+                "opening the letter stamped its read flag");
+            t.Assert(AnyTextContains(mailUi, "I hope you enjoy your new farm"),
+                "the letter body is on screen");
+            t.Assert(QuestRules.Active(QuestDefs.All[QuestDefs.FirstCrops], SaveService.Instance.Current),
+                "reading the letter handed out first_crops");
+            t.Assert(!maybeMailbox.HasUnread, "the read lowered the mailbox signal");
+            var toast = FindNode<QuestToastUi>(main)!;
+            t.Assert(await t.WaitUntil(() => AnyTextContains(toast, "New quest: Plant a Few Crops"), 2),
+                "the hand-out toast shows");
+
+            // Esc closes the session and gives Playing back.
+            await PressKey(t, Key.Escape);
+            t.Assert(await t.WaitUntil(
+                () => !WorldSim.Instance.MailboxOpen
+                    && GameState.Instance.Current == GameState.Phase.Playing, 2),
+                "Esc closed the mailbox session");
+
+            // The letter's ask, via the bus. Watering EMPTY tilled soil must not
+            // complete it — the stamp needs a crop under the can.
+            var tile = new Vector2I(20, 14); // dirt rectangle, obstacle-free
+            WorldSim.Instance.SelectSlot(0); // hoe
+            t.AssertEqual(ActionOutcome.Tilled, WorldSim.Instance.UseSelectedItem(tile), "till");
+            WorldSim.Instance.SelectSlot(1); // watering can
+            t.AssertEqual(ActionOutcome.Watered, WorldSim.Instance.UseSelectedItem(tile), "pre-water");
+            t.Assert(!SaveService.Instance.Current.HasFlag(StoryKeys.FirstWatering),
+                "watering empty soil does not complete the quest");
+            WorldSim.Instance.SelectSlot(3); // turnip seeds
+            t.AssertEqual(ActionOutcome.Planted, WorldSim.Instance.UseSelectedItem(tile), "plant");
+            WorldSim.Instance.SelectSlot(1);
+            t.AssertEqual(ActionOutcome.Watered, WorldSim.Instance.UseSelectedItem(tile), "water the crop");
+            t.Assert(SaveService.Instance.Current.HasFlag(StoryKeys.FirstWatering),
+                "watering the planted tile stamped intro.first_watering");
+            t.Assert(QuestRules.Completed(QuestDefs.All[QuestDefs.FirstCrops], SaveService.Instance.Current),
+                "first_crops completed");
+            // The banners QUEUE: the hand-out (3.5 s) is still up this soon after the
+            // read, so the completion must wait its turn, not truncate it.
+            t.Assert(AnyTextContains(toast, "New quest: Plant a Few Crops"),
+                "the hand-out toast is still showing when the completion lands");
+            t.Assert(await t.WaitUntil(
+                () => AnyTextContains(toast, "Quest complete: Plant a Few Crops"), 10),
+                "the completion toast shows after the hand-out toast expires");
+        }
+        finally
+        {
+            WorldSim.Instance.CloseMailbox();
+            await CleanupMainAsync(t, main);
+        }
+    }
+
+    [SimTest]
+    public static async Task QuestLog_ToggleGating(TestContext t)
+    {
+        Node? main = null;
+        try
+        {
+            main = GD.Load<PackedScene>("res://scenes/Main.tscn").Instantiate();
+            t.Host.AddChild(main);
+            await t.WaitFrames(5);
+            t.AssertEqual(0L, Clock.Instance.Now.TotalMinutes, "boots fresh (no leaked autosave)");
+
+            // Story quiet so nothing steals control mid-test.
+            WorldSim.Instance.SetStoryFlag(StoryKeys.CrewArrivalDone);
+            WorldSim.Instance.SetStoryFlag(StoryKeys.MeetingDone);
+
+            var maybeLog = FindNode<QuestLogUi>(main);
+            t.Assert(maybeLog != null, "QuestLog exists under Main's UI");
+            QuestLogUi log = maybeLog!;
+            t.Assert(!log.Visible, "quest log hidden at boot");
+
+            // Playing: J toggles both ways, non-modal, and the empty state shows.
+            await PressKey(t, Key.J);
+            t.Assert(await t.WaitUntil(() => log.Visible, 2), "J shows the log in Playing");
+            t.AssertEqual(GameState.Phase.Playing, GameState.Instance.Current,
+                "non-modal: showing the log keeps Playing");
+            t.Assert(AnyTextContains(log, "Nothing yet."), "empty log says so");
+            await PressKey(t, Key.J);
+            t.Assert(await t.WaitUntil(() => !log.Visible, 2), "J hides the log again");
+
+            // Hand out the quest through the bus; the log lists it with its ask.
+            t.Assert(WorldSim.Instance.OpenMailbox(), "mailbox session for the hand-out");
+            t.Assert(WorldSim.Instance.ReadLetter(LetterDefs.Farewell), "read the farewell");
+            WorldSim.Instance.CloseMailbox();
+            await PressKey(t, Key.J);
+            t.Assert(await t.WaitUntil(() => log.Visible, 2), "log reopened");
+            t.Assert(AnyTextContains(log, "Plant a Few Crops"), "active quest listed");
+            t.Assert(AnyTextContains(log, "Till the soil, plant the seeds, then water them."),
+                "active quest carries the letter's ask");
+            await PressKey(t, Key.J);
+            t.Assert(await t.WaitUntil(() => !log.Visible, 2), "log closed for the gating sweep");
+
+            // Dialogue: inert.
+            t.Assert(WorldSim.Instance.StartDialogue("foreman_wait"), "dialogue started");
+            await PressKey(t, Key.J);
+            await t.WaitFrames(5);
+            t.Assert(!log.Visible, "J inert during dialogue");
+            await DriveDialogueToCompletion(t, "quest log gating dialogue");
+            t.Assert(await t.WaitUntil(() => GameState.Instance.PlayerHasControl, 5),
+                "control back after the dialogue");
+
+            // Menu: inert.
+            t.Assert(WorldSim.Instance.OpenStorage(StorageIds.FarmHouseChest), "chest opened");
+            await PressKey(t, Key.J);
+            await t.WaitFrames(5);
+            t.Assert(!log.Visible, "J inert during a Menu session");
+            WorldSim.Instance.CloseStorage();
+
+            // Paused: inert.
+            GameState.Instance.TransitionTo(GameState.Phase.Paused);
+            await PressKey(t, Key.J);
+            await t.WaitFrames(5);
+            t.Assert(!log.Visible, "J inert while paused");
+            GameState.Instance.TransitionTo(GameState.Phase.Playing);
+
+            // Losing control force-hides an open log, and it stays hidden after.
+            await PressKey(t, Key.J);
+            t.Assert(await t.WaitUntil(() => log.Visible, 2), "log shown before control loss");
+            t.Assert(WorldSim.Instance.OpenStorage(StorageIds.FarmHouseChest), "chest steals control");
+            t.Assert(!log.Visible, "control loss force-hid the log");
+            WorldSim.Instance.CloseStorage();
+            await t.WaitFrames(2);
+            t.Assert(!log.Visible, "the log stays hidden after control returns");
+        }
+        finally
+        {
+            WorldSim.Instance.CloseStorage();
+            WorldSim.Instance.CloseMailbox();
+            await CleanupMainAsync(t, main);
+        }
+    }
+
+    [SimTest]
+    public static async Task Integration_MeetingMissedWakesAtHall(TestContext t)
     {
         Node? main = null;
         try
@@ -492,36 +672,58 @@ public static class IntegrationTests
             WorldSim.Instance.SetStoryFlag(StoryKeys.RoadCleared);
             WorldSim.Instance.SetStoryFlag(StoryKeys.CrewArrivalDone);
 
-            // Miss the meeting: let 18:00 pass on the farm, then sleep through the night.
+            // Miss the meeting: let 18:00 pass on the farm, then go to bed. The wake
+            // relocates to the hall behind the sleep fade, and the overslept beat
+            // fires straight out of the sleep flow's return to Playing — wait for
+            // the day advance + the beat, never for Playing.
             Clock.Instance.AdvanceMinutes(
                 IntroRules.MeetingStartMinuteOfDay + 10 - Clock.Instance.Now.MinuteOfDay);
             await t.WaitFrames(10);
             t.Assert(WorldSim.Instance.ActiveDialogue == null,
                 "no meeting beat fires on the farm");
-            await SleepOneNight(t, "missed-meeting night");
-            t.Assert(!SaveService.Instance.Current.HasFlag(StoryKeys.MeetingDone),
-                "meeting still pending the next morning");
+            long dayBefore = Clock.Instance.Now.DayIndex;
+            GameState.Instance.TransitionTo(GameState.Phase.Sleeping);
+            t.Assert(await t.WaitUntil(() => Clock.Instance.Now.DayIndex > dayBefore, 10),
+                "missed-meeting sleep advanced the day");
 
-            // Next evening in the hall the beat fires — no day term, nothing was missed.
-            await TravelTo(t, MapIds.Town, "from_fork", "farm to town");
-            await TravelTo(t, MapIds.TownHall, "entry", "town to hall");
-            await t.WaitFrames(30);
-            t.Assert(WorldSim.Instance.ActiveDialogue == null,
-                "no beat before 18:00 the next day");
-            Clock.Instance.AdvanceMinutes(
-                IntroRules.MeetingStartMinuteOfDay + 10 - Clock.Instance.Now.MinuteOfDay);
+            t.AssertEqual(MapIds.TownHall, SaveService.Instance.Current.Player.MapId,
+                "the wake relocated the player to the town hall");
+            t.Assert(SaveService.Instance.Current.HasFlag(StoryKeys.Overslept),
+                "intro.overslept stamped by the relocated wake");
+
+            // The relocation and flag landed BEFORE the morning autosave, so a
+            // quit-and-reload replays the same relocated morning.
+            string autosavePath = Path.Combine(
+                SaveService.SaveDirectory, SaveService.DefaultSlot + ".json");
+            JsonNode saved = JsonNode.Parse(File.ReadAllText(autosavePath))!;
+            t.AssertEqual(MapIds.TownHall, (string?)saved["Player"]?["MapId"],
+                "the autosave already carries the hall as the player's map");
+            t.Assert(saved["StoryFlags"]?[StoryKeys.Overslept] != null,
+                "the autosave already carries intro.overslept");
+
             t.Assert(await t.WaitUntil(() => WorldSim.Instance.ActiveDialogue != null, 10),
-                "meeting beat fired the next evening");
-            t.AssertEqual("intro_town_meeting", WorldSim.Instance.ActiveDialogue!.Def.Id,
-                "the recovered beat is the town meeting");
+                "the meeting beat fired out of the relocated wake");
+            t.AssertEqual("intro_town_meeting_overslept", WorldSim.Instance.ActiveDialogue!.Def.Id,
+                "the recovered beat is the overslept meeting variant");
+            t.AssertEqual("", WorldSim.Instance.ActiveDialogue!.CurrentLine.SpeakerRole,
+                "the variant opens on the offscreen-walk narration");
+
+            // Dawn hour, mayor at the podium anyway: the overslept schedule row, not
+            // the evening window, staged this meeting.
+            t.AssertEqual(new NpcPlacement(MapIds.TownHall, 20, 6, 0),
+                NpcSchedules.Resolve(
+                    NpcDefs.All["mayor"], SaveService.Instance.Current, Clock.Instance.Now)!.Value,
+                "the mayor holds the podium on the overslept morning");
 
             // Complete it so cleanup never frees Main mid-beat.
-            await DriveDialogueToCompletion(t, "recovered meeting");
+            await DriveDialogueToCompletion(t, "overslept meeting");
             t.Assert(SaveService.Instance.Current.HasFlag(StoryKeys.MeetingDone),
-                "meeting_done stamped after the recovery");
+                "meeting_done stamped by the overslept variant");
             t.Assert(await t.WaitUntil(
                 () => GameState.Instance.Current == GameState.Phase.Playing, 10),
                 "Playing restored after the recovered meeting");
+            t.Assert(!IntroRules.WakesAtTownHall(SaveService.Instance.Current),
+                "attended: the next bedtime stays home");
         }
         finally
         {
@@ -972,6 +1174,7 @@ public static class IntegrationTests
         {
             Label label => label.Text,
             RichTextLabel rich => rich.Text,
+            Button button => button.Text,   // list rows (mailbox letters) are Buttons
             _ => null,
         };
         if (text != null && text.Contains(fragment))

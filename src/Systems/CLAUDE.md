@@ -7,9 +7,17 @@ PlayerHasControl / CanStartDialogue — Playing or Cutscene), **Clock** (drives 
 `GameData` graph and the save/load pipeline — atomic tmp+rename writes, quarantine of
 unreadable files, load-time repair/migration), **WorldSim** (the single
 gameplay-mutation bus — all model writes flow through it, incl. story flags, travel
-requests, the dialogue session, chest/shop Menu sessions, transfers, purchases, and
-scooter mount/park; UI subscribes to ITS events, never to events on Core objects —
+requests, the dialogue session, chest/shop/mailbox Menu sessions, transfers,
+purchases, letter reads + package takes (ReadLetter/TakeLetterItems), and scooter
+mount/park; UI subscribes to ITS events, never to events on Core objects —
 SaveService swaps `Current` wholesale on load).
+
+Menu sessions are MUTUALLY exclusive and the exclusion is pairwise: every Open*
+gate names all three session slots (OpenStorageId, OpenShopId, MailboxOpen), and
+adding a fourth session means touching every existing gate plus the AfterLoad
+discard block. The bus also observes farm outcomes for story stamps: Planted ->
+FirstPlanting, and Watered ON A TILE HOLDING A CROP -> FirstWatering (the
+first-crops quest's completion; watering empty tilled soil never stamps).
 
 The subscriber-side time/phase rules (MinuteTicked vs TenMinuteTicked, ClockRuns
 gating, GetTree().Paused ownership) are in src/CLAUDE.md.
@@ -45,9 +53,9 @@ gating, GetTree().Paused ownership) are in src/CLAUDE.md.
   repaint every registered map, resync NPCs, fire `StoryFlagSet`). The one exception is
   internal: OnDayStarted's dawn batch writes via `TrySetFlag` directly so the
   repaint/sync/events land once, in the ordering above.
-- Chest/shop UIs run in the Menu phase, owned by WorldSim's Open*/Close* sessions
-  (OpenStorageId/OpenShopId) — UIs never call TransitionTo themselves; Menu freezes
-  clock and player but never tree pause.
+- Chest/shop/mailbox UIs run in the Menu phase, owned by WorldSim's Open*/Close*
+  sessions (OpenStorageId/OpenShopId/MailboxOpen) — UIs never call TransitionTo
+  themselves; Menu freezes clock and player but never tree pause.
 - Transfers/purchases (TransferToStorage/TransferToInventory/BuyItem) check strictly
   before mutations; unknown storage keys and item ids are preserved verbatim.
 - The scooter's write path is here: MountScooter / DismountScooter / ParkScooterAt —
@@ -57,5 +65,5 @@ gating, GetTree().Paused ownership) are in src/CLAUDE.md.
   a drift guard against each map's IsInterior). Mounting has NO ceremony (texture swap
   + speed, no fade). Design intent and the view side live in src/World/CLAUDE.md.
 - A load can land mid-session: WorldSim's AfterLoad handler discards any open dialogue /
-  chest / shop session WITHOUT applying its flags, gives the phase back, and resyncs
-  NPCs + scooter. Loads never clobber `SaveService.Current` on failure.
+  chest / shop / mailbox session WITHOUT applying its flags, gives the phase back, and
+  resyncs NPCs + scooter. Loads never clobber `SaveService.Current` on failure.

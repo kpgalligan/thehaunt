@@ -24,8 +24,9 @@ sleep + travel flows. Each subdirectory carries its own CLAUDE.md with its local
   owns it).
 - Days advance only via `Clock.AdvanceToDayStart()` (the clock clamps at 1:59 AM); the
   sleep flow in Main owns fade → advance → autosave, and awaits the overnight report
-  while the phase is still Sleeping. Main's travel flow auto-parks the scooter at the
-  door — riding never goes indoors.
+  while the phase is still Sleeping. Between advance and autosave it applies the one
+  scripted wake relocation (`IntroRules.WakesAtTownHall` — src/Story/CLAUDE.md).
+  Main's travel flow auto-parks the scooter at the door — riding never goes indoors.
 - `Engine.IsEditorHint()` and `[Tool]` may appear ONLY in `src/EditorTools/` and
   `addons/` (test-enforced — see src/EditorTools/CLAUDE.md; never sprinkle editor
   guards through the game layers).

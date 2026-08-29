@@ -56,6 +56,11 @@ public partial class WorldSim : Node
 
     public event Action? ShopClosed;
 
+    /// <summary>The mailbox UI shows on this.</summary>
+    public event Action? MailboxOpened;
+
+    public event Action? MailboxClosed;
+
     public DialogueSession? ActiveDialogue { get; private set; }
 
     /// <summary>Storage id of the open chest session; null when none.</summary>
@@ -63,6 +68,9 @@ public partial class WorldSim : Node
 
     /// <summary>Catalog id of the open shop session; null when none.</summary>
     public string? OpenShopId { get; private set; }
+
+    /// <summary>True while the mailbox session is open (there is only one mailbox).</summary>
+    public bool MailboxOpen { get; private set; }
 
     private readonly List<MapRoot> _maps = new();
     private OvernightReport _pendingReport;
@@ -161,6 +169,14 @@ public partial class WorldSim : Node
         if (outcome == ActionOutcome.Planted)
         {
             SetStoryFlag(StoryKeys.FirstPlanting);
+        }
+        // Its sibling: the letter's ask ends "then water them", so the stamp needs a
+        // CROP under the can — watering empty tilled soil returns Watered too and
+        // must not count.
+        if (outcome == ActionOutcome.Watered
+            && data.GetMap(mapId).GetTile(tile.X, tile.Y)?.CropId is not null)
+        {
+            SetStoryFlag(StoryKeys.FirstWatering);
         }
 
         return outcome;
@@ -572,7 +588,8 @@ public partial class WorldSim : Node
     /// </summary>
     public bool OpenStorage(string storageId)
     {
-        if (!GameState.Instance.PlayerHasControl || OpenStorageId != null || OpenShopId != null)
+        if (!GameState.Instance.PlayerHasControl || OpenStorageId != null || OpenShopId != null
+            || MailboxOpen)
         {
             return false;
         }
@@ -600,7 +617,8 @@ public partial class WorldSim : Node
     /// </summary>
     public bool OpenShop(string catalogId)
     {
-        if (!GameState.Instance.PlayerHasControl || OpenStorageId != null || OpenShopId != null)
+        if (!GameState.Instance.PlayerHasControl || OpenStorageId != null || OpenShopId != null
+            || MailboxOpen)
         {
             return false;
         }
@@ -624,6 +642,83 @@ public partial class WorldSim : Node
         OpenShopId = null;
         GameState.Instance.TransitionTo(GameState.Phase.Playing);
         ShopClosed?.Invoke();
+    }
+
+    /// <summary>Same shape as <see cref="OpenStorage"/> — the third Menu session.</summary>
+    public bool OpenMailbox()
+    {
+        if (!GameState.Instance.PlayerHasControl || OpenStorageId != null || OpenShopId != null
+            || MailboxOpen)
+        {
+            return false;
+        }
+        MailboxOpen = true;
+        GameState.Instance.TransitionTo(GameState.Phase.Menu);
+        MailboxOpened?.Invoke();
+        return true;
+    }
+
+    /// <summary>Safe no-op when no mailbox session is open.</summary>
+    public void CloseMailbox()
+    {
+        if (!MailboxOpen)
+        {
+            return;
+        }
+        MailboxOpen = false;
+        GameState.Instance.TransitionTo(GameState.Phase.Playing);
+        MailboxClosed?.Invoke();
+    }
+
+    /// <summary>
+    /// Stamps the letter's ReadFlag (only-if-absent — re-reads are free). The mailbox
+    /// UI calls this when it puts a letter's body on screen. The stamp flows through
+    /// <see cref="SetStoryFlag"/>, so a letter that hands out a quest (QuestDefs
+    /// StartFlag) starts it here, and the mailbox lowers its signal on the repaint.
+    /// Unknown ids are a safe no-op. True on the first read.
+    /// </summary>
+    public bool ReadLetter(string letterId)
+    {
+        if (!MailboxOpen || LetterDefs.TryGet(letterId) is not { } letter)
+        {
+            return false;
+        }
+        return SetStoryFlag(letter.ReadFlag);
+    }
+
+    /// <summary>
+    /// Pays out a letter's package, all-or-nothing across the WHOLE package
+    /// (MailActions owns the joint room check). On Taken the TakenFlag lands through
+    /// <see cref="SetStoryFlag"/>, then <see cref="InventoryChanged"/> fires — the
+    /// flag is what makes the payout once-only. Unknown ids refuse as NothingToTake.
+    /// </summary>
+    public MailOutcome TakeLetterItems(string letterId)
+    {
+        if (LetterDefs.TryGet(letterId) is not { } letter)
+        {
+            return MailOutcome.NothingToTake;
+        }
+        return TakeLetterItems(letter);
+    }
+
+    /// <summary>
+    /// The def-shaped payout the id overload resolves into — also the seam that lets
+    /// tests drive the whole Taken path (flag stamp + events) with a synthetic
+    /// package letter, since no shipped letter carries one yet.
+    /// </summary>
+    public MailOutcome TakeLetterItems(LetterDef letter)
+    {
+        if (!MailboxOpen)
+        {
+            return MailOutcome.NothingToTake;
+        }
+        MailOutcome outcome = MailActions.TakeItems(letter, SaveService.Instance.Current);
+        if (outcome == MailOutcome.Taken)
+        {
+            SetStoryFlag(letter.TakenFlag!);
+            InventoryChanged?.Invoke();
+        }
+        return outcome;
     }
 
     /// <summary>
@@ -795,15 +890,18 @@ public partial class WorldSim : Node
         }
         ActiveDialogue = null;
 
-        // Same strand for the menu sessions: a load can land while a chest or shop is
-        // up (both always Menu-from-Playing), so the discarded session must give the
-        // phase back and tell its UI to hide. Flag-based — never a phase comparison.
-        if (OpenStorageId != null || OpenShopId != null)
+        // Same strand for the menu sessions: a load can land while a chest, shop or
+        // mailbox is up (all always Menu-from-Playing), so the discarded session must
+        // give the phase back and tell its UI to hide. Flag-based — never a phase
+        // comparison.
+        if (OpenStorageId != null || OpenShopId != null || MailboxOpen)
         {
             bool storageWasOpen = OpenStorageId != null;
             bool shopWasOpen = OpenShopId != null;
+            bool mailboxWasOpen = MailboxOpen;
             OpenStorageId = null;
             OpenShopId = null;
+            MailboxOpen = false;
             GameState.Instance.TransitionTo(GameState.Phase.Playing);
             if (storageWasOpen)
             {
@@ -812,6 +910,10 @@ public partial class WorldSim : Node
             if (shopWasOpen)
             {
                 ShopClosed?.Invoke();
+            }
+            if (mailboxWasOpen)
+            {
+                MailboxClosed?.Invoke();
             }
         }
 

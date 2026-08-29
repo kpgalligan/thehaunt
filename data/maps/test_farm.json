@@ -3,6 +3,7 @@
   "map": "test_farm",
   "placements": [
     {"kind": "door", "id": "farm_house", "x": 7, "y": 7, "spawn": "entry"},
+    {"kind": "mailbox", "id": "mailbox", "x": 6, "y": 8},
     {"kind": "spawn", "id": "house_door", "x": 7, "y": 8},
     {"kind": "shipping_bin", "id": "bin", "x": 10, "y": 8},
     {"kind": "sign", "id": "Sign", "x": 12, "y": 8, "text": "Placeholder sign. Real text comes later."},

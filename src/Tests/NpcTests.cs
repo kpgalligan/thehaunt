@@ -130,6 +130,20 @@ public static class NpcTests
             || beforeWindow.Value != new NpcPlacement(MapIds.TownHall, 20, 6, 0),
             "meeting pending: mayor not at the podium before 18:00");
 
+        // Overslept pending: the relocated wake arrives at dawn, so the mayor holds
+        // the podium around the clock until the meeting lands.
+        var oversleptPending = new GameData();
+        oversleptPending.TrySetFlag(StoryKeys.FirstPlanting, 1);
+        oversleptPending.TrySetFlag(StoryKeys.RoadCleared, 2);
+        oversleptPending.TrySetFlag(StoryKeys.CrewArrivalDone, 2);
+        oversleptPending.TrySetFlag(StoryKeys.Overslept, 3);
+        foreach (int minute in new[] { 0, 300, 719, 720, 1199 })
+        {
+            t.AssertEqual(new NpcPlacement(MapIds.TownHall, 20, 6, 0),
+                NpcSchedules.Resolve(NpcDefs.All["mayor"], oversleptPending, Day3(minute))!.Value,
+                $"overslept pending: mayor at the podium at minute {minute}");
+        }
+
         // After crew_done nobody stages on the farm — completed states never re-stage.
         var afterMeeting = new GameData();
         afterMeeting.TrySetFlag(StoryKeys.FirstPlanting, 1);
@@ -147,6 +161,7 @@ public static class NpcTests
                 }
             }
         }
+        afterMeeting.TrySetFlag(StoryKeys.Overslept, 2);   // MeetingDone must silence the overslept row too
         afterMeeting.TrySetFlag(StoryKeys.MeetingDone, 2);
         t.Assert(NpcSchedules.Resolve(NpcDefs.All["mayor"], afterMeeting, Day3(900)) == null
             || NpcSchedules.Resolve(NpcDefs.All["mayor"], afterMeeting, Day3(900))!.Value

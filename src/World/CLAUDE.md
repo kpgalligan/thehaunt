@@ -20,7 +20,7 @@ What lives here:
   `BarnMap`/`MotelMap`/`GasStationMap`/`BilliesBarMap`/`SalonMap`/`MotelRoomMap` (one
   class, four registered room ids).
 - Interactables: `IInteractable`, `Bed`, `Sign`, `ShippingBin`, `Chest`, `ShopCounter`,
-  `Scooter` (parked view of `GameData.Scooter`), `MapExit`, `Door` (flag-lockable:
+  `Mailbox`, `Scooter` (parked view of `GameData.Scooter`), `MapExit`, `Door` (flag-lockable:
   `RequiredFlag` + `LockedMessage` — a locked handle answers with a line).
 - `NpcView` (ambles around its schedule anchor when the placement grants an Ambit),
   `GuestCar` (one per occupied motel room, synced by `WestEntryMap.ApplyState`);
@@ -187,3 +187,8 @@ What lives here:
   autoloads in project.godot's order, so map code runs in the editor completely
   unmodified. If the editor misbehaves, fix the stage — never sprinkle guards through
   the World layer.
+- The mailbox (Mailbox, recipe kind "mailbox", farm cell (6,8) — (9,8) beside it is
+  the scooter's home and stays clear) opens WorldSim's mailbox session; its
+  raised-flag signal is a pure GameData derivation (MailRules.HasUnread) re-derived
+  by TestMap.ApplyState on every repaint, so a read stamp lowers it live through the
+  same path that repaints the road and the barn. Its cell is reserved like a sign's.

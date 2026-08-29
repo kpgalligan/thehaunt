@@ -8,6 +8,7 @@ registries ItemDefs/CropDefs/ObstacleDefs), InventoryData, FarmActions, Obstacle
 (seeded one-shot field generation — WorldSim owns the trigger and the randomness),
 OvernightSim + ShippedLine;
 storage: StackOps/StorageData/StorageIds; scooter: ScooterData/ScooterRules;
+mail: LetterDef(s)/MailRules/MailActions; quests: QuestDef(s)/QuestRules;
 WorkAnimation (the tool work loop's pure timing/interruption contract — the tile
 mutation fires on ENTRY to its impact frame, never at press time); shop:
 ShopCatalog (+ ShopEntry/BuyResult)/ShopHours; story: StoryKeys/IntroRules/BarnRules/
@@ -41,6 +42,13 @@ NpcDef(s)/NpcSchedules.
   obstacle whatever the view said). `MapState.ObstaclesSeeded` means "ObstacleGen has
   run here", which is NOT "Objects is empty" — a cleared field stays cleared, and an
   old save generates on its next visit.
+- Mail and quests keep NO model state of their own — both are pure derivations over
+  StoryFlags (MailRules/QuestRules), so they needed no save-version bump. A letter is
+  delivered by monotone conditions (never vanishes), read under its ReadFlag, and a
+  package pays out once under its TakenFlag (MailActions owns the all-or-nothing
+  joint room check; WorldSim stamps the flag). A quest is a named window between its
+  StartFlag and CompleteFlag; "born completed" (world event before hand-out) is a
+  legal order QuestRules.CompletedBy reports on the late start stamp.
 - Storage containers live in GameData.Storages (id -> StorageData); unknown storage
   keys and item ids are preserved verbatim; transfers/purchases go through WorldSim
   (TransferToStorage/TransferToInventory/BuyItem — checks strictly before mutations).

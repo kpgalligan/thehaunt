@@ -16,7 +16,10 @@
   a storm, the road to town blocked: the player learns basic farming and starts repairing
   the facility. The following morning the road is cleared and a repair crew from town
   arrives — surprised, in a bad way, to find a new owner. They tell the player to attend
-  the town hall meeting that night, where the mayor explains the curse. That's the intro;
+  the town hall meeting that night, where the mayor explains the curse. Skipping it by
+  going to bed doesn't dodge it (Kevin, 2026-08-28): the player wakes up IN the town
+  hall — "(After a much needed nap, you made your way to City Hall. It sounded
+  important...)" — and the meeting begins. That's the intro;
   the rest of the story plays out later. *(NOTE, 2026-08-26: `docs/story/README.md` §Main
   Character now gives Jane a partly different backstory — married, a child lost in a fall,
   a divorce — where this bullet says lost touch with friends, parents died, no siblings.
@@ -116,13 +119,23 @@
   clamped — a smaller mouth pins to its edge); the motor court parks one guest car per
   occupied room (MotelRules.OccupiedRooms — room 3, Pell's slate sedan, today); and
   NPCs amble around their staging anchors by role (NpcPlacement.Ambit) — proprietors
-  putter, seated bar patrons sit, Gloria at the fireworks stand never moves. Still
+  putter, seated bar patrons sit, Gloria at the fireworks stand never moves.
+  2026-08-28: the overslept summons (skipping the town meeting by going to bed wakes
+  the player IN the hall — canon bullet above), and quests + mail — quest defs
+  derived purely from story-flag pairs (hand-out/completion), a J quest log,
+  completion toasts, the farm mailbox with its raised-flag signal, and the previous
+  owner's farewell letter (Kevin's copy verbatim, in LetterDefs) which hands out the
+  first quest ("Plant a Few Crops", completed by watering a planted tile). NOTE: the
+  letter says the tools and seeds wait IN THE BARN — the game still hands the starter
+  kit straight to the player's inventory at NewGame; reconcile with Kevin before
+  changing either. Still
   remaining:
   connections/relationship mechanics, enlarging the town centre (clinic, Stumble Inn,
   homes, fountain square), shop catalogs for the gas station and fireworks stand,
   haircuts, motel room unlock stories, the drive-in restoration arc.
 - **Phase 4 — Mining & fishing**: plus the unique specialties (design with Kevin first).
 - **Phase 5 — The malevolence**: entity manifestations, combat, weapons/special items,
-  quest framework, escalation, endgame.
+  malevolence quest lines (on the quest framework shipped 2026-08-28), escalation,
+  endgame.
 
 Phases 3-5 ordering is flexible; each phase ships playable.

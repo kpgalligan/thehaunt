@@ -1,4 +1,4 @@
-[gd_scene load_steps=16 format=3]
+[gd_scene load_steps=19 format=3]
 
 [ext_resource type="Script" path="res://src/Main.cs" id="1_main"]
 [ext_resource type="Script" path="res://src/Player/PlayerController.cs" id="2_player"]
@@ -15,6 +15,9 @@
 [ext_resource type="Script" path="res://src/UI/ShopUi.cs" id="13_shop"]
 [ext_resource type="Script" path="res://src/UI/OvernightReportUi.cs" id="14_report"]
 [ext_resource type="Script" path="res://src/World/DayNightTint.cs" id="15_lighting"]
+[ext_resource type="Script" path="res://src/UI/MailboxUi.cs" id="16_mail"]
+[ext_resource type="Script" path="res://src/UI/QuestLogUi.cs" id="17_questlog"]
+[ext_resource type="Script" path="res://src/UI/QuestToastUi.cs" id="18_questtoast"]
 
 [node name="Main" type="Node2D"]
 script = ExtResource("1_main")
@@ -53,6 +56,9 @@ script = ExtResource("8_stamina")
 [node name="HelpPanel" type="Control" parent="UI"]
 script = ExtResource("11_help")
 
+[node name="QuestLog" type="Control" parent="UI"]
+script = ExtResource("17_questlog")
+
 [node name="DialogueUi" type="Control" parent="UI"]
 script = ExtResource("9_dialogue")
 
@@ -62,6 +68,9 @@ script = ExtResource("12_chest")
 [node name="ShopUi" type="Control" parent="UI"]
 script = ExtResource("13_shop")
 
+[node name="MailboxUi" type="Control" parent="UI"]
+script = ExtResource("16_mail")
+
 [node name="OvernightReport" type="Control" parent="UI"]
 script = ExtResource("14_report")
 
@@ -69,6 +78,9 @@ script = ExtResource("14_report")
 process_mode = 3
 visible = false
 script = ExtResource("5_pause")
+
+[node name="QuestToast" type="Control" parent="UI"]
+script = ExtResource("18_questtoast")
 
 [node name="ScreenFade" type="ColorRect" parent="UI"]
 script = ExtResource("6_fade")

@@ -46,12 +46,16 @@ public static class PlacementKinds
     /// <summary>The shipping bin. Id names its art entry.</summary>
     public const string ShippingBin = "shipping_bin";
 
+    /// <summary>The mailbox. Id names the node ("mailbox" — there is only the farm's).</summary>
+    public const string Mailbox = "mailbox";
+
     /// <summary>The shop interaction strip. Id is the catalog id; "w"/"h" the strip's tile span.</summary>
     public const string ShopCounter = "shop_counter";
 
     public static readonly IReadOnlyList<string> All = new[]
     {
         Prop, Scatter, Furniture, Spawn, Door, Exit, Sign, Bed, Chest, ShippingBin, ShopCounter,
+        Mailbox,
     };
 
     /// <summary>True when THIS build knows how to build the kind — not whether a file may hold it.</summary>

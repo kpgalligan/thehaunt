@@ -7,7 +7,9 @@ namespace TheHaunt.Core;
 // The fireworks stand's Gloria stays put by Kevin's rule, not by oversight.
 // The farm crew staging is flag-bounded, not clock-bounded, so the crew beat can
 // never be stranded castless; the mayor's podium row restages the meeting every
-// pending evening (missed-meeting recovery is free).
+// pending evening, and once a bedtime skips the summons (intro.overslept) the
+// mayor holds the podium around the clock — the relocated wake never faces an
+// empty hall.
 public static class NpcSchedules
 {
     // First entry whose flags pass and whose window contains now.MinuteOfDay;
@@ -35,13 +37,18 @@ public static class NpcSchedules
     }
 
     // Entry order below is load-bearing (first match wins). Town-hall rows start at
-    // IntroRules.MeetingStartMinuteOfDay so staging can never drift from the beat window.
+    // IntroRules.MeetingStartMinuteOfDay so staging can never drift from the beat
+    // window — except the mayor's overslept row, which is all-day by design (the
+    // relocated wake arrives at dawn).
 
     public static IReadOnlyList<ScheduleEntry> Mayor { get; } = new[]
     {
         new ScheduleEntry(StoryKeys.CrewArrivalDone, StoryKeys.MeetingDone,
             IntroRules.MeetingStartMinuteOfDay, GameTime.MinutesPerDay,
             new NpcPlacement(MapIds.TownHall, 20, 6, 0)),    // podium  [KEVIN]
+        new ScheduleEntry(StoryKeys.Overslept, StoryKeys.MeetingDone,
+            0, GameTime.MinutesPerDay,
+            new NpcPlacement(MapIds.TownHall, 20, 6, 0)),    // podium, around the clock
         new ScheduleEntry(StoryKeys.RoadCleared, null,
             120, 660,                                        // 8:00 AM - 5:00 PM
             new NpcPlacement(MapIds.Town, 24, 19, 0, Ambit: 2)),   // square  [KEVIN]

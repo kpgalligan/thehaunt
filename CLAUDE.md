@@ -28,7 +28,7 @@ art contract (six binding handoffs) is in `docs/designs/CLAUDE.md`.
   (dev flags: `--start-map <id>` boots into a map; `--spawn <marker>` lands on a named spawn
   instead of the map default, e.g. to frame a corner; `--screenshot-frames <n>` delays the
   capture, e.g. past a beat's staging timer; `--add-minutes <n>` advances the clock in-memory,
-  e.g. into shop hours or dusk; `--open-ui <chest|shop|help>` pops a UI after boot;
+  e.g. into shop hours or dusk; `--open-ui <chest|shop|help|mail|letter|quests>` pops a UI after boot;
   `--ride` mounts the scooter after boot, for capturing the riding sprite;
   `--work-tool <itemId>` selects that tool and holds use_tool from boot, for capturing
   the work loop — boot physics catch-up outruns the frame count, so expect mid-loop)
