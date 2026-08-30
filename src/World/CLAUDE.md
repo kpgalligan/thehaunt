@@ -21,7 +21,12 @@ What lives here:
   class, four registered room ids).
 - Interactables: `IInteractable`, `Bed`, `Sign`, `ShippingBin`, `Chest`, `ShopCounter`,
   `Mailbox`, `Scooter` (parked view of `GameData.Scooter`), `MapExit`, `Door` (flag-lockable:
-  `RequiredFlag` + `LockedMessage` — a locked handle answers with a line).
+  `RequiredFlag` + `LockedMessage` — a locked handle answers with a line),
+  `GarageSaleSign` (the west entry's FOR SALE board: opens WorldSim's garage-sale
+  session until garage.deed lands, then answers SOLD — checked live per interact
+  like Door.RequiredFlag, so the purchase needs no repaint; the garage itself is a
+  PlaceholderBuilding with a dark GARAGE band and NO Door, the hardware-store
+  closed treatment, its interior a deliberately empty seam).
 - `NpcView` (ambles around its schedule anchor when the placement grants an Ambit),
   `GuestCar` (one per occupied motel room, synced by `WestEntryMap.ApplyState`);
   placeholders: `PlaceholderSprites`, `PlaceholderBuilding`/`RoadBarrier`/`PitCover`/

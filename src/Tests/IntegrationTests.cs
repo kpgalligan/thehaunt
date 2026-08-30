@@ -829,6 +829,102 @@ public static class IntegrationTests
     }
 
     [SimTest]
+    public static async Task Integration_GarageSaleUiFlow(TestContext t)
+    {
+        // The six-figure confirm through the real input pipeline: E at the FOR SALE
+        // board opens the panel with WALK AWAY holding focus, so the opening press
+        // and a mashed second E can never buy — buying takes the deliberate arrow
+        // up to the Buy row (the src/UI/CLAUDE.md contract for this panel).
+        Node? main = null;
+        try
+        {
+            main = GD.Load<PackedScene>("res://scenes/Main.tscn").Instantiate();
+            t.Host.AddChild(main);
+            await t.WaitFrames(5);
+            t.AssertEqual(0L, Clock.Instance.Now.TotalMinutes, "boots fresh (no leaked autosave)");
+            var player = main.GetNodeOrNull<PlayerController>("World/Player")!;
+
+            // Story quiet so no beat steals control mid-test.
+            WorldSim.Instance.SetStoryFlag(StoryKeys.CrewArrivalDone);
+            WorldSim.Instance.SetStoryFlag(StoryKeys.MeetingDone);
+
+            GameData data = SaveService.Instance.Current;
+            data.Player.Money = GarageRules.Price + 500;
+
+            await TravelTo(t, MapIds.WestEntry, "from_gas", "to the west entry");
+
+            // Stand one tile west of the board at (36,21), facing right at it.
+            player.GlobalPosition = new Vector2(35 * 16 + 8, 21 * 16 + 8);
+            player.Probe.SetFacing(2);
+            t.Assert(await t.WaitUntil(() => player.Probe.Focused is GarageSaleSign, 2),
+                "probe focuses the FOR SALE board");
+            t.AssertEqual("For sale", player.Probe.Focused!.PromptText, "asking-notice prompt");
+
+            // E opens the session. Money untouched and WALK AWAY focused proves the
+            // opening press reached no button (the _openedFrame guard).
+            await PressKey(t, Key.E);
+            t.Assert(await t.WaitUntil(() => WorldSim.Instance.GarageSaleOpen, 2),
+                "interact opened the sale session");
+            var ui = FindNode<GarageSaleUi>(main)!;
+            t.Assert(ui.Visible, "the sale panel shows");
+            t.Assert(AnyTextContains(ui, "Asking: 100000g"), "the asking price is on the panel");
+            t.AssertEqual("Walk away", (ui.GetViewport().GuiGetFocusOwner() as Button)?.Text,
+                "WALK AWAY holds opening focus");
+            t.AssertEqual(GarageRules.Price + 500, data.Player.Money, "opening spent nothing");
+
+            // The mashed second E only walks away.
+            await PressKey(t, Key.E);
+            t.Assert(await t.WaitUntil(
+                () => !WorldSim.Instance.GarageSaleOpen
+                    && GameState.Instance.Current == GameState.Phase.Playing, 2),
+                "a mashed E only walks away");
+            t.Assert(!ui.Visible, "the panel hid on the walk-away");
+            t.AssertEqual(GarageRules.Price + 500, data.Player.Money, "walking away is free");
+            t.Assert(!data.HasFlag(StoryKeys.GarageDeed), "no deed from walking away");
+
+            // Reopen and buy for real: E, arrow up to the Buy row, E. (Wait for the
+            // probe to refocus the board — Menu cleared it — and sit out the
+            // first-control-frame press guard before pressing.)
+            t.Assert(await t.WaitUntil(() => player.Probe.Focused is GarageSaleSign, 2),
+                "probe refocuses the board");
+            await t.WaitFrames(2);
+            await PressKey(t, Key.E);
+            t.Assert(await t.WaitUntil(() => WorldSim.Instance.GarageSaleOpen, 2),
+                "the board reopens the sale");
+            // Arrow-key focus navigation is not simulated headlessly (the chest
+            // test's precedent) — move focus to the Buy row directly; the buy still
+            // rides a real E press through the input pipeline.
+            var buy = FindNode<Button>(ui)!;
+            t.AssertEqual("Buy the garage", buy.Text, "the Buy row is the panel's first button");
+            buy.GrabFocus();
+            await t.WaitFrames(1);
+            await PressKey(t, Key.E);
+            t.Assert(await t.WaitUntil(() => data.HasFlag(StoryKeys.GarageDeed), 2),
+                "the deliberate press buys the garage");
+            t.AssertEqual(500L, data.Player.Money, "exact debit of the asking price");
+            t.Assert(await t.WaitUntil(
+                () => !WorldSim.Instance.GarageSaleOpen && !ui.Visible
+                    && GameState.Instance.Current == GameState.Phase.Playing, 2),
+                "the deal closed its own session and panel");
+
+            // The same live board now answers SOLD: no session behind the press.
+            t.Assert(await t.WaitUntil(() => player.Probe.Focused is GarageSaleSign, 2),
+                "the board still reads after the sale");
+            t.AssertEqual("Read", player.Probe.Focused!.PromptText, "the prompt drops the notice");
+            await PressKey(t, Key.E);
+            await t.WaitFrames(3);
+            t.Assert(!WorldSim.Instance.GarageSaleOpen, "a sold garage opens no session");
+            t.AssertEqual(GameState.Phase.Playing, GameState.Instance.Current,
+                "the SOLD answer never touches the phase");
+        }
+        finally
+        {
+            WorldSim.Instance.CloseGarageSale();
+            await CleanupMainAsync(t, main);
+        }
+    }
+
+    [SimTest]
     public static async Task Integration_MorningReportFlow(TestContext t)
     {
         Node? main = null;

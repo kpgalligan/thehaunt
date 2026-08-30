@@ -35,6 +35,13 @@ public static class StoryKeys
     // letter is also what starts the first-crops quest (QuestDefs).
     public const string FarewellRead = "mail.farewell.read";
 
+    // The west-entry repair garage (docs/story/README.md §West entry): the deed,
+    // stamped by WorldSim.BuyGarage when Jane buys the place out of the sale
+    // session. Ownership is this one monotone flag; the mechanical-repair skill
+    // it will feed is planned, not designed (docs/design.md §Skills), so nothing
+    // reads it yet beyond the sale itself.
+    public const string GarageDeed = "garage.deed";
+
     public const string MotelRoom1Open = "motel.room1_open";
     public const string MotelRoom2Open = "motel.room2_open";
     public const string MotelRoom3Open = "motel.room3_open";

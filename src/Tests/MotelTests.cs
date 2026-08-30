@@ -133,7 +133,8 @@ public static class MotelTests
         PixelFont.Draw(img, 0, 0, "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-.' ", new Color(1, 1, 1));
         foreach (string sign in new[]
                  { "MOTEL", "NO", "VACANCY", "OFFICE", "ICE", "GAS", "OPEN", "POLICE",
-                   "HARDWARE", "SALON", "BAR", "FIREWORKS", "DRIVE-IN", "CLO ED", "SNACKS" })
+                   "HARDWARE", "SALON", "BAR", "FIREWORKS", "DRIVE-IN", "CLO ED", "SNACKS",
+                   "GARAGE" })
             PixelFont.Draw(img, 0, 6, sign, new Color(1, 1, 1));
 
         bool threw = false;

@@ -313,6 +313,9 @@ public partial class Main : Node2D
             case "mail":
                 WorldSim.Instance.OpenMailbox();
                 break;
+            case "garage":
+                WorldSim.Instance.OpenGarageSale();
+                break;
             case "letter":
                 // Mail panel with the first letter opened: the queued Enter activates
                 // the focused list row through the GUI stage next frame.

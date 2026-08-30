@@ -32,6 +32,15 @@
   to be extended later with fairly unique specialties (details TBD, user has plans).
 - **Progression**: money and connections level up capabilities, weapons, and special items,
   which are required to complete the quests along the path to defeating the malevolence.
+- **Skills — planned, NOT designed** (Kevin, 2026-08-29): a skills system is coming;
+  establish the plan only — do not design it without Kevin. One of the skills is
+  **mechanical repair**. Backstory hook: after Jane's family lost their farm, her father
+  worked as an auto mechanic — he'd bring her to work and taught her everything he knew
+  about cars. Next to the gas station (west entry) is a closed car repair garage, for
+  sale at $100k for now, which Jane will eventually need to buy. Jane needs a more advanced
+  mechanical repair skill to get the drive-in running again
+  (`docs/story/drivein-movie/README.md`), and in the late game the skills are part of
+  her effort to remove the curse on the town.
 
 ## Design implications (proposals — treat as draft until confirmed)
 
@@ -129,12 +138,22 @@
   2026-08-28: the letter's promise is now mechanical truth — NewGame stocks the starter
   kit into a chest in the barn (StarterKit -> StorageIds.BarnChest) and the player
   starts empty-handed; fetching the tools is the first errand. Old saves keep their
-  inventory-granted kit (frozen migrations) and their barn chest starts empty. Still
-  remaining:
+  inventory-granted kit (frozen migrations) and their barn chest starts empty.
+  2026-08-29 (Kevin's garage commission): the closed repair garage beside the gas
+  station — a placeholder-art building with a dark GARAGE band and no door, its FOR
+  SALE board opening the fourth Menu session (a Buy/Walk-away confirm panel), and
+  WorldSim.BuyGarage debiting the 100,000g and stamping `garage.deed` (GarageRules;
+  the deed is expected to feed the planned mechanical-repair skill — how is
+  undesigned, see Canon §Skills). No interior
+  and nothing reads the deed yet — that seam is deliberately empty, like the
+  barn's. Still remaining:
   connections/relationship mechanics, enlarging the town centre (clinic, Stumble Inn,
   homes, fountain square), shop catalogs for the gas station and fireworks stand,
-  haircuts, motel room unlock stories, the drive-in restoration arc.
-- **Phase 4 — Mining & fishing**: plus the unique specialties (design with Kevin first).
+  haircuts, motel room unlock stories, the drive-in restoration arc, the garage
+  interior + the skills system (plan in Canon; phase and design are Kevin's calls).
+- **Phase 4 — Mining & fishing**: plus the unique specialties (design with Kevin
+  first). The skills system's plan is recorded in Canon (2026-08-29); which phase it
+  lands in, which skill is built first, and the design itself are all Kevin's calls.
 - **Phase 5 — The malevolence**: entity manifestations, combat, weapons/special items,
   malevolence quest lines (on the quest framework shipped 2026-08-28), escalation,
   endgame.

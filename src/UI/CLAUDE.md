@@ -1,20 +1,23 @@
 # src/UI — the HUD and menu layer
 
-Fourteen code-built Controls in Main.tscn's UI layer, each building its own controls in
+Fifteen code-built Controls in Main.tscn's UI layer, each building its own controls in
 `_Ready`: Hud, InteractionPrompt, HotbarUi, StaminaBar, HelpPanel, QuestLogUi,
-DialogueUi, ChestUi, ShopUi, MailboxUi, OvernightReportUi, PauseMenu, QuestToastUi,
-ScreenFade. Every panel is a pure view over
+DialogueUi, ChestUi, ShopUi, MailboxUi, GarageSaleUi, OvernightReportUi, PauseMenu,
+QuestToastUi, ScreenFade. Every panel is a pure view over
 system events (WorldSim sessions, GameState.StateChanged, SaveService.AfterLoad) —
 no UI owns durable state or mutates the model directly.
 
 ## Rules (violations are bugs)
 
-- Chest/shop/mailbox UIs run in the Menu phase, owned by WorldSim's Open*/Close*
-  sessions (OpenStorageId/OpenShopId/MailboxOpen) — UIs never call TransitionTo
-  themselves; Menu freezes clock and player but never tree pause. Modal UIs replicate
-  DialogueUi's `_openedFrame` guard (today: ChestUi, ShopUi and MailboxUi): the press
-  that OPENED the panel may still be dispatching that frame and must not also
-  transfer/buy/advance/open-a-letter.
+- Chest/shop/mailbox/garage-sale UIs run in the Menu phase, owned by WorldSim's
+  Open*/Close* sessions (OpenStorageId/OpenShopId/MailboxOpen/GarageSaleOpen) — UIs
+  never call TransitionTo themselves; Menu freezes clock and player but never tree
+  pause. Modal UIs replicate DialogueUi's `_openedFrame` guard (today: ChestUi,
+  ShopUi, MailboxUi and GarageSaleUi): the press that OPENED the panel may still be
+  dispatching that frame and must not also transfer/buy/advance/open-a-letter.
+- GarageSaleUi is the one purchase that gets a confirm: WALK AWAY holds opening
+  focus (buying 100,000g takes a deliberate arrow first — a mashed E closes, never
+  buys), and a successful BuyGarage closes the session from the bus side.
 - MailboxUi displays a letter only on explicit activation (E/click on its list row —
   arrowing through the list reads nothing), and displaying IS reading: it calls
   WorldSim.ReadLetter right there. Letter bodies have no scroll — like dialogue,
@@ -46,7 +49,7 @@ no UI owns durable state or mutates the model directly.
 ## Layer facts (from the code)
 
 - Stack order: DialogueUi sits between QuestLogUi and PauseMenu; ChestUi/ShopUi/
-  MailboxUi sit above DialogueUi and below OvernightReport/PauseMenu; QuestToastUi is
+  MailboxUi/GarageSaleUi sit above DialogueUi and below OvernightReport/PauseMenu; QuestToastUi is
   second-to-last — above every panel, under ScreenFade, so the fade still covers it.
 - HelpPanel (Tab, left-center) and QuestLogUi (J, right-center) are pure non-modal:
   no phase change, root ignores mouse ALWAYS, nothing takes focus; both force-hide

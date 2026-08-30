@@ -61,6 +61,11 @@ public partial class WorldSim : Node
 
     public event Action? MailboxClosed;
 
+    /// <summary>The garage-sale panel shows on this.</summary>
+    public event Action? GarageSaleOpened;
+
+    public event Action? GarageSaleClosed;
+
     public DialogueSession? ActiveDialogue { get; private set; }
 
     /// <summary>Storage id of the open chest session; null when none.</summary>
@@ -71,6 +76,9 @@ public partial class WorldSim : Node
 
     /// <summary>True while the mailbox session is open (there is only one mailbox).</summary>
     public bool MailboxOpen { get; private set; }
+
+    /// <summary>True while the garage-sale session is open (there is only one garage).</summary>
+    public bool GarageSaleOpen { get; private set; }
 
     private readonly List<MapRoot> _maps = new();
     private OvernightReport _pendingReport;
@@ -589,7 +597,7 @@ public partial class WorldSim : Node
     public bool OpenStorage(string storageId)
     {
         if (!GameState.Instance.PlayerHasControl || OpenStorageId != null || OpenShopId != null
-            || MailboxOpen)
+            || MailboxOpen || GarageSaleOpen)
         {
             return false;
         }
@@ -618,7 +626,7 @@ public partial class WorldSim : Node
     public bool OpenShop(string catalogId)
     {
         if (!GameState.Instance.PlayerHasControl || OpenStorageId != null || OpenShopId != null
-            || MailboxOpen)
+            || MailboxOpen || GarageSaleOpen)
         {
             return false;
         }
@@ -648,7 +656,7 @@ public partial class WorldSim : Node
     public bool OpenMailbox()
     {
         if (!GameState.Instance.PlayerHasControl || OpenStorageId != null || OpenShopId != null
-            || MailboxOpen)
+            || MailboxOpen || GarageSaleOpen)
         {
             return false;
         }
@@ -668,6 +676,40 @@ public partial class WorldSim : Node
         MailboxOpen = false;
         GameState.Instance.TransitionTo(GameState.Phase.Playing);
         MailboxClosed?.Invoke();
+    }
+
+    /// <summary>
+    /// Same shape as <see cref="OpenStorage"/> — the fourth Menu session, opened by
+    /// the west entry's FOR SALE board. Additionally refuses once the deed is
+    /// stamped: a sold garage has nothing left to sell.
+    /// </summary>
+    public bool OpenGarageSale()
+    {
+        if (!GameState.Instance.PlayerHasControl || OpenStorageId != null || OpenShopId != null
+            || MailboxOpen || GarageSaleOpen)
+        {
+            return false;
+        }
+        if (GarageRules.IsOwned(SaveService.Instance.Current))
+        {
+            return false;
+        }
+        GarageSaleOpen = true;
+        GameState.Instance.TransitionTo(GameState.Phase.Menu);
+        GarageSaleOpened?.Invoke();
+        return true;
+    }
+
+    /// <summary>Safe no-op when no garage-sale session is open.</summary>
+    public void CloseGarageSale()
+    {
+        if (!GarageSaleOpen)
+        {
+            return;
+        }
+        GarageSaleOpen = false;
+        GameState.Instance.TransitionTo(GameState.Phase.Playing);
+        GarageSaleClosed?.Invoke();
     }
 
     /// <summary>
@@ -784,6 +826,34 @@ public partial class WorldSim : Node
     }
 
     /// <summary>
+    /// Buys the west-entry garage out of the open sale session, all-or-nothing.
+    /// BuyItem's discipline: every check lands strictly BEFORE any mutation — a
+    /// refusal touches nothing and fires no events. On Ok: debit, the deed stamped
+    /// through <see cref="SetStoryFlag"/> (repaint + StoryFlagSet, so a future
+    /// quest pair completes right here), then MoneyChanged, then the session closes
+    /// itself — the deal is done and the panel has nothing left to sell.
+    /// </summary>
+    public GarageSaleResult BuyGarage()
+    {
+        if (!GarageSaleOpen)
+        {
+            return GarageSaleResult.NotOpen;
+        }
+        GameData data = SaveService.Instance.Current;
+        GarageSaleResult check = GarageRules.CanBuy(data);
+        if (check != GarageSaleResult.Ok)
+        {
+            return check;
+        }
+
+        data.Player.Money -= GarageRules.Price;
+        SetStoryFlag(StoryKeys.GarageDeed);
+        MoneyChanged?.Invoke(data.Player.Money);
+        CloseGarageSale();
+        return GarageSaleResult.Ok;
+    }
+
+    /// <summary>
     /// Re-derives NPC staging from (StoryFlags, Clock.Now) and pushes it to every live
     /// registered map. Maps with no scheduled NPC get an empty list — that is how
     /// departures despawn.
@@ -890,18 +960,20 @@ public partial class WorldSim : Node
         }
         ActiveDialogue = null;
 
-        // Same strand for the menu sessions: a load can land while a chest, shop or
-        // mailbox is up (all always Menu-from-Playing), so the discarded session must
-        // give the phase back and tell its UI to hide. Flag-based — never a phase
-        // comparison.
-        if (OpenStorageId != null || OpenShopId != null || MailboxOpen)
+        // Same strand for the menu sessions: a load can land while a chest, shop,
+        // mailbox or garage sale is up (all always Menu-from-Playing), so the
+        // discarded session must give the phase back and tell its UI to hide.
+        // Flag-based — never a phase comparison.
+        if (OpenStorageId != null || OpenShopId != null || MailboxOpen || GarageSaleOpen)
         {
             bool storageWasOpen = OpenStorageId != null;
             bool shopWasOpen = OpenShopId != null;
             bool mailboxWasOpen = MailboxOpen;
+            bool garageSaleWasOpen = GarageSaleOpen;
             OpenStorageId = null;
             OpenShopId = null;
             MailboxOpen = false;
+            GarageSaleOpen = false;
             GameState.Instance.TransitionTo(GameState.Phase.Playing);
             if (storageWasOpen)
             {
@@ -914,6 +986,10 @@ public partial class WorldSim : Node
             if (mailboxWasOpen)
             {
                 MailboxClosed?.Invoke();
+            }
+            if (garageSaleWasOpen)
+            {
+                GarageSaleClosed?.Invoke();
             }
         }
 

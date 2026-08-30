@@ -12,7 +12,9 @@ mail: LetterDef(s)/MailRules/MailActions; quests: QuestDef(s)/QuestRules;
 WorkAnimation (the tool work loop's pure timing/interruption contract — the tile
 mutation fires on ENTRY to its impact frame, never at press time); shop:
 ShopCatalog (+ ShopEntry/BuyResult)/ShopHours; story: StoryKeys/IntroRules/BarnRules/
-MotelRules/MapIds/RoadWrap, DialogueDef(s)/DialogueSession/DialogueSelector,
+MotelRules/GarageRules (the west-entry garage sale: Price + the pure CanBuy check
+behind WorldSim.BuyGarage; ownership = the garage.deed day-stamp)/MapIds/RoadWrap,
+DialogueDef(s)/DialogueSession/DialogueSelector,
 NpcDef(s)/NpcSchedules.
 
 ## Rules (violations are bugs)
