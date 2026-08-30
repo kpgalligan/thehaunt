@@ -464,6 +464,7 @@ public static class FarmArtTests
             (MapIds.MotelRoom2, new(4, 6), new(4, 5), new(4, 3), MapIds.WestEntry, "from_room2"),
             (MapIds.MotelRoom3, new(4, 6), new(4, 5), new(4, 3), MapIds.WestEntry, "from_room3"),
             (MapIds.MotelRoom4, new(4, 6), new(4, 5), new(4, 3), MapIds.WestEntry, "from_room4"),
+            (MapIds.GarageInterior, new(6, 9), new(6, 8), new(6, 5), MapIds.WestEntry, "from_garage"),
         };
 
         foreach (var (mapId, door, threshold, inside, target, spawn) in rooms)

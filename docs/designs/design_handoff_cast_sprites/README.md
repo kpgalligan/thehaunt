@@ -32,13 +32,21 @@ All at native 16px. Cells are **16 wide × 32 tall**.
 | File | Size | Contents |
 | --- | --- | --- |
 | `art/character.png` | 96×96 | Jane. **Replaces the existing file in place.** |
-| `art/cast_west.png` | 384×96 | walt, dennis, gloria, pell |
+| `art/cast_west.png` | 480×96 | walt, dennis, gloria, pell, mike |
 | `art/cast_billies.png` | 768×96 | billie, bud, pete, moody, lyle, harriet, ray, nora |
 | `art/cast_east.png` | 192×96 | sam, abe |
 | `art/cast_town.png` | 480×96 | mayor, foreman, crew_worker_a, crew_worker_b, shopkeeper |
 | `art/cast_<id>.png` | 96×96 | Each of the 19 NPCs standalone, for per-NPC loading |
 
 In every packed atlas, character *n* occupies `x = n * 96 .. n * 96 + 95`, full height. Use either the packed atlas or the standalone files — they are pixel-identical.
+
+> **Amendment (2026-08-30, Kevin's garage-operation commission):** `mike` (garage
+> clerk; the name is Kevin's) appended to `cast_west` as block 4 — append-only, the
+> original four blocks byte-preserved. His spec lives in `art/gen_cast.js` like
+> everyone's; the atlas was regenerated with `tools/run_gen_cast.mjs` (a local
+> harness for this file's generator) and recomposed so blocks 0-3 kept their
+> shipped bytes. No standalone `cast_mike.png` was produced (the standalones are
+> unshipped).
 
 ### Sheet layout — 96×96, 16×32 cells
 
@@ -82,6 +90,7 @@ Jane and each NPC below. "Silhouette" is the head shape that identifies the char
 | `dennis` | dark mop, wider than his head | grey zip hoodie over dark tee, dark jeans | Slim build. The only sprite deliberately wearing this decade. |
 | `gloria` | silver braid down the back | rust cardigan over cream, denim skirt, boots | Braid is her read from behind. Rust `#a4432f` is the warmest colour on the road and only she and Bud get it. |
 | `pell` | neat side part | charcoal sport coat, white shirt, dark tie | Slim-cut and immaculate. Three weeks into a one-night stay and not one pixel is rumpled — that is his only tell. No dread accent on him. |
+| `mike` | brimless cap / watch cap | warm tan shirt, dark trousers | 2026-08-30 amendment (garage clerk; block 4). The counter's clothes, not the pit's — no smock, no coveralls: he is not a mechanic and the wardrobe says so. Cap in `waterMid` — the only blue head on the strip, so he never reads as walt/dennis/pell. |
 
 ### Billie's — `art/cast_billies.png`
 
@@ -188,7 +197,7 @@ Four light steps outside the named palette are used only as the fifth ramp step 
 
 ```
 art/character.png              Jane, 96×96
-art/cast_west.png              384×96
+art/cast_west.png              480×96   (2026-08-30: +mike, block 4)
 art/cast_billies.png           768×96
 art/cast_east.png              192×96
 art/cast_town.png              480×96

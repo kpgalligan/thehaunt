@@ -1,4 +1,4 @@
-[gd_scene load_steps=20 format=3]
+[gd_scene load_steps=21 format=3]
 
 [ext_resource type="Script" path="res://src/Main.cs" id="1_main"]
 [ext_resource type="Script" path="res://src/Player/PlayerController.cs" id="2_player"]
@@ -19,6 +19,7 @@
 [ext_resource type="Script" path="res://src/UI/QuestLogUi.cs" id="17_questlog"]
 [ext_resource type="Script" path="res://src/UI/QuestToastUi.cs" id="18_questtoast"]
 [ext_resource type="Script" path="res://src/UI/GarageSaleUi.cs" id="19_garagesale"]
+[ext_resource type="Script" path="res://src/UI/SkillsPanel.cs" id="20_skills"]
 
 [node name="Main" type="Node2D"]
 script = ExtResource("1_main")
@@ -59,6 +60,9 @@ script = ExtResource("11_help")
 
 [node name="QuestLog" type="Control" parent="UI"]
 script = ExtResource("17_questlog")
+
+[node name="SkillsPanel" type="Control" parent="UI"]
+script = ExtResource("20_skills")
 
 [node name="DialogueUi" type="Control" parent="UI"]
 script = ExtResource("9_dialogue")

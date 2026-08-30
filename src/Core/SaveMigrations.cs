@@ -4,7 +4,7 @@ namespace TheHaunt.Core;
 
 public static class SaveMigrations
 {
-    public const int CurrentVersion = 6;
+    public const int CurrentVersion = 7;
 
     public static IReadOnlyList<ISaveMigration> Chain { get; } = new ISaveMigration[]
     {
@@ -13,6 +13,7 @@ public static class SaveMigrations
         new MigrationV3ToV4(),
         new MigrationV4ToV5(),
         new MigrationV5ToV6(),
+        new MigrationV6ToV7(),
     };
 
     public static JsonNode Apply(JsonNode root) => Apply(root, Chain, CurrentVersion);

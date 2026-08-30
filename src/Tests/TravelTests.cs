@@ -22,6 +22,7 @@ public static class TravelTests
         {
             "default", RoadWrap.ArrivalSpawn, "from_billies", "from_motel",
             "from_room1", "from_room2", "from_room3", "from_room4", "from_gas",
+            "from_garage",
         },
         [MapIds.Billies] = new[] { "default", "from_west_entry", "from_fork", "from_bar" },
         [MapIds.Fork] = new[] { "default", "from_billies", "from_town", "from_farm" },
@@ -37,6 +38,7 @@ public static class TravelTests
         [MapIds.MotelRoom3] = new[] { "default", "entry" },
         [MapIds.MotelRoom4] = new[] { "default", "entry" },
         [MapIds.DriveIn] = new[] { "default", "from_road" },
+        [MapIds.GarageInterior] = new[] { "default", "entry" },
     };
 
     [SimTest]

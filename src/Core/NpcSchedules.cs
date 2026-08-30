@@ -228,4 +228,16 @@ public static class NpcSchedules
             0, GameTime.MinutesPerDay,
             new NpcPlacement(MapIds.EastFork, 26, 20, 0, Ambit: 1)), // beside the shack
     };
+
+    // The garage clerk (Kevin, 2026-08-30): hired with the deed — the flag gate is
+    // the whole "once owned" rule — and at his counter every day the shop is open.
+    // The window derives from GarageOpsRules' hours so Mike's presence and the
+    // customer-arrival window can never diverge (the Shopkeeper↔ShopHours and
+    // Dennis↔GasOpenMinute binding). Open end of the counter, keeper rule.
+    public static IReadOnlyList<ScheduleEntry> Mike { get; } = new[]
+    {
+        new ScheduleEntry(StoryKeys.GarageDeed, null,
+            GarageOpsRules.OpenMinuteOfDay, GarageOpsRules.CloseMinuteOfDay,   // 9:00 AM - 6:00 PM
+            new NpcPlacement(MapIds.GarageInterior, 10, 4, 0, Ambit: 1)),
+    };
 }

@@ -5,13 +5,37 @@ earlier ones): **GameState** (top-level phase enum + the derived gates ClockRuns
 PlayerHasControl / CanStartDialogue — Playing or Cutscene), **Clock** (drives the pure
 `ClockModel` from `_Process`, re-exposes its events 1:1), **SaveService** (owns the
 `GameData` graph and the save/load pipeline — atomic tmp+rename writes, quarantine of
-unreadable files, load-time repair/migration), **WorldSim** (the single
+unreadable files, load-time repair/migration; NewGame rolls the save's one RNG
+`Seed` via GD.Randi), **WorldSim** (the single
 gameplay-mutation bus — all model writes flow through it, incl. story flags, travel
 requests, the dialogue session, chest/shop/mailbox/garage-sale Menu sessions,
 transfers, purchases (BuyItem, and the one-time BuyGarage), letter reads + package
-takes (ReadLetter/TakeLetterItems), and scooter mount/park; UI subscribes to ITS
-events, never to events on Core objects — SaveService swaps `Current` wholesale on
-load).
+takes (ReadLetter/TakeLetterItems), scooter mount/park, the garage operation
+(the hourly customer roll + WorkOnGarageJob), and skill XP grants (private
+GrantSkillXp — XP sources are bus observations of outcomes, never UI calls); UI
+subscribes to ITS events, never to events on Core objects — SaveService swaps
+`Current` wholesale on load).
+
+## The garage operation (Kevin, 2026-08-30)
+
+- WorldSim is the ONE `HourTicked` subscriber (src/CLAUDE.md): each open hour
+  (GarageOpsRules.IsOpenHour, [9,18)) with the deed stamped and a free lift rolls
+  `GarageOpsRules.CustomerRoll(data.Seed, day, hour)` — a pure hash, so a re-fired
+  tick is idempotent (the (ArrivalDay, ArrivalHour) stamp is the guard). Order on
+  an arrival: mutate -> repaint -> `GarageJobsChanged` -> `GarageCustomerArrived`.
+  Live play only: AdvanceToDayStart fires no hour ticks, so slept-through open
+  hours roll nothing (deliberate v1 limitation; the stateless hash makes a dawn
+  catch-up addable without reshuffling schedules).
+- `WorkOnGarageJob(lift)`: GarageOpsRules.DoWork mutates (checks strictly first,
+  refusals fire NO events), then repaint -> `StaminaChanged` -> `GarageJobsChanged`
+  -> on completion `SkillsChanged` -> `SkillLeveledUp?` -> `GarageJobCompleted`.
+  The bus observes CompletedJob for the mechanical-repair point, exactly as it
+  observes Harvested for the farming point (the FirstPlanting pattern).
+- Dawn resolution lives in OvernightSim's garage step (payment BEFORE expiry — a
+  pinned invariant; see src/Core/CLAUDE.md) and reaches UI through the
+  OvernightReport's Garage lines; OnDayStarted's step 3 also fires
+  `GarageJobsChanged` unconditionally, so the event's contract stays "fires on
+  every jobs-list change".
 
 Menu sessions are MUTUALLY exclusive and the exclusion is pairwise: every Open*
 gate names all four session slots (OpenStorageId, OpenShopId, MailboxOpen,
@@ -32,8 +56,9 @@ gating, GetTree().Paused ownership) are in src/CLAUDE.md.
   WorldSim repaints maps and fires UI events on DayStarted. Both fire synchronously
   inside AdvanceToDayStart, before Main's autosave.
 - OnDayStarted's committed ordering (spec §1.4, risk R3): 1 dawn flags, 2 repaint,
-  3 UI events, 4 NPC + scooter sync, 5 StoryFlagSet — all before Main's autosave.
-  Violating it is a bug.
+  3 UI events (OvernightCompleted, MoneyChanged, StaminaChanged, InventoryChanged,
+  GarageJobsChanged), 4 NPC + scooter sync, 5 StoryFlagSet — all before Main's
+  autosave. Violating it is a bug.
 - `OvernightCompleted` fires mid-advance while the screen is black — subscribers latch,
   never display, in the handler (the report card is shown later, by Main's sleep flow).
 

@@ -44,6 +44,17 @@ never named). She is entirely unafraid of the town — which should itself read 
 strange — and the one adult who talks to Jane like an equal from day one. Voice: long
 warm sentences with one flint edge. Her husband's name, Otis, is also invented.
 
+### Mike (garage clerk) — CANON NAME (Kevin, 2026-08-30), voice proposed
+Canon: hired with the garage deed; friendly, NOT a mechanic — his only job is taking
+new customers and collecting money, and his word is how Jane learns a car came in.
+At the counter every open hour, 9am-6pm, seven days.
+Invented (pending review, like the rest of this file): nothing beyond the voice and
+the wardrobe (soft cap, warm plain shirt — the counter's clothes, not the pit's).
+He likes the job precisely because he can't do the other half of it; he writes down
+what customers say about their cars verbatim, spelling and all, and hands Jane the
+page like it's evidence. Voice: cheerful, unembarrassed, first-name-basis with
+everyone by day two.
+
 ### Mr. Pell (motel guest) — WHOLLY INVENTED CHARACTER
 Grounded in canon's "the motel is where many of the sacrifices will ultimately come
 from" and "the town is much more likely to make the demand when strangers arrive and

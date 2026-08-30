@@ -52,7 +52,10 @@ public partial class SaveService : Node
 
     public void NewGame()
     {
-        Current = GameData.NewGame();
+        // The save's one RNG seed is rolled HERE (EnsureObstacles precedent: the
+        // Godot layer owns randomness, Core stays deterministic under an explicit
+        // seed). Tests calling GameData.NewGame() directly get seed 0.
+        Current = GameData.NewGame(unchecked((int)GD.Randi()));
         Clock.Instance.SetTime(new GameTime(0));
         foreach (IPersistentSystem system in _systems)
         {
@@ -240,6 +243,60 @@ public partial class SaveService : Node
         }
         data.Player.MaxStamina = Math.Max(1, data.Player.MaxStamina);
         data.Player.Stamina = Math.Clamp(data.Player.Stamina, 0, data.Player.MaxStamina);
+        // Skill repair mirrors the flag repair: drop the one degenerate key, clamp
+        // negative XP to 0 (XP is monotone). Unknown skill ids are KEPT
+        // (preserve-unknown rule); any Seed value is valid and passes untouched.
+        data.Player.SkillXp ??= new();
+        data.Player.SkillXp.Remove("");
+        foreach (string key in data.Player.SkillXp.Keys.ToList())
+        {
+            if (data.Player.SkillXp[key] < 0)
+            {
+                data.Player.SkillXp[key] = 0;
+            }
+        }
+
+        // Garage-job repair. DELIBERATE deviation from preserve-unknown: a job
+        // whose ServiceId this build cannot price or work is DROPPED, not kept —
+        // the record is transient (reclaimed within two dawns anyway) and a kept
+        // one would squat a lift no press can ever clear.
+        data.GarageJobs ??= new();
+        data.GarageJobs.RemoveAll(job =>
+            job is null || string.IsNullOrEmpty(job.ServiceId)
+            || GarageServices.TryGet(job.ServiceId) is null);
+        var liftsTaken = new HashSet<int>();
+        var repairedJobs = new List<GarageJobRecord>();
+        foreach (GarageJobRecord job in data.GarageJobs)
+        {
+            GarageServiceDef service = GarageServices.TryGet(job.ServiceId)!;
+            job.WorkDone = Math.Clamp(job.WorkDone, 0, service.Work);
+            if (job.WorkDone >= service.Work)
+            {
+                // No limbo: full work IS completion (DoWork defends the same edge).
+                job.Completed = true;
+            }
+            job.ArrivalDay = Math.Max(0, job.ArrivalDay);
+            job.ArrivalHour = Math.Clamp(job.ArrivalHour, 0, 25);   // AbsoluteHour range
+            // One job per bay, at most MaxCars bays: first claim wins, a colliding
+            // job takes the free bay if any, extras are dropped (two cars cannot
+            // share a lift, and a third car has nowhere to render or be worked).
+            job.Lift = Math.Clamp(job.Lift, 0, GarageOpsRules.MaxCars - 1);
+            if (liftsTaken.Add(job.Lift))
+            {
+                repairedJobs.Add(job);
+                continue;
+            }
+            for (int lift = 0; lift < GarageOpsRules.MaxCars; lift++)
+            {
+                if (liftsTaken.Add(lift))
+                {
+                    job.Lift = lift;
+                    repairedJobs.Add(job);
+                    break;
+                }
+            }
+        }
+        data.GarageJobs = repairedJobs;
 
         foreach (MapState map in data.Maps.Values)
         {

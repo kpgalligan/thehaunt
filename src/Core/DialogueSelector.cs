@@ -39,7 +39,24 @@ public static class DialogueSelector
             "nora" => "nora_default",
             "sam" => oddDay ? "sam_b" : "sam_a",
             "abe" => meetingDone ? "abe_after" : "abe_before",
+            // Mike tracks the shop floor, not the clock: a car WAITING ON WORK
+            // swaps his line (pure read of GarageJobs — jobs are model state like
+            // flags). Completed cars parked till dawn don't count: "work's
+            // waiting" must never be a lie.
+            "mike" => HasOpenGarageJob(data) ? "mike_jobs" : "mike_idle",
             _ => null,
         };
+    }
+
+    private static bool HasOpenGarageJob(GameData data)
+    {
+        foreach (GarageJobRecord job in data.GarageJobs)
+        {
+            if (!job.Completed)
+            {
+                return true;
+            }
+        }
+        return false;
     }
 }

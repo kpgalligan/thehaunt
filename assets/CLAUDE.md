@@ -10,7 +10,10 @@ never a reason to touch the pixels.
 - `sprites/character.png` — Jane (96x96 walk sheet; the cast handoff replaced it in
   place); `sprites/lights.png` — glow falloffs + the flame strip.
 - `sprites/cast/` — the four packed cast atlases (`cast_west/billies/east/town`; one
-  96x96 block per character, block order fixed by the cast handoff's README).
+  96x96 block per character, block order fixed by the cast handoff's README —
+  including its 2026-08-30 amendment: `mike` appended to cast_west as block 4,
+  generated via `tools/run_gen_cast.mjs` from `gen_cast.js`, existing blocks
+  byte-preserved).
 - `sprites/town/` — town terrain + its TileSet, both facades, props.
 - `sprites/farm/` — farm terrain + crops TileSets, farm buildings, barn.
 - `sprites/interior/` — interior TileSet + furniture.

@@ -6,10 +6,13 @@ namespace TheHaunt.UI;
 
 /// <summary>Quest log, toggled with J ("toggle_quests"). Non-modal exactly like
 /// HelpPanel: no phase change, the clock keeps running, and losing player control
-/// force-hides it. Content is a pure derivation (QuestRules over the story flags):
-/// active quests with their descriptions, then completed ones dimmed — rebuilt on
-/// every show and on every new story flag while visible, so a quest completing under
-/// an open log updates in place.</summary>
+/// force-hides it. Content: active quests with their descriptions (QuestRules over
+/// the story flags), then the garage's live jobs — Kevin's "recorded as quest
+/// tasks": one row per car with its deadline (progress lives on the shop floor's
+/// bay labels, not here), straight off
+/// GameData.GarageJobs — then completed quests dimmed. Rebuilt on every show, on
+/// every new story flag, and on every GarageJobsChanged while visible, so a quest
+/// completing or a customer arriving under an open log updates in place.</summary>
 public partial class QuestLogUi : Control
 {
     private VBoxContainer _rows = null!;
@@ -24,12 +27,14 @@ public partial class QuestLogUi : Control
 
         GameState.Instance.StateChanged += OnStateChanged;
         WorldSim.Instance.StoryFlagSet += OnStoryFlagSet;
+        WorldSim.Instance.GarageJobsChanged += OnGarageJobsChanged;
     }
 
     public override void _ExitTree()
     {
         GameState.Instance.StateChanged -= OnStateChanged;
         WorldSim.Instance.StoryFlagSet -= OnStoryFlagSet;
+        WorldSim.Instance.GarageJobsChanged -= OnGarageJobsChanged;
     }
 
     public override void _UnhandledInput(InputEvent @event)
@@ -103,6 +108,24 @@ public partial class QuestLogUi : Control
             desc.AddThemeColorOverride("font_color", new Color(1f, 1f, 1f, 0.6f));
             _rows.AddChild(desc);
         }
+        // The garage's live tasks (Kevin: arrivals are "recorded as quest tasks").
+        // Dynamic model state, not QuestDefs — jobs come and go, quests are
+        // monotone flag windows; the two never share machinery.
+        if (data.GarageJobs.Count > 0)
+        {
+            var header = new Label { Text = "Garage" };
+            header.AddThemeFontSizeOverride("font_size", 8);
+            header.AddThemeColorOverride("font_color", new Color(1f, 0.92f, 0.55f, 0.9f));
+            _rows.AddChild(header);
+            long today = Clock.Instance.Now.DayIndex;
+            foreach (GarageJobRecord job in data.GarageJobs)
+            {
+                var row = new Label { Text = GarageRow(job, today) };
+                row.AddThemeFontSizeOverride("font_size", 8);
+                row.AddThemeColorOverride("font_color", new Color(1f, 1f, 1f, job.Completed ? 0.4f : 0.8f));
+                _rows.AddChild(row);
+            }
+        }
         foreach (QuestDef quest in completed)
         {
             var done = new Label { Text = "✓ " + quest.Title };
@@ -110,12 +133,37 @@ public partial class QuestLogUi : Control
             done.AddThemeColorOverride("font_color", new Color(1f, 1f, 1f, 0.4f));
             _rows.AddChild(done);
         }
-        if (active.Count == 0 && completed.Count == 0)
+        if (active.Count == 0 && completed.Count == 0 && data.GarageJobs.Count == 0)
         {
             var empty = new Label { Text = "Nothing yet." };
             empty.AddThemeFontSizeOverride("font_size", 8);
             empty.AddThemeColorOverride("font_color", new Color(1f, 1f, 1f, 0.5f));
             _rows.AddChild(empty);
+        }
+    }
+
+    // Deadline surface for the 2-day window: the customer reclaims an unfinished
+    // car at dawn of ArrivalDay + 2, so day D reads "due tomorrow", D+1 "due
+    // today". "Overdue" only on hand-edited clocks — dawn removes real ones.
+    private static string GarageRow(GarageJobRecord job, long today)
+    {
+        string service = GarageServices.TryGet(job.ServiceId)?.Name ?? "Repair";
+        if (job.Completed)
+        {
+            return $"✓ {service} — payment tomorrow";   // [KEVIN]
+        }
+        long lastDay = job.ArrivalDay + 1;
+        string due = today < lastDay ? "due tomorrow"
+            : today == lastDay ? "due today"
+            : "overdue";   // [KEVIN]
+        return $"{service} — {due}";
+    }
+
+    private void OnGarageJobsChanged()
+    {
+        if (Visible)
+        {
+            Rebuild();   // an arrival or a work press under an open log updates live
         }
     }
 

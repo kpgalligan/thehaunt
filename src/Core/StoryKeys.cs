@@ -37,9 +37,9 @@ public static class StoryKeys
 
     // The west-entry repair garage (docs/story/README.md §West entry): the deed,
     // stamped by WorldSim.BuyGarage when Jane buys the place out of the sale
-    // session. Ownership is this one monotone flag; the mechanical-repair skill
-    // it will feed is planned, not designed (docs/design.md §Skills), so nothing
-    // reads it yet beyond the sale itself.
+    // session. Ownership is this one monotone flag, and the operation layer
+    // (2026-08-30) hangs off it: the deed-locked shop door, Mike's schedule, the
+    // hourly customer roll, and the work presses (GarageOpsRules).
     public const string GarageDeed = "garage.deed";
 
     public const string MotelRoom1Open = "motel.room1_open";

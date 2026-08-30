@@ -32,15 +32,41 @@
   to be extended later with fairly unique specialties (details TBD, user has plans).
 - **Progression**: money and connections level up capabilities, weapons, and special items,
   which are required to complete the quests along the path to defeating the malevolence.
-- **Skills — planned, NOT designed** (Kevin, 2026-08-29): a skills system is coming;
-  establish the plan only — do not design it without Kevin. One of the skills is
-  **mechanical repair**. Backstory hook: after Jane's family lost their farm, her father
-  worked as an auto mechanic — he'd bring her to work and taught her everything he knew
-  about cars. Next to the gas station (west entry) is a closed car repair garage, for
-  sale at $100k for now, which Jane will eventually need to buy. Jane needs a more advanced
+- **Skills v1 — designed and shipped** (Kevin, 2026-08-30; supersedes the 2026-08-29
+  "planned, NOT designed" bullet): four skills — **farming, mechanical repair,
+  foraging, combat** — on a 1-10 level scale. Practicing gains XP and levels trigger
+  automatically; to start, every level costs 10 XP and every instance of practice is
+  1 XP ("this will need to be adjusted later, I want to start with something").
+  Practice = any harvested crop (farming), any completed repair in the garage — later,
+  out in the world too (mechanical repair), anything gathered (foraging), any kill
+  (combat). Foraging and combat have no mechanics yet beyond the points system. Skill
+  stats show on a panel from the key menu (K; listed in the Tab controls). Backstory
+  hook: after Jane's family lost their farm, her father worked as an auto mechanic —
+  he'd bring her to work and taught her everything he knew about cars. Next to the gas
+  station (west entry) is the car repair garage, for sale at $100k for now, which Jane
+  buys and operates (see the garage bullet below). Jane needs a more advanced
   mechanical repair skill to get the drive-in running again
   (`docs/story/drivein-movie/README.md`), and in the late game the skills are part of
   her effort to remove the curse on the town.
+- **The garage, operating** (Kevin, 2026-08-30): once owned, open 7 days a week,
+  9am-6pm — the hours gate customers and the clerk, never Jane, who can access it at
+  any time. **Mike**, the clerk (Kevin's name), is friendly but not a mechanic: his
+  only job is taking new customers and collecting money. Every hour the garage is
+  open there is a 6% chance a customer leaves a car; Jane gets a message from Mike
+  on screen and the job is recorded as a quest task with a 2-day deadline — miss it
+  and the customer takes the car back unpaid; finish it and the money is collected
+  the next day. No more than two cars at a time (the interior has two lifts, holding
+  0, 1, or 2 cars). Starting services (a fuller list later): oil change $100, fix
+  headlight/taillight $150, fix transmission $350. Repairs drain energy proportional
+  to cost: at mechanical-repair level 1 Jane can do 3 oil changes per day, and each
+  level adds half an oil change of capacity (~7.5 at level 10). Work can be partially
+  completed over multiple sessions. An energy replenishment system (likely food)
+  comes later — deliberately not now. TEMPORARY test scaffold: every day starts with
+  at least $150k (`DevScaffold`) so the garage is buyable while testing.
+  Consequences of these numbers worth Kevin's eye: a level-1 transmission ($350 of
+  work vs a 300-unit day) arriving late is unwinnable if untouched on its first day,
+  and a finished car occupies its lift until pickup at dawn, so real throughput caps
+  at 2 completions/day; slept-through open hours currently roll no customers.
 
 ## Design implications (proposals — treat as draft until confirmed)
 
@@ -140,20 +166,26 @@
   starts empty-handed; fetching the tools is the first errand. Old saves keep their
   inventory-granted kit (frozen migrations) and their barn chest starts empty.
   2026-08-29 (Kevin's garage commission): the closed repair garage beside the gas
-  station — a placeholder-art building with a dark GARAGE band and no door, its FOR
+  station — a placeholder-art building with a dark GARAGE band, its FOR
   SALE board opening the fourth Menu session (a Buy/Walk-away confirm panel), and
-  WorldSim.BuyGarage debiting the 100,000g and stamping `garage.deed` (GarageRules;
-  the deed is expected to feed the planned mechanical-repair skill — how is
-  undesigned, see Canon §Skills). No interior
-  and nothing reads the deed yet — that seam is deliberately empty, like the
-  barn's. Still remaining:
+  WorldSim.BuyGarage debiting the 100,000g and stamping `garage.deed` (GarageRules).
+  2026-08-30 (Kevin's skills + garage-operation commission): the deed now opens a
+  deed-locked door into the garage interior (two lifts, Mike's counter), the shop
+  runs on Canon §Garage's rules — hourly 6% arrivals into GameData.GarageJobs,
+  E-press repairs draining stamina on the level curve, dawn payments/reclaims in
+  the overnight sim and its report card, "word from Mike" toasts and quest-log
+  tasks — and skills v1 ships whole: XP in PlayerData.SkillXp, harvests and
+  completed repairs granting points, level-up toasts, the K skills panel, save v7
+  (+ a per-save Seed for the deterministic arrival roll). Foraging and combat are
+  ids-only (their mechanics don't exist); repairs out in the world, the energy
+  replenishment system, and the fuller service list are open seams. Still remaining:
   connections/relationship mechanics, enlarging the town centre (clinic, Stumble Inn,
   homes, fountain square), shop catalogs for the gas station and fireworks stand,
-  haircuts, motel room unlock stories, the drive-in restoration arc, the garage
-  interior + the skills system (plan in Canon; phase and design are Kevin's calls).
+  haircuts, motel room unlock stories, the drive-in restoration arc, foraging and
+  combat mechanics (their skills exist as ids only).
 - **Phase 4 — Mining & fishing**: plus the unique specialties (design with Kevin
-  first). The skills system's plan is recorded in Canon (2026-08-29); which phase it
-  lands in, which skill is built first, and the design itself are all Kevin's calls.
+  first). Skills v1 shipped 2026-08-30 (Canon §Skills); tuning the curve and
+  designing foraging/combat/world-repair practice are Kevin's calls.
 - **Phase 5 — The malevolence**: entity manifestations, combat, weapons/special items,
   malevolence quest lines (on the quest framework shipped 2026-08-28), escalation,
   endgame.

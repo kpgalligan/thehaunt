@@ -2,13 +2,23 @@
 
 PURE C# — no `using Godot`, test-enforced (SourceRulesTests); this is what keeps the
 model testable without a scene tree. What lives here: GameTime/calendar, ClockModel,
-GameData + save DTOs (PlayerData/MapState/TileRecord/ItemStackRecord/PlacedObjectRecord,
-SaveJsonContext), migrations (SaveMigrations.CurrentVersion = 6), item/crop/obstacle defs (code
+GameData + save DTOs (PlayerData/MapState/TileRecord/ItemStackRecord/PlacedObjectRecord/
+GarageJobRecord, SaveJsonContext), migrations (SaveMigrations.CurrentVersion = 7),
+item/crop/obstacle defs (code
 registries ItemDefs/CropDefs/ObstacleDefs), InventoryData, FarmActions, ObstacleGen
 (seeded one-shot field generation — WorldSim owns the trigger and the randomness),
-OvernightSim + ShippedLine;
+OvernightSim + ShippedLine + GarageLine;
 storage: StackOps/StorageData/StorageIds; scooter: ScooterData/ScooterRules;
 mail: LetterDef(s)/MailRules/MailActions; quests: QuestDef(s)/QuestRules;
+skills v1 (Kevin, 2026-08-30): SkillIds/SkillRules — XP in PlayerData.SkillXp is
+the stored truth (monotone, accumulates past the level-10 cap), level always
+derived (10 XP each); grants flow through WorldSim.GrantSkillXp only;
+garage operation (same commission): GarageServices (work ≡ price by design),
+GarageOpsRules (hours [9,18), MaxCars 2, the CustomerRoll hash off GameData.Seed —
+self-owned splitmix mixer, ObstacleGen's determinism stance — and DoWork's
+level-curved press: WorkPerPress = level+5, 2 stamina a press with a pro-rata
+final press, which is load-bearing for Kevin's exactly-3-oil-changes-at-L1),
+DevScaffold (TEMPORARY daily 150k money floor — see its doc for how to unwind);
 WorkAnimation (the tool work loop's pure timing/interruption contract — the tile
 mutation fires on ENTRY to its impact frame, never at press time); shop:
 ShopCatalog (+ ShopEntry/BuyResult)/ShopHours; story: StoryKeys/IntroRules/BarnRules/
@@ -54,6 +64,19 @@ NpcDef(s)/NpcSchedules.
 - Storage containers live in GameData.Storages (id -> StorageData); unknown storage
   keys and item ids are preserved verbatim; transfers/purchases go through WorldSim
   (TransferToStorage/TransferToInventory/BuyItem — checks strictly before mutations).
+- Garage jobs are CONTENT-bearing save state (GameData.GarageJobs — a die roll and
+  banked presses cannot be re-derived), unlike mail/quests. A job's Lift is its
+  stable bay for life; deadline is derived (reclaim at dawn of ArrivalDay + 2), and
+  OvernightSim's garage step checks payment BEFORE expiry — a PINNED invariant: a
+  job completed on its deadline's last day matches both rules and must be PAID.
+  Load repair (SaveService) clamps WorkDone, folds full-work into Completed (no
+  limbo), dedupes lifts, truncates to MaxCars — and DROPS unknown-ServiceId jobs,
+  the codebase's one deliberate deviation from preserve-unknown (a transient record
+  that expires within two dawns anyway). PlayerData.SkillXp follows the flags rules
+  instead: unknown skill ids preserved, negatives clamped to 0.
+- GameData.Seed is the save's ONE deterministic RNG seed (the garage arrival roll).
+  Rolled by SaveService.NewGame (GD.Randi); GameData.NewGame(seed = 0) keeps tests
+  deterministic; pre-v7 saves read 0, which is a valid seed.
 
 ## Orientation facts (from the code)
 

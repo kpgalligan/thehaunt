@@ -98,7 +98,8 @@ public static class RoadWrapTests
             }
             // Exact, re-pinned whenever an exit or door ships — a loose lower bound
             // would let a deleted edge (a whole map unreachable in play) pass silently.
-            t.AssertEqual(40, references.Count, "the world graph's full edge count");
+            // 42 = 40 + the garage door pair (west_entry -> garage_interior and back).
+            t.AssertEqual(42, references.Count, "the world graph's full edge count");
 
             // Pass 2: every reference resolves — a registered target map with a real
             // marker of that name.

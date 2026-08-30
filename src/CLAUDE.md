@@ -16,7 +16,9 @@ sleep + travel flows. Each subdirectory carries its own CLAUDE.md with its local
   Never store durable state in nodes (the only IPersistentSystem is the player).
 - C# events: every `+=` in a node has a matching `-=` in `_ExitTree` (C# events don't
   auto-disconnect on free; Godot signals do).
-- `MinuteTicked` is display-only (HUD). Gameplay/sim code subscribes to `TenMinuteTicked`.
+- `MinuteTicked` is display-only (HUD). Gameplay/sim code subscribes to `TenMinuteTicked`
+  (or `HourTicked` for hour-granular sim — WorldSim's garage customer roll is the one
+  subscriber; entities still never subscribe to time).
 - Entities (crops, NPCs) never subscribe to time events — systems do, iterating model data.
 - Gate behavior on `GameState.ClockRuns` / `PlayerHasControl` (or `CanStartDialogue`:
   Playing or Cutscene), never by comparing the Phase enum.

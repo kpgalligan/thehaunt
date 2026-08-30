@@ -47,6 +47,11 @@ public static class NpcDefs
             new NpcDef("nora", "Nora", Billies, 7, NpcSchedules.Nora),
             new NpcDef("sam", "Sam", East, 0, NpcSchedules.Sam),
             new NpcDef("abe", "Abe", East, 1, NpcSchedules.Abe),
+
+            // The garage clerk (name is Kevin's, 2026-08-30; wardrobe appended to
+            // cast_west as block 4 via gen_cast.js — append-only, existing blocks
+            // are fixed by the handoff README).
+            new NpcDef("mike", "Mike", West, 4, NpcSchedules.Mike),
         };
         return defs.ToDictionary(d => d.Id);
     }

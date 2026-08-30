@@ -83,6 +83,11 @@ public partial class Door : Area2D, IInteractable
             Visible = false,
             Scale = new Vector2(0.5f, 0.5f),
             MouseFilter = Control.MouseFilterEnum.Ignore,
+            // Above the Y-sort: the line floats over a facade drawn into the map
+            // (the garage's face and the motel strip both base-anchor BELOW their
+            // door row, so an un-lifted label renders behind the building — a
+            // silently-refusing handle, which the class doc forbids).
+            ZIndex = 10,
         };
         AddChild(label);
         return label;

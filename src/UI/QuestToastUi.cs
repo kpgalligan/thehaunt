@@ -4,13 +4,15 @@ using TheHaunt.Systems;
 
 namespace TheHaunt.UI;
 
-/// <summary>Transient top-center banners for quest hand-outs and completions,
-/// derived from the story-flag stream: every NEW flag is asked which quests it just
-/// started (QuestRules.StartedBy) and which it just completed (CompletedBy), and
-/// each answer queues one banner — completion in gold, shown a few seconds, one at a
-/// time. Passive overlay: no phase coupling, no input, sits above every panel and
-/// under ScreenFade (a banner queued behind the sleep fade simply plays out unseen —
-/// no shipped quest completes at dawn).</summary>
+/// <summary>Transient top-center banners — the game's one general message queue.
+/// Producers: the story-flag stream (every NEW flag is asked which quests it just
+/// started via QuestRules.StartedBy / completed via CompletedBy), the garage
+/// (a customer's drop-off is the on-screen "message from Mike"; a finished repair
+/// banners its payday), and skill level-ups. Completions and level-ups in gold,
+/// a few seconds each, one at a time. Passive overlay: no phase coupling, no
+/// input, sits above every panel and under ScreenFade (a banner queued behind the
+/// sleep fade simply plays out unseen — which is why dawn garage payments go to
+/// the overnight REPORT, never here).</summary>
 public partial class QuestToastUi : Control
 {
     private const double ShowSeconds = 3.5;
@@ -48,11 +50,45 @@ public partial class QuestToastUi : Control
         AddChild(_timer);
 
         WorldSim.Instance.StoryFlagSet += OnStoryFlagSet;
+        WorldSim.Instance.GarageCustomerArrived += OnGarageCustomerArrived;
+        WorldSim.Instance.GarageJobCompleted += OnGarageJobCompleted;
+        WorldSim.Instance.SkillLeveledUp += OnSkillLeveledUp;
     }
 
     public override void _ExitTree()
     {
         WorldSim.Instance.StoryFlagSet -= OnStoryFlagSet;
+        WorldSim.Instance.GarageCustomerArrived -= OnGarageCustomerArrived;
+        WorldSim.Instance.GarageJobCompleted -= OnGarageJobCompleted;
+        WorldSim.Instance.SkillLeveledUp -= OnSkillLeveledUp;
+    }
+
+    // The on-screen half of Kevin's "Jane will get a message from Mike" (the
+    // quest-task half lives in the quest log's garage section). "Word from" on
+    // purpose — how word travels is unexplained, and the one modern object in
+    // town stays the scooter.
+    private void OnGarageCustomerArrived(GarageJobRecord job)
+    {
+        string service = GarageServices.TryGet(job.ServiceId)?.Name ?? "Repair";
+        Enqueue($"Word from Mike: a customer dropped off a car. {service}.", gold: false);   // [KEVIN]
+    }
+
+    private void OnGarageJobCompleted(GarageJobRecord job)
+    {
+        string service = GarageServices.TryGet(job.ServiceId)?.Name ?? "Repair";
+        Enqueue($"{service} — done. Payment tomorrow.", gold: true);   // [KEVIN]
+    }
+
+    private void OnSkillLeveledUp(string skillId, int newLevel) =>
+        Enqueue($"{SkillIds.DisplayName(skillId)} — level {newLevel}", gold: true);
+
+    private void Enqueue(string text, bool gold)
+    {
+        _pending.Enqueue((text, gold));
+        if (!_panel.Visible)
+        {
+            ShowNext();
+        }
     }
 
     private void OnStoryFlagSet(string flagId, long dayStamped)
@@ -60,15 +96,11 @@ public partial class QuestToastUi : Control
         GameData data = SaveService.Instance.Current;
         foreach (QuestDef quest in QuestRules.StartedBy(flagId, data))
         {
-            _pending.Enqueue(($"New quest: {quest.Title}", false));
+            Enqueue($"New quest: {quest.Title}", gold: false);
         }
         foreach (QuestDef quest in QuestRules.CompletedBy(flagId, data))
         {
-            _pending.Enqueue(($"Quest complete: {quest.Title}", true));
-        }
-        if (!_panel.Visible)
-        {
-            ShowNext();
+            Enqueue($"Quest complete: {quest.Title}", gold: true);
         }
     }
 

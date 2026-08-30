@@ -73,6 +73,7 @@ public partial class HelpPanel : Control
         vbox.AddChild(MakeRow("Hotbar — 1-0 / Mouse Wheel"));
         vbox.AddChild(MakeRow("Chest/Shop — Arrows select, E move/buy, Esc close"));
         vbox.AddChild(MakeRow("Quests — J"));
+        vbox.AddChild(MakeRow("Skills — K"));
         vbox.AddChild(MakeRow("Pause — Esc"));
         vbox.AddChild(MakeRow("Controls — Tab"));
     }

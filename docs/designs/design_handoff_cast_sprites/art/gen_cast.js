@@ -183,6 +183,14 @@ gloria:{slim:1, hair:{base:P.stoneLight,light:P.bone,style:'braid'},
   over:{base:P.barnRed,light:'#c25c44',shade:'#732c1f'},
   skirt:{base:P.waterDeep,light:P.waterMid,shade:P.ink5},
   pants:{base:P.stonePale,light:P.cream,shade:P.stoneShade}, shoes:P.earthDark},
+// Mike, the garage clerk (Kevin's 2026-08-30 garage-operation commission; name is
+// Kevin's). Friendly and NOT a mechanic: soft cap, warm plain shirt, no smock, no
+// apron, no coveralls — the counter's clothes, not the pit's. Appended as
+// cast_west block 4 (append-only; existing block order is fixed by the README).
+mike:{hair:{base:P.woodWarm,light:P.earthMid,style:'short'},
+  cap:{base:P.waterMid,light:'#5f8fa3'},
+  shirt:{base:P.earthBase,light:P.earthLight,shade:P.earthMid},
+  pants:{base:P.ink5,light:P.stoneDark,shade:P.ink7}, shoes:P.earthDark},
 pell:{hair:{base:P.stoneShade,light:P.stoneLight,style:'thin'},
   shirt:{base:P.cream,light:'#ffffff',shade:P.stonePale}, tie:P.stoneDark,
   over:{base:P.stoneDark,light:P.stoneShade,shade:P.ink9},
@@ -248,7 +256,7 @@ shopkeeper:{hair:{base:P.stoneShade,light:P.stoneLight,style:'thin'},
   pants:{base:P.ink5,light:P.stoneDark,shade:P.ink7}, shoes:P.stoneDark},
 };
 const groups={
-  cast_west:['walt','dennis','gloria','pell'],
+  cast_west:['walt','dennis','gloria','pell','mike'],
   cast_billies:['billie','bud','pete','moody','lyle','harriet','ray','nora'],
   cast_east:['sam','abe'],
   cast_town:['mayor','foreman','crew_worker_a','crew_worker_b','shopkeeper'],

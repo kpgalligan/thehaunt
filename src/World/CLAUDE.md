@@ -18,17 +18,27 @@ What lives here:
   `ForkMap`/`EastForkMap`/`EastEntryMap`, plus `DriveInMap`. All programmatic.
 - Interiors: the `InteriorMap` base with `TownHallMap`/`FarmHouseMap`/`GeneralStoreMap`/
   `BarnMap`/`MotelMap`/`GasStationMap`/`BilliesBarMap`/`SalonMap`/`MotelRoomMap` (one
-  class, four registered room ids).
+  class, four registered room ids), and `GarageInteriorMap` (Kevin's 2026-08-30
+  garage-operation commission): two permanently-Block()ed lift bays whose cars are
+  the map's model-derived staging — ApplyState diffs one `GuestCar` per occupied
+  lift from `GameData.GarageJobs`, keyed by (ArrivalDay, ArrivalHour, ServiceId),
+  with a floating progress label per bay; painted per service so the bay tells you
+  the job. The permanent bay blockers are load-bearing: an hourly arrival must
+  never spawn a collider on top of the player.
 - Interactables: `IInteractable`, `Bed`, `Sign`, `ShippingBin`, `Chest`, `ShopCounter`,
   `Mailbox`, `Scooter` (parked view of `GameData.Scooter`), `MapExit`, `Door` (flag-lockable:
-  `RequiredFlag` + `LockedMessage` — a locked handle answers with a line),
+  `RequiredFlag` + `LockedMessage` — a locked handle answers with a line; the
+  garage's shop door is deed-locked on garage.deed, the motel-room pattern),
   `GarageSaleSign` (the west entry's FOR SALE board: opens WorldSim's garage-sale
   session until garage.deed lands, then answers SOLD — checked live per interact
-  like Door.RequiredFlag, so the purchase needs no repaint; the garage itself is a
-  PlaceholderBuilding with a dark GARAGE band and NO Door, the hardware-store
-  closed treatment, its interior a deliberately empty seam).
+  like Door.RequiredFlag, so the purchase needs no repaint), and `LiftStation`
+  (one per garage bay: no prompt over an empty lift, "Work" = one
+  WorldSim.WorkOnGarageJob press, a finished or out-of-stamina press answers with
+  a line — the locked-Door rule: never silence).
 - `NpcView` (ambles around its schedule anchor when the placement grants an Ambit),
-  `GuestCar` (one per occupied motel room, synced by `WestEntryMap.ApplyState`);
+  `GuestCar` (one per occupied motel room, synced by `WestEntryMap.ApplyState`;
+  reused for the garage's lift cars), `CarLift` (the drawn two-post lift under
+  them, blockerless by design);
   placeholders: `PlaceholderSprites`, `PlaceholderBuilding`/`RoadBarrier`/`PitCover`/
   `DriveInScreen`/`DriveInSpeaker` (code-built stand-ins for buildings with no art yet,
   chained-off roads, the pit, and the dead drive-in).

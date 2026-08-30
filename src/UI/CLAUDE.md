@@ -1,9 +1,9 @@
 # src/UI — the HUD and menu layer
 
-Fifteen code-built Controls in Main.tscn's UI layer, each building its own controls in
+Sixteen code-built Controls in Main.tscn's UI layer, each building its own controls in
 `_Ready`: Hud, InteractionPrompt, HotbarUi, StaminaBar, HelpPanel, QuestLogUi,
-DialogueUi, ChestUi, ShopUi, MailboxUi, GarageSaleUi, OvernightReportUi, PauseMenu,
-QuestToastUi, ScreenFade. Every panel is a pure view over
+SkillsPanel, DialogueUi, ChestUi, ShopUi, MailboxUi, GarageSaleUi, OvernightReportUi,
+PauseMenu, QuestToastUi, ScreenFade. Every panel is a pure view over
 system events (WorldSim sessions, GameState.StateChanged, SaveService.AfterLoad) —
 no UI owns durable state or mutates the model directly.
 
@@ -23,9 +23,14 @@ no UI owns durable state or mutates the model directly.
   WorldSim.ReadLetter right there. Letter bodies have no scroll — like dialogue,
   letters are authored short (the farewell's ~15 wrapped lines at font 8 is the
   practical ceiling for the centered panel).
-- QuestToastUi is a passive overlay above every panel and under ScreenFade: it
-  derives hand-out/completion banners from StoryFlagSet via QuestRules
-  StartedBy/CompletedBy and queues them (3.5 s each); it never touches phase or input.
+- QuestToastUi is the game's ONE general toast queue — a passive overlay above every
+  panel and under ScreenFade. Producers: StoryFlagSet via QuestRules
+  StartedBy/CompletedBy (quest hand-outs/completions), GarageCustomerArrived (the
+  on-screen "Word from Mike"), GarageJobCompleted, and SkillLeveledUp (3.5 s each,
+  gold for completions/level-ups); it never touches phase or input. Dawn garage
+  payments deliberately do NOT toast — banners under the sleep fade play unseen;
+  the overnight REPORT is the payday surface (it renders the report's Garage lines
+  and shows whenever sales OR garage lines exist).
 - The overnight report is awaited INSIDE Main.RunSleepFlow while the phase is still
   Sleeping (report before Playing, then a 0.3 s mash-grace); OvernightCompleted itself
   fires mid-advance while the screen is black — latch, never display, in the handler.
@@ -51,10 +56,15 @@ no UI owns durable state or mutates the model directly.
 - Stack order: DialogueUi sits between QuestLogUi and PauseMenu; ChestUi/ShopUi/
   MailboxUi/GarageSaleUi sit above DialogueUi and below OvernightReport/PauseMenu; QuestToastUi is
   second-to-last — above every panel, under ScreenFade, so the fade still covers it.
-- HelpPanel (Tab, left-center) and QuestLogUi (J, right-center) are pure non-modal:
-  no phase change, root ignores mouse ALWAYS, nothing takes focus; both force-hide
-  whenever the new phase lacks control. The quest log re-derives its rows on show
-  and on every StoryFlagSet while visible.
+- HelpPanel (Tab, left-center), QuestLogUi (J, right-center) and SkillsPanel (K,
+  bottom-right — Kevin's "option available from the key menu", read as a key listed
+  in the Tab controls [KEVIN]) are pure non-modal: no phase change, root ignores mouse
+  ALWAYS, nothing takes focus; all force-hide whenever the new phase lacks control.
+  The quest log re-derives its rows on show, on every StoryFlagSet, and on every
+  GarageJobsChanged while visible — its Garage section is Kevin's "recorded as
+  quest tasks": one row per live GameData.GarageJobs entry with its due-tomorrow/
+  due-today deadline, dynamic model state kept OUT of the QuestDefs machinery. The
+  skills panel re-derives on show and on SkillsChanged while visible.
 - ScreenFade animates a manual frame loop, never a Tween — a node-bound tween killed
   on free never fires Finished, which would hang the awaiting sleep flow.
 - PauseMenu visibility is driven ONLY by GameState.StateChanged, so every entry

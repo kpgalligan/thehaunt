@@ -14,8 +14,11 @@ public static class GarageTests
         GameData data = GameData.NewGame();
         t.AssertEqual(100_000L, GarageRules.Price, "Kevin's price: $100k, for now");
         t.Assert(!GarageRules.IsOwned(data), "a new game owns no garage");
-        t.AssertEqual(GarageSaleResult.InsufficientFunds, GarageRules.CanBuy(data),
-            "starting money is nowhere near");
+        // The TEMPORARY DevScaffold start (150k) is deliberately over the asking
+        // price — Kevin's "that will allow me to buy the garage". This pin flips
+        // back to InsufficientFunds when the scaffold is deleted.
+        t.AssertEqual(GarageSaleResult.Ok, GarageRules.CanBuy(data),
+            "the scaffolded start can afford the garage on day 1");
 
         data.Player.Money = GarageRules.Price - 1;
         t.AssertEqual(GarageSaleResult.InsufficientFunds, GarageRules.CanBuy(data),

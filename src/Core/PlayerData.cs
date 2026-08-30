@@ -11,4 +11,9 @@ public sealed class PlayerData
     public int Stamina { get; set; }
     public int MaxStamina { get; set; }
     public InventoryData Inventory { get; set; } = new();
+
+    // Skill id -> total XP banked (SkillRules derives levels; XP accumulates past
+    // the level-10 cap so a curve rebalance never loses progress). Absent = all
+    // zero; unknown ids from future saves round-trip untouched (flags rule).
+    public Dictionary<string, long> SkillXp { get; set; } = new();
 }

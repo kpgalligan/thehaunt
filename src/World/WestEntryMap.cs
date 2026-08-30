@@ -21,10 +21,11 @@ namespace TheHaunt.World;
 ///
 /// The gas station, the stand and the repair garage still ship as
 /// <see cref="PlaceholderBuilding"/>s, now wearing their sign mounts. The garage
-/// (docs/story/README.md) is shut and FOR SALE — its board opens WorldSim's
-/// garage-sale session, and the deed feeds the planned mechanical-repair skill
-/// (docs/design.md §Skills). It has no interior and no Door: like the hardware
-/// store, the shut face is the answer until the seam opens.
+/// (docs/story/README.md) starts shut and FOR SALE — its board opens WorldSim's
+/// garage-sale session — and its door is deed-locked (garage.deed): buying the
+/// place opens the shop floor behind it (<see cref="GarageInteriorMap"/>, Kevin's
+/// 2026-08-30 garage-operation commission). The dark band sign stays dark either
+/// way; the hardware store keeps the fully-shut treatment alone now.
 /// </summary>
 public partial class WestEntryMap : ExteriorMap
 {
@@ -53,8 +54,8 @@ public partial class WestEntryMap : ExteriorMap
     private const int GarageLeft = 32, GarageTop = 18, GarageRight = 37, GarageBottom = 20;
     private const int StandLeft = 33, StandTop = 10, StandRight = 35, StandBottom = 11;
     private const int GasDoorX = 26;
-    // Where the garage's drawn shut door lands (centre of the face) — the kerb cut
-    // and the FOR SALE board key off it; there is no Door node to carry it.
+    // Where the garage's drawn door lands (centre of the face) — the kerb cut, the
+    // FOR SALE board, and the deed-locked Door node all key off it.
     private const int GarageDoorX = 34;
 
     // The two cobra heads stand in the lot's kerb verge, flanking the driveway.
@@ -183,8 +184,10 @@ public partial class WestEntryMap : ExteriorMap
         Block(obstacles, StripRight + 1, FaceTop, StripRight + 1, DoorRow);
 
         Block(obstacles, GasLeft, GasTop, GasRight, GasBottom, GasDoorX, GasBottom);
-        // No door gap: the garage has no Door node — its drawn door is shut for sale.
-        Block(obstacles, GarageLeft, GarageTop, GarageRight, GarageBottom);
+        // The garage's door cell gaps like the gas station's: the Door node's own
+        // blocker seals it, and the handle is deed-locked (garage.deed) — shut and
+        // silent-looking until Jane owns the place, open any hour after.
+        Block(obstacles, GarageLeft, GarageTop, GarageRight, GarageBottom, GarageDoorX, GarageBottom);
         Block(obstacles, StandLeft, StandTop, StandRight, StandBottom);
         obstacles.SetCell(WestLight, 0, TerrainTiles.Blocker);
         obstacles.SetCell(EastLight, 0, TerrainTiles.Blocker);
@@ -292,6 +295,7 @@ public partial class WestEntryMap : ExteriorMap
         for (int room = 1; room <= MotelRules.Rooms; room++)
             spawns.AddChild(SpawnMarker($"from_room{room}", RoomDoorX[room - 1], WalkRow));
         spawns.AddChild(SpawnMarker("from_gas", GasDoorX, GasBottom + 1));
+        spawns.AddChild(SpawnMarker("from_garage", GarageDoorX, GarageBottom + 1));
         AddChild(spawns);
     }
 
@@ -372,6 +376,20 @@ public partial class WestEntryMap : ExteriorMap
             TargetSpawnId = "entry",
             DrawPlaceholder = false,
             Position = new Vector2(GasDoorX * TileSize + 8, GasBottom * TileSize + 8),
+        });
+        // The garage's shut door, deed-locked (the motel-room pattern: live flag
+        // check per interact, no repaint on purchase). Before the deed it answers
+        // with a line; after it, Jane walks into her shop at any hour — the 9-6
+        // window gates customers and Mike, never the owner.
+        AddChild(new Door
+        {
+            Name = "GarageDoor",
+            TargetMapId = MapIds.GarageInterior,
+            TargetSpawnId = "entry",
+            RequiredFlag = StoryKeys.GarageDeed,
+            LockedMessage = "Closed.",   // [KEVIN] locked-handle line
+            DrawPlaceholder = false,
+            Position = new Vector2(GarageDoorX * TileSize + 8, GarageBottom * TileSize + 8),
         });
     }
 

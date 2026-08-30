@@ -66,6 +66,25 @@ public partial class WorldSim : Node
 
     public event Action? GarageSaleClosed;
 
+    /// <summary>The garage jobs list changed (arrival, work banked, completion,
+    /// or the dawn resolution) — fired AFTER the repaint, so subscribers see the
+    /// repainted lifts. The quest log's garage section rebuilds on this.</summary>
+    public event Action? GarageJobsChanged;
+
+    /// <summary>A customer left a car (payload = the new job) — fired last in the
+    /// arrival sequence; the toast's "word from Mike".</summary>
+    public event Action<GarageJobRecord>? GarageCustomerArrived;
+
+    /// <summary>A repair finished (the job stays on its lift, paid at dawn) —
+    /// fired last in the completing press's sequence, after the skill events.</summary>
+    public event Action<GarageJobRecord>? GarageJobCompleted;
+
+    /// <summary>Some skill's XP changed (the skills panel's rebuild hook).</summary>
+    public event Action? SkillsChanged;
+
+    /// <summary>(skillId, newLevel) — only when a grant crosses a level edge.</summary>
+    public event Action<string, int>? SkillLeveledUp;
+
     public DialogueSession? ActiveDialogue { get; private set; }
 
     /// <summary>Storage id of the open chest session; null when none.</summary>
@@ -97,6 +116,7 @@ public partial class WorldSim : Node
         Clock.Instance.DayEnded += OnDayEnded;
         Clock.Instance.DayStarted += OnDayStarted;
         Clock.Instance.TenMinuteTicked += OnTenMinuteTicked;
+        Clock.Instance.HourTicked += OnHourTicked;
         // Autoload order GameState -> Clock -> SaveService -> WorldSim makes this safe.
         SaveService.Instance.AfterLoad += OnAfterLoad;
     }
@@ -106,6 +126,7 @@ public partial class WorldSim : Node
         Clock.Instance.DayEnded -= OnDayEnded;
         Clock.Instance.DayStarted -= OnDayStarted;
         Clock.Instance.TenMinuteTicked -= OnTenMinuteTicked;
+        Clock.Instance.HourTicked -= OnHourTicked;
         SaveService.Instance.AfterLoad -= OnAfterLoad;
     }
 
@@ -185,6 +206,13 @@ public partial class WorldSim : Node
             && data.GetMap(mapId).GetTile(tile.X, tile.Y)?.CropId is not null)
         {
             SetStoryFlag(StoryKeys.FirstWatering);
+        }
+        // Skills v1 (Kevin, 2026-08-30): "any harvested crop is 1 point" —
+        // observed here like the story stamps, so FarmActions stays XP-free.
+        // Regrowing crops grant on every harvest; a scythe CLEAR grants nothing.
+        if (outcome == ActionOutcome.Harvested)
+        {
+            GrantSkillXp(SkillIds.Farming);
         }
 
         return outcome;
@@ -387,6 +415,18 @@ public partial class WorldSim : Node
             return false;
         }
 
+        RepaintMaps();
+        SyncNpcsNow();
+        StoryFlagSet?.Invoke(flagId, day);
+        return true;
+    }
+
+    /// <summary>Full repaint of every live registered map — SetStoryFlag's step,
+    /// shared with the garage-job mutations (an arriving or finished car is
+    /// model-derived staging exactly like a guest car or the road blockade).</summary>
+    private void RepaintMaps()
+    {
+        GameData data = SaveService.Instance.Current;
         foreach (MapRoot map in _maps)
         {
             if (!map.IsQueuedForDeletion())
@@ -394,9 +434,6 @@ public partial class WorldSim : Node
                 map.ApplyState(data.GetMap(map.MapId));
             }
         }
-        SyncNpcsNow();
-        StoryFlagSet?.Invoke(flagId, day);
-        return true;
     }
 
     /// <summary>Gate: player control + known map. True means <see cref="TravelRequested"/> fired.
@@ -853,6 +890,100 @@ public partial class WorldSim : Node
         return GarageSaleResult.Ok;
     }
 
+    // ------------------------------------------------------------------
+    // Garage operation (Kevin, 2026-08-30) — the owned shop's two write paths:
+    // the hourly customer roll and the work press. GarageOpsRules holds the pure
+    // halves; this bus owns the events and the repaint.
+    // ------------------------------------------------------------------
+
+    /// <summary>
+    /// One work press on a lift (the LiftStation's E). Refusals mutate nothing
+    /// and fire nothing (mutation discipline). Event order on Worked/CompletedJob:
+    /// repaint → StaminaChanged → GarageJobsChanged → (completion only)
+    /// SkillsChanged → SkillLeveledUp? → GarageJobCompleted.
+    /// "Any completed repair in the garage ... is one point" — the bus observes
+    /// CompletedJob and grants the mechanical-repair XP; Core stays XP-free.
+    /// </summary>
+    public GarageWorkResult WorkOnGarageJob(int lift)
+    {
+        GameData data = SaveService.Instance.Current;
+        GarageWorkResult result = GarageOpsRules.DoWork(data, lift);
+        if (result is not (GarageWorkResult.Worked or GarageWorkResult.CompletedJob))
+        {
+            return result;
+        }
+        RepaintMaps();
+        StaminaChanged?.Invoke(data.Player.Stamina, data.Player.MaxStamina);
+        GarageJobsChanged?.Invoke();
+        if (result == GarageWorkResult.CompletedJob)
+        {
+            GrantSkillXp(SkillIds.MechanicalRepair);
+            GarageJobCompleted?.Invoke(GarageOpsRules.JobAt(data, lift)!);
+        }
+        return result;
+    }
+
+    /// <summary>
+    /// Banks one practice point and fires the skill events (SkillsChanged always,
+    /// SkillLeveledUp on a crossed edge). Private on purpose: XP sources are bus
+    /// observations of outcomes (harvest, completed repair), never UI calls.
+    /// </summary>
+    private void GrantSkillXp(string skillId)
+    {
+        (int oldLevel, int newLevel) = SkillRules.AddXp(SaveService.Instance.Current, skillId);
+        SkillsChanged?.Invoke();
+        if (newLevel > oldLevel)
+        {
+            SkillLeveledUp?.Invoke(skillId, newLevel);
+        }
+    }
+
+    // The garage's hourly customer roll — LIVE play only: ticks fire while the
+    // clock runs, and AdvanceToDayStart fires no hour ticks, so slept-through
+    // open hours roll nothing (deliberate v1 limitation; CustomerRoll is a
+    // stateless hash, so a dawn catch-up pass could be added without reshuffling
+    // any existing schedule). --add-minutes fires every crossed tick, which is
+    // also the test path. Order on an arrival: mutate → repaint →
+    // GarageJobsChanged → GarageCustomerArrived (the toast reads a settled world).
+    private void OnHourTicked(GameTime now)
+    {
+        GameData data = SaveService.Instance.Current;
+        if (!GarageRules.IsOwned(data) || !GarageOpsRules.IsOpenHour(now.AbsoluteHour))
+        {
+            return;
+        }
+        if (GarageOpsRules.FreeLift(data) is not int lift)
+        {
+            return;   // "no more than two cars can be in the shop at the same time"
+        }
+        long day = now.DayIndex;
+        int hour = now.AbsoluteHour;
+        foreach (GarageJobRecord existing in data.GarageJobs)
+        {
+            if (existing.ArrivalDay == day && existing.ArrivalHour == hour)
+            {
+                return;   // this hour already landed its customer — a re-fired tick is idempotent
+            }
+        }
+        (bool arrived, int serviceIndex) = GarageOpsRules.CustomerRoll(data.Seed, day, hour);
+        if (!arrived)
+        {
+            return;
+        }
+
+        var job = new GarageJobRecord
+        {
+            ServiceId = GarageServices.All[serviceIndex].Id,
+            ArrivalDay = day,
+            ArrivalHour = hour,
+            Lift = lift,
+        };
+        data.GarageJobs.Add(job);
+        RepaintMaps();
+        GarageJobsChanged?.Invoke();
+        GarageCustomerArrived?.Invoke(job);
+    }
+
     /// <summary>
     /// Re-derives NPC staging from (StoryFlags, Clock.Now) and pushes it to every live
     /// registered map. Maps with no scheduled NPC get an empty list — that is how
@@ -915,20 +1046,17 @@ public partial class WorldSim : Node
         }
 
         // 2) Full repaint per registered map: wet overlays flip everywhere, stages
-        //    advance, the road blockade toggles.
-        foreach (MapRoot map in _maps)
-        {
-            if (!map.IsQueuedForDeletion())
-            {
-                map.ApplyState(data.GetMap(map.MapId));
-            }
-        }
+        //    advance, the road blockade toggles, resolved garage cars leave.
+        RepaintMaps();
 
-        // 3) UI events.
+        // 3) UI events. GarageJobsChanged rides along unconditionally: the dawn
+        //    resolution (payments, reclaims) is the jobs list's biggest mutation,
+        //    and the event's contract is "fires on every change".
         OvernightCompleted?.Invoke(_pendingReport);
         MoneyChanged?.Invoke(data.Player.Money);
         StaminaChanged?.Invoke(data.Player.Stamina, data.Player.MaxStamina);
         InventoryChanged?.Invoke();
+        GarageJobsChanged?.Invoke();
 
         // 4) AdvanceToDayStart fires no ten-minute ticks — dawn staging would otherwise
         //    be stale until 6:10. The scooter restages too: OvernightSim just parked

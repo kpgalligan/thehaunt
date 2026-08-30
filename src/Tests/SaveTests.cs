@@ -344,6 +344,9 @@ public static class SaveTests
 
             // The negative-count turnip stack is gone, so the overnight sale cannot mint
             // negative proceeds: money moves by exactly the greenbean sale (2 x 40).
+            // Pre-floor the money so the DevScaffold dawn top-up (step 0, before the
+            // sale credit) is a no-op and the delta stays pure.
+            loaded.Player.Money = DevScaffold.DailyMoneyFloor;
             long moneyBefore = loaded.Player.Money;
             OvernightSim.Run(loaded, dayEnding: Clock.Instance.Now.DayIndex);
             t.AssertEqual(moneyBefore + 80L, loaded.Player.Money,

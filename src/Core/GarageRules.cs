@@ -3,12 +3,12 @@ namespace TheHaunt.Core;
 public enum GarageSaleResult { Ok, NotOpen, AlreadyOwned, InsufficientFunds }
 
 /// <summary>
-/// The closed repair garage beside the west entry's gas station
-/// (docs/story/README.md §West entry): for sale until Jane buys it, and ownership
-/// is the day-stamped garage.deed flag — one monotone flag, never a level. The
-/// asking price is Kevin's "$100k, for now". The mechanical-repair skill the deed
-/// feeds is planned, NOT designed (docs/design.md §Skills), so nothing else reads
-/// ownership yet — that seam is deliberately empty, like the barn's.
+/// The repair garage beside the west entry's gas station (docs/story/README.md
+/// §West entry): for sale until Jane buys it, and ownership is the day-stamped
+/// garage.deed flag — one monotone flag, never a level. The asking price is
+/// Kevin's "$100k, for now". The deed is read by the whole operation layer
+/// (2026-08-30): the deed-locked door into GarageInteriorMap, Mike's schedule,
+/// the hourly customer roll, and every work press (GarageOpsRules.DoWork).
 /// </summary>
 public static class GarageRules
 {

@@ -28,8 +28,10 @@ art contract (six binding handoffs) is in `docs/designs/CLAUDE.md`.
   (dev flags: `--start-map <id>` boots into a map; `--spawn <marker>` lands on a named spawn
   instead of the map default, e.g. to frame a corner; `--screenshot-frames <n>` delays the
   capture, e.g. past a beat's staging timer; `--add-minutes <n>` advances the clock in-memory,
-  e.g. into shop hours or dusk; `--open-ui <chest|shop|help|mail|letter|quests|garage>` pops a UI after boot;
-  `--ride` mounts the scooter after boot, for capturing the riding sprite;
+  e.g. into shop hours or dusk; `--open-ui <chest|shop|help|mail|letter|quests|garage|skills>` pops a UI after boot;
+  `--garage-job <serviceId>` stamps the garage deed and puts a car on a lift (repeat
+  for a second car), for capturing the shop floor; `--ride` mounts the scooter after
+  boot, for capturing the riding sprite;
   `--work-tool <itemId>` selects that tool and holds use_tool from boot, for capturing
   the work loop — boot physics catch-up outruns the frame count, so expect mid-loop)
 - Edit a map graphically: `godot-mono --path . --editor` — full workflow in
@@ -57,7 +59,8 @@ Each directory's CLAUDE.md carries its contracts — read it before working ther
 - `data/maps/` — map recipes: CONTENT, not save state; one JSON per map id
 - `docs/designs/` — the six binding art handoff bundles
 - `tools/` — asset-derivation one-shots (`regen_scooter_rider.py`,
-  `gen_item_icons.py` — the inventory icon atlas)
+  `gen_item_icons.py` — the inventory icon atlas, `run_gen_cast.mjs` — local
+  runner for the cast handoff's gen_cast.js wardrobe generator)
 
 ## Project-wide conventions
 

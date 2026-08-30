@@ -262,6 +262,12 @@ public partial class Main : Node2D
             // --screenshot-frames 16 lands around the impact frame).
             if (args[i] == "--work-tool")
                 CallDeferred(nameof(HoldToolForScreenshot), args[i + 1]);
+
+            // Dev-only: stamp the deed and put a car on a lift (the named service,
+            // arriving "now"), so --screenshot can capture the shop floor without
+            // waiting out the 6% hourly roll. Repeat the flag for a second car.
+            if (args[i] == "--garage-job")
+                CallDeferred(nameof(AddGarageJobForScreenshot), args[i + 1]);
         }
 
         // Dev-only (flag, no value): mount the scooter after boot so --screenshot can
@@ -274,6 +280,29 @@ public partial class Main : Node2D
     }
 
     private void MountScooterForScreenshot() => WorldSim.Instance.MountScooter();
+
+    // Deferred so the boot's LoadMap/phase state has fully settled first. In-memory
+    // dev seeding only — the real paths are BuyGarage and the hourly roll.
+    private void AddGarageJobForScreenshot(string serviceId)
+    {
+        if (GarageServices.TryGet(serviceId) is null)
+        {
+            GD.PushError($"--garage-job: unknown service '{serviceId}'.");
+            return;
+        }
+        GameData data = SaveService.Instance.Current;
+        WorldSim.Instance.SetStoryFlag(StoryKeys.GarageDeed);   // implies ownership
+        if (GarageOpsRules.FreeLift(data) is not int lift)
+            return;   // both bays taken — the flag can only seed MaxCars cars
+        data.GarageJobs.Add(new GarageJobRecord
+        {
+            ServiceId = serviceId,
+            ArrivalDay = Clock.Instance.Now.DayIndex,
+            ArrivalHour = Clock.Instance.Now.AbsoluteHour,
+            Lift = lift,
+        });
+        _currentMap?.ApplyState(data.GetMap(_currentMap.MapId));
+    }
 
     // Deferred so the boot's LoadMap/phase state has fully settled first. The held
     // action never releases; the loop repeats until the process exits.
@@ -325,6 +354,9 @@ public partial class Main : Node2D
                 break;
             case "quests":
                 Input.ParseInputEvent(new InputEventAction { Action = "toggle_quests", Pressed = true });
+                break;
+            case "skills":
+                Input.ParseInputEvent(new InputEventAction { Action = "toggle_skills", Pressed = true });
                 break;
         }
     }
