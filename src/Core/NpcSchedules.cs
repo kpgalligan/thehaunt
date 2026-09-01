@@ -1,10 +1,15 @@
 namespace TheHaunt.Core;
 
 // Frozen staging table (phase3-spec §4.3) — all staging [KEVIN]. Pure and
-// deterministic; NPCs teleport between slots (static staging — no pathing in P3).
+// deterministic; NPCs teleport between slots (no pathing — a slot change is a cut).
+// A placement's Ambit is the view-side amble radius around the slot: proprietors
+// putter about their rooms, seated patrons and beat-staged NPCs hold still (0).
+// The fireworks stand's Gloria stays put by Kevin's rule, not by oversight.
 // The farm crew staging is flag-bounded, not clock-bounded, so the crew beat can
 // never be stranded castless; the mayor's podium row restages the meeting every
-// pending evening (missed-meeting recovery is free).
+// pending evening, and once a bedtime skips the summons (intro.overslept) the
+// mayor holds the podium around the clock — the relocated wake never faces an
+// empty hall.
 public static class NpcSchedules
 {
     // First entry whose flags pass and whose window contains now.MinuteOfDay;
@@ -32,16 +37,21 @@ public static class NpcSchedules
     }
 
     // Entry order below is load-bearing (first match wins). Town-hall rows start at
-    // IntroRules.MeetingStartMinuteOfDay so staging can never drift from the beat window.
+    // IntroRules.MeetingStartMinuteOfDay so staging can never drift from the beat
+    // window — except the mayor's overslept row, which is all-day by design (the
+    // relocated wake arrives at dawn).
 
     public static IReadOnlyList<ScheduleEntry> Mayor { get; } = new[]
     {
         new ScheduleEntry(StoryKeys.CrewArrivalDone, StoryKeys.MeetingDone,
             IntroRules.MeetingStartMinuteOfDay, GameTime.MinutesPerDay,
             new NpcPlacement(MapIds.TownHall, 20, 6, 0)),    // podium  [KEVIN]
+        new ScheduleEntry(StoryKeys.Overslept, StoryKeys.MeetingDone,
+            0, GameTime.MinutesPerDay,
+            new NpcPlacement(MapIds.TownHall, 20, 6, 0)),    // podium, around the clock
         new ScheduleEntry(StoryKeys.RoadCleared, null,
             120, 660,                                        // 8:00 AM - 5:00 PM
-            new NpcPlacement(MapIds.Town, 24, 19, 0)),       // square  [KEVIN]
+            new NpcPlacement(MapIds.Town, 24, 19, 0, Ambit: 2)),   // square  [KEVIN]
     };
 
     public static IReadOnlyList<ScheduleEntry> Foreman { get; } = new[]
@@ -54,7 +64,7 @@ public static class NpcSchedules
             new NpcPlacement(MapIds.TownHall, 18, 12, 3)),   // seats  [KEVIN]
         new ScheduleEntry(StoryKeys.CrewArrivalDone, null,
             120, 600,                                        // 8:00 AM - 4:00 PM
-            new NpcPlacement(MapIds.Town, 30, 13, 0)),       // roadside  [KEVIN]
+            new NpcPlacement(MapIds.Town, 30, 13, 0, Ambit: 2)),   // roadside  [KEVIN]
     };
 
     public static IReadOnlyList<ScheduleEntry> CrewWorkerA { get; } = new[]
@@ -67,7 +77,7 @@ public static class NpcSchedules
             new NpcPlacement(MapIds.TownHall, 20, 12, 3)),   // [KEVIN]
         new ScheduleEntry(StoryKeys.CrewArrivalDone, null,
             120, 600,                                        // 8:00 AM - 4:00 PM
-            new NpcPlacement(MapIds.Town, 31, 16, 3)),       // [KEVIN]
+            new NpcPlacement(MapIds.Town, 31, 16, 3, Ambit: 2)),   // [KEVIN]
     };
 
     public static IReadOnlyList<ScheduleEntry> CrewWorkerB { get; } = new[]
@@ -80,7 +90,7 @@ public static class NpcSchedules
             new NpcPlacement(MapIds.TownHall, 22, 12, 3)),   // [KEVIN]
         new ScheduleEntry(StoryKeys.CrewArrivalDone, null,
             120, 600,                                        // 8:00 AM - 4:00 PM
-            new NpcPlacement(MapIds.Town, 33, 13, 0)),       // [KEVIN]
+            new NpcPlacement(MapIds.Town, 33, 13, 0, Ambit: 2)),   // [KEVIN]
     };
 
     // Flag-free and bound to the ShopHours constants so shop-open and
@@ -90,7 +100,7 @@ public static class NpcSchedules
     {
         new ScheduleEntry(null, null,
             ShopHours.OpenMinute, ShopHours.CloseMinute,     // 9:00 AM - 5:00 PM
-            new NpcPlacement(MapIds.GeneralStore, 6, 3, 0)), // behind the counter, facing down
+            new NpcPlacement(MapIds.GeneralStore, 6, 3, 0, Ambit: 1)), // behind the counter, facing down
     };
 
     // ------------------------------------------------------------------
@@ -106,7 +116,7 @@ public static class NpcSchedules
     {
         new ScheduleEntry(null, null,
             0, GameTime.MinutesPerDay,
-            new NpcPlacement(MapIds.Motel, 4, 4, 1)),        // open end of the desk
+            new NpcPlacement(MapIds.Motel, 4, 4, 1, Ambit: 1)), // open end of the desk
     };
 
     // Three weeks into a one-night stay. Mornings in the lobby, evenings in the
@@ -115,10 +125,10 @@ public static class NpcSchedules
     {
         new ScheduleEntry(null, null,
             120, 360,                                        // 8:00 AM - noon
-            new NpcPlacement(MapIds.Motel, 8, 2, 0)),        // by the bench
+            new NpcPlacement(MapIds.Motel, 8, 2, 0, Ambit: 2)),   // by the bench
         new ScheduleEntry(null, null,
             780, 1080,                                       // 7:00 PM - midnight
-            new NpcPlacement(MapIds.Motel, 8, 2, 0)),
+            new NpcPlacement(MapIds.Motel, 8, 2, 0, Ambit: 2)),
     };
 
     /// <summary>The gas station's staffed window — shared with the west entry's OPEN
@@ -130,7 +140,7 @@ public static class NpcSchedules
     {
         new ScheduleEntry(null, null,
             GasOpenMinute, GasCloseMinute,
-            new NpcPlacement(MapIds.GasStation, 7, 4, 2)),   // open end of the counter
+            new NpcPlacement(MapIds.GasStation, 7, 4, 2, Ambit: 2)), // open end of the counter
     };
 
     // Out at the stand in trading hours, same span as the general store's.
@@ -147,7 +157,7 @@ public static class NpcSchedules
     {
         new ScheduleEntry(null, null,
             240, GameTime.MinutesPerDay,                     // 10:00 AM - close
-            new NpcPlacement(MapIds.BilliesBar, 2, 4, 2)),   // west end, watching the room
+            new NpcPlacement(MapIds.BilliesBar, 2, 4, 2, Ambit: 3)), // west end, working the room
     };
 
     public static IReadOnlyList<ScheduleEntry> Bud { get; } = new[]
@@ -208,7 +218,7 @@ public static class NpcSchedules
     {
         new ScheduleEntry(null, null,
             ShopHours.OpenMinute, ShopHours.CloseMinute,     // 9:00 AM - 5:00 PM
-            new NpcPlacement(MapIds.Salon, 4, 4, 2)),        // beside the chair
+            new NpcPlacement(MapIds.Salon, 4, 4, 2, Ambit: 2)), // beside the chair
     };
 
     // Twenty years at the roadside; where else would he be.
@@ -216,6 +226,18 @@ public static class NpcSchedules
     {
         new ScheduleEntry(null, null,
             0, GameTime.MinutesPerDay,
-            new NpcPlacement(MapIds.EastFork, 26, 20, 0)),   // beside the shack
+            new NpcPlacement(MapIds.EastFork, 26, 20, 0, Ambit: 1)), // beside the shack
+    };
+
+    // The garage clerk (Kevin, 2026-08-30): hired with the deed — the flag gate is
+    // the whole "once owned" rule — and at his counter every day the shop is open.
+    // The window derives from GarageOpsRules' hours so Mike's presence and the
+    // customer-arrival window can never diverge (the Shopkeeper↔ShopHours and
+    // Dennis↔GasOpenMinute binding). Open end of the counter, keeper rule.
+    public static IReadOnlyList<ScheduleEntry> Mike { get; } = new[]
+    {
+        new ScheduleEntry(StoryKeys.GarageDeed, null,
+            GarageOpsRules.OpenMinuteOfDay, GarageOpsRules.CloseMinuteOfDay,   // 9:00 AM - 6:00 PM
+            new NpcPlacement(MapIds.GarageInterior, 10, 4, 0, Ambit: 1)),
     };
 }

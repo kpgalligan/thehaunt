@@ -35,7 +35,10 @@ public partial class MapExit : Area2D
         if (body is PlayerController && (IsEnabled?.Invoke() ?? true)
             && GameState.Instance.PlayerHasControl)
         {
-            WorldSim.Instance.RequestTravel(TargetMapId, TargetSpawnId);
+            // Where in the mouth the body crossed, so the arrival can keep the
+            // player's place across the seam (MapRoot.GetArrival).
+            WorldSim.Instance.RequestTravel(TargetMapId, TargetSpawnId,
+                body.GlobalPosition - GlobalPosition);
         }
     }
 }

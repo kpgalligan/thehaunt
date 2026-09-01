@@ -22,6 +22,7 @@ public static class TravelTests
         {
             "default", RoadWrap.ArrivalSpawn, "from_billies", "from_motel",
             "from_room1", "from_room2", "from_room3", "from_room4", "from_gas",
+            "from_garage",
         },
         [MapIds.Billies] = new[] { "default", "from_west_entry", "from_fork", "from_bar" },
         [MapIds.Fork] = new[] { "default", "from_billies", "from_town", "from_farm" },
@@ -37,6 +38,7 @@ public static class TravelTests
         [MapIds.MotelRoom3] = new[] { "default", "entry" },
         [MapIds.MotelRoom4] = new[] { "default", "entry" },
         [MapIds.DriveIn] = new[] { "default", "from_road" },
+        [MapIds.GarageInterior] = new[] { "default", "entry" },
     };
 
     [SimTest]
@@ -90,6 +92,70 @@ public static class TravelTests
     }
 
     [SimTest]
+    public static async Task Travel_ArrivalCarriesCrossAxis(TestContext t)
+    {
+        // Leaving a frame in the mouth's top lane must not dump the traveller in the
+        // bottom lane of the next one: MapExit passes where the body crossed, and
+        // GetArrival re-applies it along the destination mouth's long axis, clamped
+        // inside the mouth. Zero offset (doors, scripted travel) keeps the marker.
+        SaveService.Instance.NewGame();
+        MapRoot? map = null;
+        try
+        {
+            map = MapRegistry.Create(MapIds.Fork);
+            t.Host.AddChild(map);
+            await t.WaitFrames(1);
+
+            Vector2 marker = map.GetSpawn("from_town");
+            t.AssertEqual(marker, map.GetArrival("from_town", Vector2.Zero),
+                "zero offset lands on the marker");
+
+            // The east mouth spans road rows 14-15 — a TALL zone, so Y carries.
+            Vector2 top = map.GetArrival("from_town", new Vector2(0, -8));
+            t.AssertEqual(new Vector2(marker.X, 14 * 16 + 8), top,
+                "top-lane exit arrives in the top lane, on the marker's column");
+            Vector2 bottom = map.GetArrival("from_town", new Vector2(0, 8));
+            t.AssertEqual(15 * 16 + 8f, bottom.Y, "bottom-lane exit arrives in the bottom lane");
+
+            // An offset past the mouth (a taller mouth somewhere else) pins to its edge.
+            t.AssertEqual(15 * 16 + 8f, map.GetArrival("from_town", new Vector2(0, 300)).Y,
+                "an offset past the mouth clamps inside it");
+            t.AssertEqual(14 * 16 + 8f, map.GetArrival("from_town", new Vector2(0, -300)).Y,
+                "and above it pins to the highest lane");
+
+            // The north mouth (to the farm) is WIDE, so the carried axis flips to X.
+            Vector2 spawn = map.GetSpawn("from_farm");
+            t.AssertEqual(new Vector2(19 * 16 + 8, spawn.Y), map.GetArrival("from_farm", new Vector2(-8, 0)),
+                "west-lane arrival on the west column, on the marker's row");
+            t.AssertEqual(20 * 16 + 8f, map.GetArrival("from_farm", new Vector2(8, 0)).X,
+                "east-lane arrival on the east column");
+
+            // And the seam's OTHER side: the farm's 'road' marker sits three clear
+            // rows above its mouth (the debris rows push it up), which is exactly the
+            // pairing the nearest-edge metric exists for — a centre-distance pairing
+            // left this side's carry silently dead.
+            map.Free();
+            map = MapRegistry.Create(MapIds.Farm);
+            t.Host.AddChild(map);
+            await t.WaitFrames(1);
+            Vector2 road = map.GetSpawn("road");
+            t.AssertEqual(new Vector2(37 * 16 + 8, road.Y), map.GetArrival("road", new Vector2(8, 0)),
+                "east-lane arrival on the farm lands in the east lane");
+            t.AssertEqual(36 * 16 + 8f, map.GetArrival("road", new Vector2(-300, 0)).X,
+                "a wilder offset clamps into the farm's mouth");
+        }
+        finally
+        {
+            if (map != null && GodotObject.IsInstanceValid(map))
+            {
+                map.Free();
+            }
+            await t.WaitFrames(1);
+            SaveService.Instance.NewGame();
+        }
+    }
+
+    [SimTest]
     public static async Task Map_ExitDisabledWhileBlocked(TestContext t)
     {
         SaveService service = SaveService.Instance;
@@ -97,7 +163,7 @@ public static class TravelTests
         PlayerController? player = null;
         int requests = 0;
         (string MapId, string SpawnId) lastRequest = ("", "");
-        Action<string, string> onTravel = (mapId, spawnId) => { requests++; lastRequest = (mapId, spawnId); };
+        Action<string, string, Vector2> onTravel = (mapId, spawnId, _) => { requests++; lastRequest = (mapId, spawnId); };
         WorldSim.Instance.TravelRequested += onTravel;
         try
         {
@@ -112,7 +178,7 @@ public static class TravelTests
             t.Assert(obstacles != null, "Obstacles layer exists");
             foreach (var cell in new[]
             {
-                new Vector2I(36, 14), new Vector2I(36, 15), new Vector2I(37, 14), new Vector2I(37, 15),
+                new Vector2I(36, 26), new Vector2I(36, 27), new Vector2I(37, 26), new Vector2I(37, 27),
             })
             {
                 t.Assert(obstacles!.GetCellSourceId(cell) != -1,
@@ -128,7 +194,7 @@ public static class TravelTests
             // trigger a transition while the road is blocked.
             player = new PlayerController();
             t.Host.AddChild(player);
-            player.GlobalPosition = new Vector2(38 * 16 + 8, 15 * 16 + 8); // exit tile center
+            player.GlobalPosition = new Vector2(36 * 16 + 8, 28 * 16 + 8); // exit tile center
             await t.WaitFrames(10);
             t.AssertEqual(0, requests, "no TravelRequested while the road is blocked");
             t.AssertEqual(MapIds.Farm, service.Current.Player.MapId, "player MapId unchanged");
@@ -144,7 +210,7 @@ public static class TravelTests
             // Step off and back on: the cleared exit fires, and it leads to the fork.
             player.GlobalPosition = new Vector2(20 * 16 + 8, 15 * 16 + 8);
             await t.WaitFrames(2);
-            player.GlobalPosition = new Vector2(38 * 16 + 8, 15 * 16 + 8);
+            player.GlobalPosition = new Vector2(36 * 16 + 8, 28 * 16 + 8);
             t.Assert(await t.WaitUntil(() => requests > 0, 5), "cleared exit fires TravelRequested");
             t.AssertEqual((MapIds.Fork, "from_farm"), lastRequest,
                 "and it leads to the fork's farm-road arrival");
@@ -171,7 +237,7 @@ public static class TravelTests
     {
         Node? main = null;
         int requests = 0;
-        Action<string, string> onTravel = (_, _) => requests++;
+        Action<string, string, Vector2> onTravel = (_, _, _) => requests++;
         WorldSim.Instance.TravelRequested += onTravel;
         try
         {
@@ -240,7 +306,7 @@ public static class TravelTests
     {
         SaveService service = SaveService.Instance;
         int requests = 0;
-        Action<string, string> onTravel = (_, _) => requests++;
+        Action<string, string, Vector2> onTravel = (_, _, _) => requests++;
         WorldSim.Instance.TravelRequested += onTravel;
         try
         {

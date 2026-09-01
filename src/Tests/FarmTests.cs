@@ -8,17 +8,19 @@ public static class FarmTests
 {
     private const string MapId = "farm";
 
-    // Starter-kit slot layout (see StarterKit.Apply): 0 hoe, 1 watering can,
-    // 2 scythe, 3 turnip seeds, 4 greenbean seeds.
+    // Starter-kit slot layout once fetched from the barn chest (TestKit.NewGameWithKit):
+    // 0 hoe, 1 watering can, 2 scythe, 3 turnip seeds, 4 greenbean seeds, 5 axe, 6 pick.
     private const int HoeSlot = 0;
     private const int CanSlot = 1;
     private const int ScytheSlot = 2;
     private const int TurnipSeedSlot = 3;
+    private const int AxeSlot = 5;
+    private const int PickSlot = 6;
 
     [SimTest]
     public static void Farm_Transitions(TestContext t)
     {
-        var data = GameData.NewGame();
+        var data = TestKit.NewGameWithKit();
         InventoryData inv = data.Player.Inventory;
         MapState map = data.GetMap(MapId); // pre-create so refusal snapshots are stable
 
@@ -149,7 +151,7 @@ public static class FarmTests
     [SimTest]
     public static void Farm_OvernightGrowthExact(TestContext t)
     {
-        var data = GameData.NewGame();
+        var data = TestKit.NewGameWithKit();
         MapState map = data.GetMap(MapId);
         var tile = new TileRecord
         {
@@ -244,7 +246,7 @@ public static class FarmTests
     [SimTest]
     public static void Farm_RegrowCycle(TestContext t)
     {
-        var data = GameData.NewGame();
+        var data = TestKit.NewGameWithKit();
         data.Player.Inventory.SelectedSlot = HoeSlot; // harvest intercept ignores selection
         MapState map = data.GetMap(MapId);
         var tile = new TileRecord
@@ -291,7 +293,7 @@ public static class FarmTests
     [SimTest]
     public static void Farm_HarvestFullInventoryRefuses(TestContext t)
     {
-        var data = GameData.NewGame();
+        var data = TestKit.NewGameWithKit();
         InventoryData inv = data.Player.Inventory;
         for (int i = 5; i < InventoryData.Capacity; i++)
         {
@@ -323,7 +325,7 @@ public static class FarmTests
     [SimTest]
     public static void Stamina_RefuseAndRestore(TestContext t)
     {
-        var data = GameData.NewGame();
+        var data = TestKit.NewGameWithKit();
         data.Player.Stamina = 1; // below the hoe's cost of 2
         data.Player.Inventory.SelectedSlot = HoeSlot;
         MapState map = data.GetMap(MapId); // pre-create so the refusal snapshot is stable
@@ -361,6 +363,32 @@ public static class FarmTests
             service.NewGame();
             GameState.Instance.TransitionTo(GameState.Phase.Playing);
         }
+    }
+
+    [SimTest]
+    public static void Farm_AxeAndPickIgnoreOpenGround(TestContext t)
+    {
+        // Felling and rock-breaking live on the obstacle branch (ObstacleTests):
+        // with nothing standing on the cell, swinging either is a stamina-free
+        // NoEffect on every tile (the animation still plays; the model refuses).
+        var data = TestKit.NewGameWithKit();
+        InventoryData inv = data.Player.Inventory;
+        data.GetMap(MapId).SetTile(new TileRecord { X = 1, Y = 1, Kind = "tilled" });
+
+        foreach ((int slot, string id) in new[] { (AxeSlot, "axe"), (PickSlot, "pick") })
+        {
+            AssertStack(t, inv.SlotAt(slot), id, $"starter kit holds the {id}");
+            inv.SelectedSlot = slot;
+            AssertRefusal(t, data, 1, 1, today: 10, tillable: true,
+                ActionOutcome.NoEffect, $"{id} on a tilled tile");
+            AssertRefusal(t, data, 2, 2, today: 10, tillable: true,
+                ActionOutcome.NoEffect, $"{id} on empty tillable ground");
+        }
+    }
+
+    private static void AssertStack(TestContext t, ItemStackRecord? stack, string itemId, string label)
+    {
+        t.Assert(stack != null && stack.ItemId == itemId && stack.Count == 1, label);
     }
 
     private static void AssertRefusal(TestContext t, GameData data, int x, int y, long today,

@@ -32,6 +32,15 @@ public static class MotelRules
     /// </summary>
     public static int LitRoom(GameData data) => 3;
 
+    /// <summary>
+    /// Which rooms have a guest in residence — the court's lot parks one car per
+    /// guest (a guest at a roadside motel arrived in SOMETHING), so this is what
+    /// the west entry's <c>GuestCar</c> views derive from. Room 3 is Pell's; like
+    /// <see cref="LitRoom"/>, when guests change this derivation grows flags,
+    /// never an int.
+    /// </summary>
+    public static IReadOnlyList<int> OccupiedRooms(GameData data) => new[] { 3 };
+
     /// <summary>Circuit A: the NO tube lights only when the motel is full — expected
     /// false for all of Act I. The sign's whole characterisation is that it never lights.</summary>
     public static bool NoVacancy(GameData data) => data.HasFlag(StoryKeys.MotelFull);

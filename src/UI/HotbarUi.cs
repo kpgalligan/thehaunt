@@ -4,19 +4,19 @@ using TheHaunt.Systems;
 
 namespace TheHaunt.UI;
 
-/// <summary>Bottom-center 10-slot hotbar mirroring the player's inventory. Pure view:
+/// <summary>Bottom-center 10-slot hotbar mirroring the player's inventory (drawn item
+/// icons from the ItemIcons atlas). Pure view:
 /// redraws all slots from the model on WorldSim.InventoryChanged / SaveService.AfterLoad.
 /// Unknown item ids render as a gray '?' placeholder — never dropped, never thrown on.</summary>
 public partial class HotbarUi : Control
 {
     private const int SlotSize = 20;
-    private const int IconSize = 10;
+    private const int IconSize = ItemIcons.Size;
 
     private readonly Panel[] _slotPanels = new Panel[InventoryData.Capacity];
     private readonly TextureRect[] _slotIcons = new TextureRect[InventoryData.Capacity];
     private readonly Label[] _slotCounts = new Label[InventoryData.Capacity];
 
-    private readonly Dictionary<string, ImageTexture> _iconCache = new();
     private ImageTexture? _placeholderIcon;
 
     private StyleBoxFlat _normalStyle = null!;
@@ -108,39 +108,10 @@ public partial class HotbarUi : Control
         }
     }
 
-    private ImageTexture IconFor(string itemId)
-    {
-        if (_iconCache.TryGetValue(itemId, out ImageTexture? cached))
-        {
-            return cached;
-        }
-
-        ItemDef? def = ItemDefs.TryGet(itemId);
-        ImageTexture texture = def != null
-            ? BuildItemIcon(def)
-            : _placeholderIcon ??= BuildPlaceholderIcon();
-        _iconCache[itemId] = texture;
-        return texture;
-    }
-
-    private static ImageTexture BuildItemIcon(ItemDef def)
-    {
-        Color fill = Color.HtmlIsValid(def.IconColor)
-            ? Color.FromHtml(def.IconColor)
-            : new Color(0.5f, 0.5f, 0.5f);
-
-        var img = Image.CreateEmpty(IconSize, IconSize, false, Image.Format.Rgba8);
-        img.Fill(fill);
-        Color edge = fill.Darkened(0.35f);
-        for (int i = 0; i < IconSize; i++)
-        {
-            img.SetPixel(i, 0, edge);
-            img.SetPixel(i, IconSize - 1, edge);
-            img.SetPixel(0, i, edge);
-            img.SetPixel(IconSize - 1, i, edge);
-        }
-        return ImageTexture.CreateFromImage(img);
-    }
+    // The drawn atlas icon (ItemIcons), or the gray '?' for any id the atlas does
+    // not know — unknown save ids render, never dropped (binding UI rule).
+    private Texture2D IconFor(string itemId) =>
+        ItemIcons.For(itemId) ?? (_placeholderIcon ??= BuildPlaceholderIcon());
 
     private static ImageTexture BuildPlaceholderIcon()
     {

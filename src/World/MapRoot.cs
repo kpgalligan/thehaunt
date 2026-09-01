@@ -79,6 +79,84 @@ public partial class MapRoot : Node2D
     }
 
     /// <summary>
+    /// Where a traveller actually lands: the spawn marker, adjusted so a player who
+    /// crossed a road mouth off-centre comes out the far side in the same lane.
+    /// <paramref name="exitOffset"/> is their position relative to the exit zone they
+    /// walked into; it is re-applied along this map's matching mouth — the exit zone
+    /// standing nearest the spawn marker — on that zone's LONG axis only (the axis
+    /// the mouth spans; the other axis stays the marker's, one safe tile inside the
+    /// map), clamped inside the zone. A smaller mouth than the one they left just
+    /// pins them to its edge. Zero offset (doors, scripted travel, tests) and maps
+    /// with no exit near the marker land exactly on the marker, as ever.
+    /// </summary>
+    public Vector2 GetArrival(string spawnId, Vector2 exitOffset)
+    {
+        Vector2 spawn = GetSpawn(spawnId);
+        if (exitOffset == Vector2.Zero)
+            return spawn;
+        if (EntryZoneNear(spawn) is not { } mouth || mouth.Size.X == mouth.Size.Y)
+            return spawn;
+
+        // Keep the feet comfortably inside the mouth's tiles.
+        const float margin = 8f;
+        if (mouth.Size.Y > mouth.Size.X)
+        {
+            spawn.Y = Mathf.Clamp(mouth.GetCenter().Y + exitOffset.Y,
+                mouth.Position.Y + margin, mouth.End.Y - margin);
+        }
+        else
+        {
+            spawn.X = Mathf.Clamp(mouth.GetCenter().X + exitOffset.X,
+                mouth.Position.X + margin, mouth.End.X - margin);
+        }
+        return spawn;
+    }
+
+    /// <summary>The rect of the exit zone standing nearest <paramref name="point"/>,
+    /// if one stands within four tiles of it. Distance is measured to the zone's
+    /// nearest EDGE, not its centre: an arrival marker sits a safe row or two inside
+    /// the map while its mouth's rect reaches the border, and centre distance grows
+    /// with the mouth's depth — the farm's road marker is three clear rows from its
+    /// mouth and taught this the hard way. Every marker is far (>6 tiles) from any
+    /// zone that is not its own, which is what makes proximity pairing safe.</summary>
+    private Rect2? EntryZoneNear(Vector2 point)
+    {
+        Rect2? nearest = null;
+        float best = 4 * TileSize;
+        var exits = new List<MapExit>();
+        CollectExits(this, exits);
+        foreach (MapExit exit in exits)
+        {
+            foreach (Node child in exit.GetChildren())
+            {
+                if (child is CollisionShape2D { Shape: RectangleShape2D rect } shape)
+                {
+                    var zone = new Rect2(
+                        exit.GlobalPosition + shape.Position - rect.Size / 2f, rect.Size);
+                    var edge = new Vector2(
+                        Mathf.Clamp(point.X, zone.Position.X, zone.End.X),
+                        Mathf.Clamp(point.Y, zone.Position.Y, zone.End.Y));
+                    float distance = point.DistanceTo(edge);
+                    if (distance < best)
+                    {
+                        best = distance;
+                        nearest = zone;
+                    }
+                }
+            }
+        }
+        return nearest;
+    }
+
+    private static void CollectExits(Node node, List<MapExit> exits)
+    {
+        if (node is MapExit exit)
+            exits.Add(exit);
+        foreach (Node child in node.GetChildren())
+            CollectExits(child, exits);
+    }
+
+    /// <summary>
     /// Diffs the scheduled NPC set for this map into child NpcViews. Spawns
     /// missing views at tile center, moves/refaces existing ones, QueueFrees
     /// departed ones — removing them from the dict immediately, because the
@@ -110,17 +188,46 @@ public partial class MapRoot : Node2D
             }
         }
 
+        List<(string RoleId, Vector2 Slot)>? staged = null;
         foreach (var (def, placement) in forThisMap)
         {
             if (!_npcViews.TryGetValue(def.Id, out NpcView? view))
             {
-                view = new NpcView { RoleId = def.Id, Tunic = new Color(def.BodyColor) };
+                view = new NpcView
+                {
+                    RoleId = def.Id,
+                    SheetPath = def.SpriteSheet,
+                    SheetBlock = def.SpriteBlock,
+                };
                 _npcViews[def.Id] = view;
                 AddChild(view);
             }
-            view.Position = new Vector2(
+            // SetAnchor, not Position: a re-stated anchor must not yank a
+            // wandering view home on every ten-minute resync.
+            var slot = new Vector2(
                 placement.TileX * TileSize + 8, placement.TileY * TileSize + 8);
-            view.SetFacing(placement.Facing);
+            if (view.SetAnchor(slot, placement.Facing, placement.Ambit))
+                (staged ??= new()).Add((def.Id, slot));
+        }
+
+        // A slot change can stage somebody onto a tile an ambler had wandered to
+        // (the pre-step probe cannot veto the future). The schedule's slot wins:
+        // the ambler goes home, which is the one tile that is always theirs.
+        if (staged != null)
+        {
+            foreach (NpcView view in _npcViews.Values)
+            {
+                if (!view.IsAmbling)
+                    continue;
+                foreach ((string roleId, Vector2 slot) in staged)
+                {
+                    if (roleId != view.RoleId && view.AmblePosition.DistanceTo(slot) < TileSize)
+                    {
+                        view.ReturnToAnchor();
+                        break;
+                    }
+                }
+            }
         }
     }
 
@@ -235,6 +342,16 @@ public partial class MapRoot : Node2D
 
     // O(1) incremental visual update for one tile's record (null = no record).
     public virtual void RefreshTile(int x, int y, TileRecord? record) { }
+
+    /// <summary>
+    /// Cells this map offers ObstacleGen to scatter field obstacles on — the "certain
+    /// areas" of the generation rule. Empty in the base: a map with no candidate area
+    /// simply never generates, which is every map but the farm today.
+    /// </summary>
+    public virtual IReadOnlyList<Vector2I> ObstacleCandidates() => Array.Empty<Vector2I>();
+
+    // Incremental visual resync after one obstacle changed (struck, felled, broken).
+    public virtual void RefreshObstacle(int x, int y, PlacedObjectRecord? record) { }
 
     // Hydrate visuals from the model after instancing. No-op in the base.
     public virtual void ApplyState(MapState state) { }

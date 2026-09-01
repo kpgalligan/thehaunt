@@ -79,12 +79,12 @@ public static class StoryTests
     [SimTest]
     public static void Story_RulesTotalOnHostileFlags(TestContext t)
     {
-        // Both rule functions must be total: every 2^4 intro-flag combination, plus an
+        // Both rule functions must be total: every 2^5 intro-flag combination, plus an
         // unknown key, across hostile stamps, must degrade to skip-or-replay, never throw.
         string[] introFlags =
         {
             StoryKeys.FirstPlanting, StoryKeys.RoadCleared,
-            StoryKeys.CrewArrivalDone, StoryKeys.MeetingDone,
+            StoryKeys.CrewArrivalDone, StoryKeys.Overslept, StoryKeys.MeetingDone,
         };
         long[] stamps = { 0, 1, 999999 }; // 0 also covers the negative-stamp clamp repair
         string[] maps = { MapIds.Farm, MapIds.Town, MapIds.TownHall, "unknown_map" };
@@ -93,7 +93,7 @@ public static class StoryTests
         int evaluated = 0;
         foreach (long stamp in stamps)
         {
-            for (int combo = 0; combo < 16; combo++)
+            for (int combo = 0; combo < 32; combo++)
             {
                 var data = new GameData();
                 for (int bit = 0; bit < introFlags.Length; bit++)
@@ -110,6 +110,7 @@ public static class StoryTests
                     IReadOnlyList<string> flags = IntroRules.FlagsToSetOnDayStarted(data, dawn);
                     t.Assert(flags != null, $"combo {combo} stamp {stamp}: dawn result non-null");
                 }
+                IntroRules.WakesAtTownHall(data); // any throw fails the test
                 foreach (string map in maps)
                 {
                     foreach (int minute in minutes)
@@ -121,7 +122,7 @@ public static class StoryTests
                 }
             }
         }
-        t.AssertEqual(stamps.Length * 16 * maps.Length * minutes.Length, evaluated,
+        t.AssertEqual(stamps.Length * 32 * maps.Length * minutes.Length, evaluated,
             "full hostile matrix evaluated");
     }
 
@@ -165,12 +166,33 @@ public static class StoryTests
             }
         }
 
+        // Overslept pending: the relocated wake selects the overslept variant at the
+        // hall at ANY hour — the flag, not the clock, picks it.
+        var overslept = new GameData();
+        overslept.TrySetFlag(StoryKeys.FirstPlanting, 1);
+        overslept.TrySetFlag(StoryKeys.RoadCleared, 2);
+        overslept.TrySetFlag(StoryKeys.CrewArrivalDone, 2);
+        overslept.TrySetFlag(StoryKeys.Overslept, 3);
+        foreach (string map in maps)
+        {
+            foreach (int minute in minutes)
+            {
+                var now = new GameTime(3 * GameTime.MinutesPerDay + minute);
+                StoryBeatId? expected = map == MapIds.TownHall
+                    ? StoryBeatId.TownMeetingOverslept
+                    : null;
+                t.AssertEqual(expected, IntroRules.PendingBeat(overslept, now, map),
+                    $"overslept pending: map '{map}' minute {minute}");
+            }
+        }
+
         // Everything done: nothing pends anywhere, ever.
         var done = new GameData();
         done.TrySetFlag(StoryKeys.FirstPlanting, 1);
         done.TrySetFlag(StoryKeys.RoadCleared, 2);
         done.TrySetFlag(StoryKeys.CrewArrivalDone, 2);
-        done.TrySetFlag(StoryKeys.MeetingDone, 2);
+        done.TrySetFlag(StoryKeys.Overslept, 3);
+        done.TrySetFlag(StoryKeys.MeetingDone, 3);
         foreach (string map in maps)
         {
             foreach (int minute in minutes)
@@ -207,7 +229,9 @@ public static class StoryTests
     public static void Story_MeetingRecursNightly(TestContext t)
     {
         // No day-equality term anywhere: the meeting re-pends EVERY evening from 18:00
-        // until attended — missing the first night loses nothing.
+        // until attended. (In play the overslept wake usually intervenes first — going
+        // to bed relocates the player to the hall — but the pure evening recurrence
+        // must hold on its own for saves that never sleep.)
         var data = new GameData();
         data.TrySetFlag(StoryKeys.FirstPlanting, 1);
         data.TrySetFlag(StoryKeys.RoadCleared, 2);
@@ -228,6 +252,26 @@ public static class StoryTests
         var after = new GameTime(6 * GameTime.MinutesPerDay + 900);
         t.Assert(IntroRules.PendingBeat(data, after, MapIds.TownHall) == null,
             "attended: the meeting never pends again");
+    }
+
+    [SimTest]
+    public static void Story_OversleptWakeRules(TestContext t)
+    {
+        // WakesAtTownHall: the bedtime relocation fires iff the summons was heard
+        // (CrewArrivalDone) and the meeting is still pending. Nothing else matters —
+        // not the hour, and not the Overslept flag Main stamps on the way (re-wakes
+        // are idempotent: SetStoryFlag is only-if-absent).
+        var data = new GameData();
+        t.Assert(!IntroRules.WakesAtTownHall(data), "fresh game: the wake stays home");
+        data.TrySetFlag(StoryKeys.FirstPlanting, 1);
+        data.TrySetFlag(StoryKeys.RoadCleared, 2);
+        t.Assert(!IntroRules.WakesAtTownHall(data), "summons unheard: the wake stays home");
+        data.TrySetFlag(StoryKeys.CrewArrivalDone, 2);
+        t.Assert(IntroRules.WakesAtTownHall(data), "summons heard, meeting pending: wake at the hall");
+        data.TrySetFlag(StoryKeys.Overslept, 3);
+        t.Assert(IntroRules.WakesAtTownHall(data), "already overslept: every bedtime re-wakes at the hall");
+        data.TrySetFlag(StoryKeys.MeetingDone, 3);
+        t.Assert(!IntroRules.WakesAtTownHall(data), "meeting done: bedtimes stay home forever");
     }
 
     [SimTest]
@@ -289,7 +333,8 @@ public static class StoryTests
         TestMap? map = null;
         try
         {
-            service.NewGame(); // clock -> day 0, starter kit, MapId "test_farm"
+            service.NewGame(); // clock -> day 0, MapId "test_farm"
+            TestKit.Fetch(service.Current); // kit in hand, not in the barn chest
             map = new TestMap { MapId = MapIds.Farm };
             t.Host.AddChild(map);
             await t.WaitFrames(1);
@@ -340,6 +385,7 @@ public static class StoryTests
             t.AssertEqual(0L, Clock.Instance.Now.TotalMinutes, "boots fresh (no leaked autosave)");
 
             // Plant on day 0 so the road clears at dawn 1 and the crew beat pends.
+            TestKit.Fetch(SaveService.Instance.Current); // kit in hand, not in the barn chest
             var tile = new Vector2I(20, 14);
             WorldSim.Instance.SelectSlot(0); // hoe
             t.AssertEqual(ActionOutcome.Tilled, WorldSim.Instance.UseSelectedItem(tile), "till");
@@ -396,10 +442,12 @@ public static class StoryTests
         }
     }
 
-    // Debris blockade cells frozen by phase3-spec §6.
+    // Debris blockade cells — phase3-spec §6, amended 2026-08-27: the farm road
+    // leaves SOUTH now (the farm sits north of the fork), so the blockade sits on
+    // the southbound leg just above the mouth.
     private static readonly Vector2I[] RoadBlockCells =
     {
-        new(36, 14), new(36, 15), new(37, 14), new(37, 15),
+        new(36, 26), new(36, 27), new(37, 26), new(37, 27),
     };
 
     private static void ApplyDawn(GameData data, long newDay)

@@ -4,13 +4,17 @@ using TheHaunt.Systems;
 
 namespace TheHaunt.UI;
 
-/// <summary>Morning shipment card. Latches WorldSim.OvernightCompleted — which fires
-/// synchronously mid-AdvanceToDayStart with the screen black, so it must never display
-/// during the event — and shows only when Main's sleep flow awaits ShowIfPendingAsync
-/// after the fade-in. The phase is still Sleeping while the card is up (player frozen,
-/// PauseMenu inert, StoryDirector bails), so a dismiss press is the only way forward;
-/// money is credited + autosaved before the card, so quitting mid-card loses only the
-/// popup. Zero-proceeds mornings show nothing (CropsGrown alone never interrupts).</summary>
+/// <summary>Morning report card: the night's shipment lines plus the garage's dawn
+/// resolutions (paid repairs, reclaimed cars — this card IS the payday surface;
+/// toasts under the sleep fade play out unseen). Latches WorldSim.OvernightCompleted
+/// — which fires synchronously mid-AdvanceToDayStart with the screen black, so it
+/// must never display during the event — and shows only when Main's sleep flow
+/// awaits ShowIfPendingAsync after the fade-in. The phase is still Sleeping while
+/// the card is up (player frozen, PauseMenu inert, StoryDirector bails), so a
+/// dismiss press is the only way forward; money is credited + autosaved before the
+/// card, so quitting mid-card loses only the popup. Mornings with neither sales nor
+/// garage lines show nothing (CropsGrown alone never interrupts; the dev money
+/// floor is deliberately not a line).</summary>
 public partial class OvernightReportUi : Control
 {
     private VBoxContainer _lines = null!;
@@ -64,12 +68,15 @@ public partial class OvernightReportUi : Control
         OvernightReport report = _latched;
         bool pending = _hasLatched;
         _hasLatched = false;
-        if (!pending || report.ShippingProceeds <= 0 || report.Sales is not { Count: > 0 } sales)
+        bool hasSales = report.ShippingProceeds > 0 && report.Sales is { Count: > 0 };
+        bool hasGarage = report.Garage is { Count: > 0 };
+        if (!pending || (!hasSales && !hasGarage))
         {
-            return Task.CompletedTask; // zero-proceeds mornings show NOTHING
+            return Task.CompletedTask; // nothing-happened mornings show NOTHING
         }
 
-        Render(sales, report.ShippingProceeds);
+        Render(hasSales ? report.Sales! : Array.Empty<ShippedLine>(),
+            hasGarage ? report.Garage! : Array.Empty<GarageLine>());
         Visible = true;
         _waiter = new TaskCompletionSource();
         return _waiter.Task;
@@ -121,7 +128,10 @@ public partial class OvernightReportUi : Control
 
         var title = new Label
         {
-            Text = "Overnight Shipment", // [KEVIN] report copy
+            // [KEVIN] report copy — was "Overnight Shipment"; the card is now also
+            // the garage's payday surface, and a garage-only morning under a
+            // shipment heading would read wrong.
+            Text = "Overnight Report",
             HorizontalAlignment = HorizontalAlignment.Center,
         };
         title.AddThemeColorOverride("font_color", new Color(1f, 0.92f, 0.55f));
@@ -141,7 +151,7 @@ public partial class OvernightReportUi : Control
         vbox.AddChild(hint);
     }
 
-    private void Render(IReadOnlyList<ShippedLine> sales, long total)
+    private void Render(IReadOnlyList<ShippedLine> sales, IReadOnlyList<GarageLine> garage)
     {
         ClearLines();
         foreach (ShippedLine line in sales)
@@ -150,6 +160,24 @@ public partial class OvernightReportUi : Control
             // appear here — unsellable stacks stay binned — but the rule is uniform).
             string name = ItemDefs.TryGet(line.ItemId)?.Name ?? "?";
             _lines.AddChild(new Label { Text = $"{name} x{line.Count} — {line.Proceeds}g" }); // [KEVIN] line copy
+        }
+        long total = 0;
+        foreach (ShippedLine line in sales)
+        {
+            total += line.Proceeds;
+        }
+        foreach (GarageLine line in garage)
+        {
+            string service = GarageServices.TryGet(line.ServiceId)?.Name ?? "Repair";
+            _lines.AddChild(new Label
+            {
+                // [KEVIN] line copy — a reclaim is the 2-day deadline missed:
+                // the customer came back for the car and paid nothing.
+                Text = line.Reclaimed
+                    ? $"{service} — customer took the car back"
+                    : $"{service} — {line.Proceeds}g",
+            });
+            total += line.Proceeds;
         }
         _totalLabel.Text = $"+{total}g";
     }

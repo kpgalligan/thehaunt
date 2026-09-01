@@ -11,6 +11,9 @@ public enum ActionOutcome
     Watered,
     Harvested,
     Cleared,
+    Struck,      // an obstacle took a hit and still stands
+    Felled,      // final hit on an obstacle that leaves something behind (tree -> stump)
+    Broken,      // final hit on an obstacle that clears the cell (stump, rock)
 }
 
 // All farming TileRecord mutations live here. Tile states:
@@ -54,7 +57,46 @@ public static class FarmActions
             return ActionOutcome.NoEffect;   // empty hand or unknown item id
         }
 
-        // 2. Tools.
+        // 2. Obstacles (trees, stumps, rocks). The cell's occupant owns the whole
+        // interaction: the matching tool works it, and everything else — including
+        // the hoe, whatever the view said about the terrain — is refused here, so
+        // no model path can ever till or plant under a standing obstacle.
+        if (map.GetObject(x, y) is PlacedObjectRecord obstacle)
+        {
+            ObstacleDef? obstacleDef = ObstacleDefs.TryGet(obstacle.ObjectId);
+            if (obstacleDef is null || def.Tool != obstacleDef.Tool)
+            {
+                return ActionOutcome.NoEffect;   // unknown object (preserved) or wrong tool
+            }
+            if (player.Stamina < def.StaminaCost)
+            {
+                return ActionOutcome.NotEnoughStamina;
+            }
+            if (obstacle.HitsTaken + 1 < obstacleDef.Hits)
+            {
+                obstacle.HitsTaken++;
+                player.Stamina -= def.StaminaCost;
+                return ActionOutcome.Struck;
+            }
+            // The final hit grants the yield, all-or-nothing (harvest precedent):
+            // a full inventory refuses the swing with the model bit-identical.
+            if (!player.Inventory.HasRoomFor(obstacleDef.YieldItemId, obstacleDef.YieldCount))
+            {
+                return ActionOutcome.InventoryFull;
+            }
+            player.Inventory.Add(obstacleDef.YieldItemId, obstacleDef.YieldCount);
+            player.Stamina -= def.StaminaCost;
+            if (obstacleDef.BecomesId is string becomesId)
+            {
+                obstacle.ObjectId = becomesId;
+                obstacle.HitsTaken = 0;
+                return ActionOutcome.Felled;
+            }
+            map.RemoveObject(x, y);
+            return ActionOutcome.Broken;
+        }
+
+        // 3. Tools.
         if (def.Tool is ToolKind tool)
         {
             switch (tool)
@@ -110,7 +152,7 @@ public static class FarmActions
             return ActionOutcome.NoEffect;
         }
 
-        // 3. Seeds: TILLED with no crop only.
+        // 4. Seeds: TILLED with no crop only.
         if (def.PlantsCropId is string plantsCropId)
         {
             if (tile is null || tile.Kind != "tilled" || tile.CropId is not null)

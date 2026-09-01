@@ -185,7 +185,7 @@ public static class MapEditorTests
             // exists at all.
             t.Assert(reserved.Contains(new Vector2I(9, 26)),
                 "the pen's gateway is reserved (a shape's one soft cell)");
-            t.Assert(reserved.Contains(new Vector2I(38, 15)),
+            t.Assert(reserved.Contains(new Vector2I(36, 28)),
                 "the road corridor is reserved (generative terrain, not a placement)");
             t.Assert(reserved.Contains(new Vector2I(7, 7)),
                 "the farmhouse doorway is reserved (its blocker belongs to the Door node)");

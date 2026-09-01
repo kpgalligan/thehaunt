@@ -1,5 +1,6 @@
 using Godot;
 using TheHaunt.Core;
+using TheHaunt.Systems;
 
 namespace TheHaunt.World;
 
@@ -18,8 +19,13 @@ namespace TheHaunt.World;
 /// six lot rows compressed to five), the existing road, one tile of x-offset.
 /// Handoff tile (x, y) = this map's (x + 1, y - 1).
 ///
-/// The gas station and the stand still ship as <see cref="PlaceholderBuilding"/>s,
-/// now wearing their sign mounts.
+/// The gas station, the stand and the repair garage still ship as
+/// <see cref="PlaceholderBuilding"/>s, now wearing their sign mounts. The garage
+/// (docs/story/README.md) starts shut and FOR SALE — its board opens WorldSim's
+/// garage-sale session — and its door is deed-locked (garage.deed): buying the
+/// place opens the shop floor behind it (<see cref="GarageInteriorMap"/>, Kevin's
+/// 2026-08-30 garage-operation commission). The dark band sign stays dark either
+/// way; the hardware store keeps the fully-shut treatment alone now.
 /// </summary>
 public partial class WestEntryMap : ExteriorMap
 {
@@ -38,14 +44,19 @@ public partial class WestEntryMap : ExteriorMap
     private const int StripLeft = 8, StripRight = 25;
     private const int WalkRow = 8, WalkLeft = 2, WalkRight = 27;
     private const int LotTop = 9, LotBottom = 13, LotLeft = 7, LotRight = 26;
+    private const int CarRow = 11;   // guest cars' base row, mid-lot, backed up to the walk
     private const int OfficeDoorX = 6;
     private static readonly int[] RoomDoorX = { 8, 13, 17, 21 };
     private static readonly Vector2I SignFoot = new(4, 13);
 
     // Footprints south of the road: (left, top, right, bottom); faces drawn 2 rows taller.
     private const int GasLeft = 24, GasTop = 18, GasRight = 29, GasBottom = 20;
+    private const int GarageLeft = 32, GarageTop = 18, GarageRight = 37, GarageBottom = 20;
     private const int StandLeft = 33, StandTop = 10, StandRight = 35, StandBottom = 11;
     private const int GasDoorX = 26;
+    // Where the garage's drawn door lands (centre of the face) — the kerb cut, the
+    // FOR SALE board, and the deed-locked Door node all key off it.
+    private const int GarageDoorX = 34;
 
     // The two cobra heads stand in the lot's kerb verge, flanking the driveway.
     // The east one is DEAD and stays dead — not flickering, dead — which keeps the
@@ -61,20 +72,72 @@ public partial class WestEntryMap : ExteriorMap
         base._EnterTree();
     }
 
+    // One car per occupied room, keyed by room, diffed by ApplyState like every
+    // other model-derived view. Muted flats from the pre-art town's range; Pell's
+    // slate sedan sits under room 3's lit window.
+    private static readonly Color[] CarPaints =
+    {
+        new("6d6a58"), new("7a5a4c"), new("5c6a76"), new("6e5e68"),
+    };
+    private readonly Dictionary<int, GuestCar> _cars = new();
+
     public override void _Ready()
     {
         BuildSurfaces();
         TileSet tileSet = RoadsideTerrain.Get(); // the lot needs the asphalt source
         TileMapLayer ground = BuildGround(tileSet);
         ground.AddChild(BuildLotMarkings());
-        // Kerb cuts: the lot driveway (a cut, not an apron) and the gas frontage.
+        // Kerb cuts: the lot driveway (a cut, not an apron), the gas frontage, and
+        // the garage frontage — a repair shop lived off cars rolling in.
         ground.AddChild(BuildRoadDressing(RoadTop,
-            new[] { (LotLeft + 2, LotLeft + 5) }, new[] { (GasDoorX, GasDoorX + 1) }));
+            new[] { (LotLeft + 2, LotLeft + 5) },
+            new[] { (GasDoorX, GasDoorX + 1), (GarageDoorX, GarageDoorX + 1) }));
         BuildObstacles(tileSet);
         BuildBuildings();
         BuildSpawns();
         BuildInteractables();
         BuildTravel();
+    }
+
+    /// <summary>
+    /// The west entry's model-derived staging: the guest cars. Occupancy is story
+    /// state (<see cref="MotelRules.OccupiedRooms"/>), and this runs on hydrate,
+    /// every flag change and every dawn — so a guest checking in or out someday
+    /// changes the lot with no new plumbing.
+    /// </summary>
+    public override void ApplyState(MapState state)
+    {
+        IReadOnlyList<int> occupied = MotelRules.OccupiedRooms(SaveService.Instance.Current);
+
+        List<int>? departed = null;
+        foreach (int room in _cars.Keys)
+        {
+            if (!occupied.Contains(room))
+                (departed ??= new()).Add(room);
+        }
+        if (departed != null)
+        {
+            foreach (int room in departed)
+            {
+                _cars[room].QueueFree();
+                _cars.Remove(room);
+            }
+        }
+
+        foreach (int room in occupied)
+        {
+            if (_cars.ContainsKey(room))
+                continue;
+            var car = new GuestCar
+            {
+                Name = $"GuestCar{room}",
+                Paint = CarPaints[(room - 1) % CarPaints.Length],
+                // In the stall under the guest's own door, three tiles wide.
+                Position = Prop.Anchor(RoomDoorX[room - 1] - 1, CarRow, 3),
+            };
+            _cars[room] = car;
+            AddChild(car);
+        }
     }
 
     private void BuildSurfaces()
@@ -96,6 +159,7 @@ public partial class WestEntryMap : ExteriorMap
         // Gravel under the placeholder buildings and one apron row below, so no face
         // draws a grass edge against its own frontage.
         Fill(GasLeft, GasTop, GasRight, GasBottom + 1, Surface.Gravel);
+        Fill(GarageLeft, GarageTop, GarageRight, GarageBottom + 1, Surface.Gravel);
         Fill(StandLeft, StandTop, StandRight, StandBottom + 1, Surface.Gravel);
     }
 
@@ -120,6 +184,10 @@ public partial class WestEntryMap : ExteriorMap
         Block(obstacles, StripRight + 1, FaceTop, StripRight + 1, DoorRow);
 
         Block(obstacles, GasLeft, GasTop, GasRight, GasBottom, GasDoorX, GasBottom);
+        // The garage's door cell gaps like the gas station's: the Door node's own
+        // blocker seals it, and the handle is deed-locked (garage.deed) — shut and
+        // silent-looking until Jane owns the place, open any hour after.
+        Block(obstacles, GarageLeft, GarageTop, GarageRight, GarageBottom, GarageDoorX, GarageBottom);
         Block(obstacles, StandLeft, StandTop, StandRight, StandBottom);
         obstacles.SetCell(WestLight, 0, TerrainTiles.Blocker);
         obstacles.SetCell(EastLight, 0, TerrainTiles.Blocker);
@@ -165,6 +233,26 @@ public partial class WestEntryMap : ExteriorMap
         });
         AddChild(gas);
 
+        // The repair garage, shut and for sale (docs/story/README.md): Jane's route
+        // back into her father's trade once the skills system lands. Same closed-
+        // and-dark treatment as the hardware store — the band sign's bill is not
+        // being paid, and the missing OPEN neon is itself the tell.
+        var garage = new PlaceholderBuilding
+        {
+            Name = "Garage",
+            TilesWide = GarageRight - GarageLeft + 1,
+            FootprintRows = GarageBottom - GarageTop + 1,
+            Wall = new Color("6d7a72"),
+            Position = Prop.Anchor(GarageLeft, GarageBottom, GarageRight - GarageLeft + 1),
+        };
+        garage.AddChild(new WallBandSign
+        {
+            Text = "GARAGE",
+            LitAtNight = false,
+            Position = new Vector2(0, -57),
+        });
+        AddChild(garage);
+
         AddChild(new PlaceholderBuilding
         {
             Name = "FireworksStand",
@@ -207,6 +295,7 @@ public partial class WestEntryMap : ExteriorMap
         for (int room = 1; room <= MotelRules.Rooms; room++)
             spawns.AddChild(SpawnMarker($"from_room{room}", RoomDoorX[room - 1], WalkRow));
         spawns.AddChild(SpawnMarker("from_gas", GasDoorX, GasBottom + 1));
+        spawns.AddChild(SpawnMarker("from_garage", GarageDoorX, GarageBottom + 1));
         AddChild(spawns);
     }
 
@@ -236,6 +325,14 @@ public partial class WestEntryMap : ExteriorMap
             Name = "FireworksSign",
             Position = new Vector2(36 * TileSize + 8, 12 * TileSize + 8),
             Message = "Fireworks.",
+        });
+        // The garage's FOR SALE board — south of the footprint for the same Y-sort
+        // reason as the gas sign, east of the drawn doorway. A press opens the sale
+        // session; once the deed lands the same node answers SOLD.
+        AddChild(new GarageSaleSign
+        {
+            Name = "GarageSaleSign",
+            Position = new Vector2(36 * TileSize + 8, 21 * TileSize + 8),
         });
     }
 
@@ -279,6 +376,20 @@ public partial class WestEntryMap : ExteriorMap
             TargetSpawnId = "entry",
             DrawPlaceholder = false,
             Position = new Vector2(GasDoorX * TileSize + 8, GasBottom * TileSize + 8),
+        });
+        // The garage's shut door, deed-locked (the motel-room pattern: live flag
+        // check per interact, no repaint on purchase). Before the deed it answers
+        // with a line; after it, Jane walks into her shop at any hour — the 9-6
+        // window gates customers and Mike, never the owner.
+        AddChild(new Door
+        {
+            Name = "GarageDoor",
+            TargetMapId = MapIds.GarageInterior,
+            TargetSpawnId = "entry",
+            RequiredFlag = StoryKeys.GarageDeed,
+            LockedMessage = "Closed.",   // [KEVIN] locked-handle line
+            DrawPlaceholder = false,
+            Position = new Vector2(GarageDoorX * TileSize + 8, GarageBottom * TileSize + 8),
         });
     }
 

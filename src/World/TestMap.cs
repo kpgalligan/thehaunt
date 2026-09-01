@@ -8,8 +8,10 @@ namespace TheHaunt.World;
 /// The farm, 40x30 tiles, painted from the farm art handoff's sheets
 /// (docs/designs/design_handoff_farm_interiors). Pasture — rougher and darker than the
 /// town's grass, so the two maps never read as the same field — with a woods edge for the
-/// map limit, a track from the farmhouse door east to the road out, the barn across the
-/// yard, and a fenced pen in the south-west.
+/// map limit, a track from the farmhouse door east to the wagon road — which bends south
+/// at the yard's east end and leaves through the south treeline for the fork (the farm
+/// sits NORTH of the fork; docs/story/README.md) — the barn across the yard, and a
+/// fenced pen in the south-west.
 ///
 /// Layer child order = draw order: Ground, FarmSoil, Crops, Obstacles. Ground carries
 /// everything flat AND the tiles that block by themselves (woods, rocks, stumps, fences);
@@ -57,6 +59,10 @@ public partial class TestMap : MapRoot
     private const int RoadTop = 14, RoadBottom = 15;
     private const int RoadWest = 25;          // west of this the road is a farm track
 
+    // The southbound leg: at the yard's east end the wagon road turns and runs out
+    // through the south border toward the fork's north mouth.
+    private const int SouthRoadLeft = 36, SouthRoadRight = 37;
+
     // The fenced pen. Solid rails all round bar the gate, which is drawn and painted open.
     private const int PenLeft = 4, PenRight = 15, PenTop = 23, PenBottom = 26;
     private const int PenGateX = 9;
@@ -79,28 +85,12 @@ public partial class TestMap : MapRoot
     // is not there. MapSeedTests holds the two to each other, so editing one without the
     // other fails loudly instead of leaving a farm that disagrees with its own file.
 
-    // Rocks and stumps: the same twelve cells the procedural map scattered, moved off the
-    // barn, the pen and the one tree canopy that would have buried a boulder — a solid
-    // cell whose cause is hidden under leaves is an invisible wall. Solid by the sheet's
-    // own collision, so they refuse tilling through the walkable check with nothing
-    // hand-listed.
-    private static readonly Vector2I[] DefaultBoulders =
-    {
-        new(5, 12), new(15, 20), new(31, 10), new(25, 22), new(10, 18), new(33, 25),
-        new(18, 6), new(28, 19), new(3, 20), new(35, 7), new(22, 3), new(13, 13),
-    };
-
-    private static readonly Vector2I[] DefaultFallenLogs = { new(17, 25) };
-
-    // (left column, base row, bare?) — a tree is 3 tiles wide and 4 tall, and only its
-    // trunk cell is ever solid: the player walks under the branches. Exactly one bare
-    // tree on the whole map: the handoff asks for it sparingly and the reference layout
-    // uses it once.
-    private static readonly (int X, int Y, bool Bare)[] DefaultTrees =
-    {
-        (2, 12, false), (16, 9, false), (12, 5, true), (33, 12, false), (21, 20, false),
-        (30, 22, false), (5, 19, false), (35, 20, false), (25, 26, false),
-    };
+    // One decorative fallen log survives as recipe content. The trees, stumps and
+    // boulders that used to sit beside it are SAVE STATE now — randomly generated
+    // once per save by ObstacleGen and cleared with the axe and pick — because a
+    // drawn tree that ignores the axe beside an identical one that falls would be
+    // the map lying about its own rules.
+    private static readonly Vector2I DefaultFallenLog = new(17, 25);
 
     // Storm blockade cells: fallen timber and rock until intro.road_cleared, toggled in
     // ApplyState. Both tiles are solid in the farm sheet, so the debris blocks itself.
@@ -110,8 +100,8 @@ public partial class TestMap : MapRoot
     // one blockade.
     private static readonly (Vector2I Cell, Vector2I Tile)[] RoadBlock =
     {
-        (new(36, 14), FarmTiles.Log), (new(37, 14), FarmTiles.RockLarge),
-        (new(36, 15), FarmTiles.RockLarge), (new(37, 15), FarmTiles.Log),
+        (new(36, 26), FarmTiles.Log), (new(37, 26), FarmTiles.RockLarge),
+        (new(36, 27), FarmTiles.RockLarge), (new(37, 27), FarmTiles.Log),
     };
 
     // The recipe this build is reading, and the two tables resolved out of it. Resolved
@@ -134,6 +124,7 @@ public partial class TestMap : MapRoot
     // every ApplyState read of them is honest.
     private MapExit? _roadExit;
     private Sign? _blockadeSign;
+    private Mailbox? _mailbox;
     private BarnFacade _barn = null!;    // built unconditionally in BuildStructures
     private MapState? _pendingState;     // ApplyState arrived before _Ready built the layers
 
@@ -240,38 +231,18 @@ public partial class TestMap : MapRoot
     /// <c>data/maps/test_farm.json</c> was written from, and the fallback when it is
     /// missing. <see cref="MapRecipeSeeds"/> is the door onto it; MapSeedTests pins the
     /// shipped file to it.
-    ///
-    /// This is the ONLY place the hash that chose between a boulder and a stump still
-    /// runs. The recipe records WHICH tile sits on each cell rather than the rule that
-    /// picked it, because a rule keyed on the coordinate re-rolls the moment anything
-    /// moves the thing one tile east: you would drag a boulder and watch it turn into a
-    /// stump. A coordinate is a placement; identity is not derived from one.
     /// </summary>
     public static MapRecipe DefaultRecipe()
     {
         var recipe = new MapRecipe(MapIds.Farm);
 
-        foreach (Vector2I cell in DefaultBoulders)
-        {
-            recipe.Add(PlacementKinds.Scatter,
-                Hash(cell.X, cell.Y) % 3 == 0 ? FarmTiles.StumpId : FarmTiles.RockLargeId,
-                cell.X, cell.Y);
-        }
-        foreach (Vector2I cell in DefaultFallenLogs)
-        {
-            recipe.Add(PlacementKinds.Scatter, FarmTiles.LogId, cell.X, cell.Y);
-        }
-
-        foreach (var (x, y, bare) in DefaultTrees)
-        {
-            recipe.Add(PlacementKinds.Prop,
-                bare ? FarmBuildings.TreeBareId : FarmBuildings.TreeLeafyId, x, y);
-        }
+        recipe.Add(PlacementKinds.Scatter, FarmTiles.LogId, DefaultFallenLog.X, DefaultFallenLog.Y);
 
         recipe.Add(PlacementKinds.Spawn, "default", 20, 15);
-        // West of the blockade line, >= 1 tile clear of the exit area (spawn-clearance
-        // rule, asserted by test).
-        recipe.Add(PlacementKinds.Spawn, "road", 35, 15);
+        // North of the blockade line, >= 1 tile clear of the exit area
+        // (spawn-clearance rule, asserted by test) — and a full tile clear of the
+        // debris row, so the feet collider never spawns clipped into it.
+        recipe.Add(PlacementKinds.Spawn, "road", 36, 24);
         // One tile south of each door cell — arrival from the building.
         recipe.Add(PlacementKinds.Spawn, "house_door", HouseDoorX, HouseDoorY + 1);
         recipe.Add(PlacementKinds.Spawn, "barn_door", BarnDoorX, BarnDoorY + 1);
@@ -285,17 +256,25 @@ public partial class TestMap : MapRoot
         // (8,8)/(8,9) are plain tillable pasture now.
         recipe.Add(PlacementKinds.Sign, "Sign", 12, 8)
             .SetText(PlacementFields.Text, "Placeholder sign. Real text comes later.");
-        // [KEVIN] placeholder copy — canon restatement only.
-        recipe.Add(PlacementKinds.Sign, BlockadeSignId, 36, 13)
+        // [KEVIN] placeholder copy — canon restatement only. Beside the southbound
+        // leg, one column west of the debris.
+        recipe.Add(PlacementKinds.Sign, BlockadeSignId, 35, 26)
             .SetText(PlacementFields.Text,
                 "The storm brought half the hillside down. No getting through today.");
 
         recipe.Add(PlacementKinds.ShippingBin, FarmBuildings.BinId, 10, 8);
 
-        MapPlacement road = recipe.Add(PlacementKinds.Exit, MapIds.Fork, 38, 14);
+        // On the door apron, west of the walked track (x7-8) — (9,8) east of it is
+        // the scooter's home frontage (ScooterRules) and stays clear.
+        recipe.Add(PlacementKinds.Mailbox, "mailbox", 6, 8);
+
+        // The south mouth's first border row. One row deep on purpose: the mouth is
+        // WIDER than deep, which is how GetArrival knows the cross axis to carry an
+        // entering player's position along.
+        MapPlacement road = recipe.Add(PlacementKinds.Exit, MapIds.Fork, 36, 28);
         road.SetText(PlacementFields.Spawn, "from_farm");
         road.SetInt(PlacementFields.Width, 2);
-        road.SetInt(PlacementFields.Height, 2);
+        road.SetInt(PlacementFields.Height, 1);
 
         return recipe;
     }
@@ -311,7 +290,7 @@ public partial class TestMap : MapRoot
         if (_roadExit == null)
         {
             throw new MapRecipeException(_recipeSource,
-                $"has no '{PlacementKinds.Exit}' to '{MapIds.Fork}'; the road east is how the farm is left.");
+                $"has no '{PlacementKinds.Exit}' to '{MapIds.Fork}'; the road south is how the farm is left.");
         }
         if (_blockadeSign == null)
         {
@@ -342,19 +321,23 @@ public partial class TestMap : MapRoot
             {
                 bool border = x < BorderThickness || x >= Width - BorderThickness
                     || y < BorderThickness || y >= Height - BorderThickness;
-                // The woods open where the road leaves for town.
-                bool roadMouth = x >= Width - BorderThickness && y is RoadTop or RoadBottom;
+                // The woods open where the road leaves for town — through the SOUTH
+                // treeline, because the farm sits north of the fork.
+                bool roadMouth = y >= Height - BorderThickness
+                    && x is >= SouthRoadLeft and <= SouthRoadRight;
                 _surface[x, y] = border && !roadMouth ? Surface.Woods : Surface.Pasture;
             }
         }
 
-        // The wagon road, drawn from the same sheet as the road strip's rows 14-15 —
-        // it curves south out of frame and comes into the fork from the north.
-        for (int x = RoadWest; x < Width; x++)
+        // The wagon road, drawn from the same sheet as the road strip's rows 14-15:
+        // east along the yard, then the bend — south out of frame, into the fork's
+        // north mouth. The map now shows the curve the story always described.
+        for (int x = RoadWest; x <= SouthRoadRight; x++)
         {
             _surface[x, RoadTop] = Surface.Road;
             _surface[x, RoadBottom] = Surface.Road;
         }
+        Fill(SouthRoadLeft, RoadBottom + 1, SouthRoadRight, Height - 1, Surface.Road);
 
         // The farm's own track: out of the front door, south to the road line, then east
         // until it meets the road. The player crosses their own yard on every trip to town.
@@ -657,6 +640,7 @@ public partial class TestMap : MapRoot
         long today = Clock.Instance.Now.DayIndex;
         foreach (TileRecord tile in state.Tiles)
             PaintTile(state, tile.X, tile.Y, today);
+        SyncObstacles(state);
 
         // View-side model reads, the same precedent wet/dry soil sets by reading
         // Clock.Now at refresh time. Neither the road nor the barn touches MapState, and
@@ -677,6 +661,10 @@ public partial class TestMap : MapRoot
         _blockadeSign!.SetPresent(!cleared);
 
         _barn.SetState(BarnRules.StateOf(data));
+
+        // The mailbox's raised-flag signal is a GameData derivation like the road and
+        // the barn: every repaint path re-derives it, so a read stamp lowers it live.
+        _mailbox?.Refresh();
     }
 
     private void PaintTile(MapState state, int x, int y, long todayIndex)
@@ -703,6 +691,145 @@ public partial class TestMap : MapRoot
     // stays one continuous piece of worked ground once a crop is in it.
     private static bool IsWorked(MapState state, int x, int y) =>
         state.GetTile(x, y)?.Kind == "tilled";
+
+    // ------------------------------------------------------------------
+    // Field obstacles — save-state trees, stumps and rocks (ObstacleGen)
+    // ------------------------------------------------------------------
+
+    // The cells SyncObstacles painted last pass, and the live tree canopies by trunk
+    // cell — what the diff erases before repainting from the model.
+    private readonly HashSet<Vector2I> _obstacleCells = new();
+    private readonly Dictionary<Vector2I, Prop> _obstacleTrees = new();
+
+    /// <summary>
+    /// Diffs <see cref="MapState.Objects"/> into the view. Stumps and rocks paint into
+    /// the Obstacles layer as the farm sheet's own tiles — the RoadBlock precedent, so
+    /// the sheet's collision blocks them and <see cref="IsTillable"/>/IsStandable refuse
+    /// them with nothing hand-listed. A tree is a Y-sorted canopy Prop plus a trunk
+    /// Blocker cell. A record's (X, Y) is its one SOLID cell — for a tree, the trunk.
+    /// Object ids this view does not know are not obstacles and are not drawn.
+    /// </summary>
+    private void SyncObstacles(MapState state)
+    {
+        if (_obstacles == null)
+            return;
+
+        foreach (Vector2I cell in _obstacleCells)
+            _obstacles.EraseCell(cell);
+        _obstacleCells.Clear();
+
+        var liveTrees = new HashSet<Vector2I>();
+        foreach (PlacedObjectRecord obj in state.Objects)
+        {
+            var cell = new Vector2I(obj.X, obj.Y);
+            // A record on ground some build-time owner already covers (a facade
+            // footprint blocker, the storm debris, reserved corridors) is preserved
+            // in the model but NOT drawn: painting it would hand the erase pass
+            // above someone else's collision on the next sync. Our own cells were
+            // erased before this loop, so anything still painted here is foreign.
+            if (_reservedTiles.Contains(cell) || _obstacles.GetCellSourceId(cell) != -1)
+                continue;
+            switch (obj.ObjectId)
+            {
+                case ObstacleDefs.Tree:
+                    liveTrees.Add(cell);
+                    Blocker(_obstacles, cell.X, cell.Y);
+                    _obstacleCells.Add(cell);
+                    if (!_obstacleTrees.ContainsKey(cell))
+                        _obstacleTrees[cell] = NewTreeCanopy(cell);
+                    break;
+                case ObstacleDefs.Stump:
+                    _obstacles.SetCell(cell, FarmTerrain.FarmSource,
+                        FarmTiles.ForAct(FarmTiles.Stump, CurrentAct));
+                    _obstacleCells.Add(cell);
+                    break;
+                case ObstacleDefs.Rock:
+                    _obstacles.SetCell(cell, FarmTerrain.FarmSource,
+                        FarmTiles.ForAct(FarmTiles.RockLarge, CurrentAct));
+                    _obstacleCells.Add(cell);
+                    break;
+            }
+        }
+
+        List<Vector2I>? felled = null;
+        foreach (Vector2I cell in _obstacleTrees.Keys)
+        {
+            if (!liveTrees.Contains(cell))
+                (felled ??= new()).Add(cell);
+        }
+        if (felled != null)
+        {
+            foreach (Vector2I cell in felled)
+            {
+                _obstacleTrees[cell].QueueFree();
+                _obstacleTrees.Remove(cell);
+            }
+        }
+    }
+
+    private Prop NewTreeCanopy(Vector2I trunk)
+    {
+        // One bare tree in ~8 — the handoff's "use sparingly" — picked by the cell
+        // hash. Identity-from-coordinate is banned for DRAGGABLE placements; a
+        // save-state record never moves, so its pick is stable for the record's life.
+        bool bare = Hash(trunk.X, trunk.Y) % 8 == 0;
+        var prop = new Prop
+        {
+            TexturePath = FarmBuildings.TexturePath,
+            Source = bare ? FarmBuildings.TreeBare : FarmBuildings.TreeLeafy,
+            Position = Prop.Anchor(
+                    trunk.X - FarmBuildings.TreeTrunkColumn, trunk.Y, FarmBuildings.TreeTiles)
+                + new Vector2(0, FarmBuildings.TreeInkGap),
+        };
+        AddChild(prop);
+        return prop;
+    }
+
+    public override void RefreshObstacle(int x, int y, PlacedObjectRecord? record) =>
+        SyncObstacles(SaveService.Instance.Current.GetMap(MapId));
+
+    /// <summary>
+    /// The farm's "certain areas" for ObstacleGen: open pasture, minus everything the
+    /// map already spoke for — reservations (doors, signs, bin footprint, road corridor,
+    /// roof rows), the pen and its rails, the recipe's own scatter cells, and a one-tile
+    /// ring around every spawn marker so no arrival lands nose-to-bark against a trunk.
+    /// Scan order (y then x) keeps the list deterministic for a given recipe.
+    /// </summary>
+    public override IReadOnlyList<Vector2I> ObstacleCandidates()
+    {
+        if (_recipe is null)
+            return Array.Empty<Vector2I>();   // before _Ready: nothing to offer yet
+
+        var blocked = new HashSet<Vector2I>();
+        foreach (var (cell, _) in _scatter)
+            blocked.Add(cell);
+        foreach (MapPlacement spawn in _recipe.OfKind(PlacementKinds.Spawn))
+        {
+            for (int dy = -1; dy <= 1; dy++)
+                for (int dx = -1; dx <= 1; dx++)
+                    blocked.Add(new Vector2I(spawn.X + dx, spawn.Y + dy));
+        }
+
+        var candidates = new List<Vector2I>();
+        for (int y = 0; y < Height; y++)
+        {
+            for (int x = 0; x < Width; x++)
+            {
+                var cell = new Vector2I(x, y);
+                if (_surface[x, y] != Surface.Pasture
+                    || _reservedTiles.Contains(cell) || blocked.Contains(cell))
+                    continue;
+                // The pen stays clear for the animals it will hold — plus a one-cell
+                // ring, because the strip between its south rail and the woods is one
+                // tile wide: a single rock there could seal the gate or box a walker
+                // in, the exact wall the generator promises never to build.
+                if (x >= PenLeft - 1 && x <= PenRight + 1 && y >= PenTop - 1 && y <= PenBottom + 1)
+                    continue;
+                candidates.Add(cell);
+            }
+        }
+        return candidates;
+    }
 
     // ------------------------------------------------------------------
     // Overlay layers
@@ -783,6 +910,23 @@ public partial class TestMap : MapRoot
                 _blockadeSign = post;
         }
 
+        foreach (MapPlacement box in _recipe.OfKind(PlacementKinds.Mailbox))
+        {
+            _mailbox = new Mailbox
+            {
+                Name = box.Id,
+                Position = Centre(box),
+            };
+            // Direct child of the y-sorted map, NOT of the flat Interactables unit:
+            // the box overhangs the farmhouse plinth row, and inside Interactables
+            // (which sorts as one unit at y=0) the facade Prop would draw over the
+            // whole sprite — an invisible mailbox whose flag nobody can see.
+            AddChild(_mailbox);
+            // Reserved like a sign's cell: keeps the hoe off it, keeps ObstacleGen
+            // from growing a tree under it, and puts it on the editor overlay.
+            _reservedTiles.Add(box.Cell);
+        }
+
         foreach (MapPlacement bin in _recipe.OfKind(PlacementKinds.ShippingBin))
         {
             var (closed, open) = FarmBuildings.BinArt(bin.Id);
@@ -813,7 +957,7 @@ public partial class TestMap : MapRoot
                 // The farm has one way out by road, and the enabled-until-cleared rule
                 // below belongs to THAT exit. A second one would silently inherit it.
                 throw new MapRecipeException(_recipeSource,
-                    $"has more than one '{PlacementKinds.Exit}'; the farm's only exit is the road east.");
+                    $"has more than one '{PlacementKinds.Exit}'; the farm's only exit is the road south.");
             }
 
             var size = new Vector2(
@@ -844,8 +988,8 @@ public partial class TestMap : MapRoot
     /// </summary>
     private void ReserveRoadCorridor()
     {
-        for (int x = 36; x <= 39; x++)
-            for (int y = RoadTop; y <= RoadBottom; y++)
+        for (int x = SouthRoadLeft; x <= SouthRoadRight; x++)
+            for (int y = 26; y <= Height - 1; y++)
                 _reservedTiles.Add(new Vector2I(x, y));
     }
 

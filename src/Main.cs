@@ -64,6 +64,7 @@ public partial class Main : Node2D
         var map = MapRegistry.Create(mapId);
         _currentMap = map;
         _mapHost.AddChild(map);
+        WorldSim.Instance.EnsureObstacles(map);   // first visit grows the field's trees and rocks
         map.ApplyState(SaveService.Instance.Current.GetMap(map.MapId));
         // Boot order: the Lighting node's own _Ready ran before the save was loaded,
         // so the first correct tint is the one applied here.
@@ -101,13 +102,13 @@ public partial class Main : Node2D
             _ = RunSleepFlow();
     }
 
-    private void OnTravelRequested(string mapId, string spawnId)
+    private void OnTravelRequested(string mapId, string spawnId, Vector2 arrivalOffset)
     {
         if (!_travelRunning)
-            _ = RunTravel(mapId, spawnId);
+            _ = RunTravel(mapId, spawnId, arrivalOffset);
     }
 
-    private async Task RunTravel(string mapId, string spawnId)
+    private async Task RunTravel(string mapId, string spawnId, Vector2 arrivalOffset = default)
     {
         _travelRunning = true;
         GameState.Instance.TransitionTo(GameState.Phase.Cutscene);   // clock + player frozen; tree NOT paused
@@ -129,10 +130,11 @@ public partial class Main : Node2D
                 WorldSim.Instance.ParkScooterAt(fromMapId, fromTile, fromFacing);
             _currentMap = map;
             _mapHost.AddChild(map);
+            WorldSim.Instance.EnsureObstacles(map);   // first visit grows the field's trees and rocks
             map.ApplyState(SaveService.Instance.Current.GetMap(map.MapId));
             _lighting.SetMap(map);                                   // interior/exterior key, set while black
             WorldSim.Instance.CompleteTravel(map.MapId);             // model write via the bus + NPC sync
-            _player.GlobalPosition = map.GetSpawn(spawnId);          // node-owned volatile state, set while black
+            _player.GlobalPosition = map.GetArrival(spawnId, arrivalOffset);   // node-owned volatile state, set while black
             _player.ApplyCameraLimits(map.GetCameraLimits());
             await _fade.FadeIn(0.25);
         }
@@ -154,6 +156,17 @@ public partial class Main : Node2D
         {
             await _fade.FadeOut();
             Clock.Instance.AdvanceToDayStart();
+            // The overslept summons: told to attend the town meeting and went to bed
+            // instead. Stamp intro.overslept (stages the mayor, selects the beat
+            // variant) and relocate the wake to the hall while the screen is still
+            // black — both BEFORE the autosave, so quitting mid-morning reloads into
+            // the same relocated morning. The beat itself fires off the finally's
+            // return to Playing, through the director's normal deferred check.
+            if (IntroRules.WakesAtTownHall(SaveService.Instance.Current))
+            {
+                WorldSim.Instance.SetStoryFlag(StoryKeys.Overslept);
+                WakeAt(MapIds.TownHall, "entry");
+            }
             SaveService.Instance.Save();
             await _fade.FadeIn();
             // Money is credited + autosaved above, so quitting mid-card loses only the
@@ -182,6 +195,25 @@ public partial class Main : Node2D
         }
     }
 
+    // The sleep flow's scripted relocation (IntroRules.WakesAtTownHall): the same
+    // swap RunTravel's middle performs, minus the fades (the sleep fade already owns
+    // the black) and minus the doorstep scooter parking (OvernightSim has already
+    // parked it home). Runs before the morning autosave, which then captures the new
+    // map and position through PlayerController.WriteState.
+    private void WakeAt(string mapId, string spawnId)
+    {
+        _currentMap?.QueueFree();
+        var map = MapRegistry.Create(mapId);
+        _currentMap = map;
+        _mapHost.AddChild(map);
+        WorldSim.Instance.EnsureObstacles(map);   // no-op on interiors (no candidates)
+        map.ApplyState(SaveService.Instance.Current.GetMap(map.MapId));
+        _lighting.SetMap(map);
+        WorldSim.Instance.CompleteTravel(map.MapId);
+        _player.GlobalPosition = map.GetSpawn(spawnId);
+        _player.ApplyCameraLimits(map.GetCameraLimits());
+    }
+
     private void HandleCmdlineArgs()
     {
         // Only the real boot instance reacts to CLI flags — not Mains instanced by tests.
@@ -200,6 +232,10 @@ public partial class Main : Node2D
             {
                 SaveService.Instance.Current.Player.MapId = args[i + 1];
                 SaveService.Instance.Current.Player.HasPosition = false;
+                // The dev teleport skips the door flow, so it re-applies the load
+                // repair itself: never mounted indoors — the scooter goes home.
+                if (MapIds.IsInterior(args[i + 1]) && SaveService.Instance.Current.Scooter.Mounted)
+                    SaveService.Instance.Current.Scooter = ScooterData.AtHome();
             }
 
             // Dev-only: land the boot on a named spawn marker instead of the map's
@@ -220,6 +256,18 @@ public partial class Main : Node2D
             // Dev-only: pop one of the 3b UIs after boot so --screenshot can capture it.
             if (args[i] == "--open-ui")
                 CallDeferred(nameof(OpenUiForScreenshot), args[i + 1]);
+
+            // Dev-only: select the named tool item and hold use_tool from boot, so
+            // --screenshot can capture the work animation (e.g. --work-tool hoe
+            // --screenshot-frames 16 lands around the impact frame).
+            if (args[i] == "--work-tool")
+                CallDeferred(nameof(HoldToolForScreenshot), args[i + 1]);
+
+            // Dev-only: stamp the deed and put a car on a lift (the named service,
+            // arriving "now"), so --screenshot can capture the shop floor without
+            // waiting out the hourly arrival roll. Repeat the flag for a second car.
+            if (args[i] == "--garage-job")
+                CallDeferred(nameof(AddGarageJobForScreenshot), args[i + 1]);
         }
 
         // Dev-only (flag, no value): mount the scooter after boot so --screenshot can
@@ -232,6 +280,50 @@ public partial class Main : Node2D
     }
 
     private void MountScooterForScreenshot() => WorldSim.Instance.MountScooter();
+
+    // Deferred so the boot's LoadMap/phase state has fully settled first. In-memory
+    // dev seeding only — the real paths are BuyGarage and the hourly roll.
+    private void AddGarageJobForScreenshot(string serviceId)
+    {
+        if (GarageServices.TryGet(serviceId) is null)
+        {
+            GD.PushError($"--garage-job: unknown service '{serviceId}'.");
+            return;
+        }
+        GameData data = SaveService.Instance.Current;
+        WorldSim.Instance.SetStoryFlag(StoryKeys.GarageDeed);   // implies ownership
+        if (GarageOpsRules.FreeLift(data) is not int lift)
+            return;   // both bays taken — the flag can only seed MaxCars cars
+        data.GarageJobs.Add(new GarageJobRecord
+        {
+            ServiceId = serviceId,
+            ArrivalDay = Clock.Instance.Now.DayIndex,
+            ArrivalHour = Clock.Instance.Now.AbsoluteHour,
+            Lift = lift,
+        });
+        _currentMap?.ApplyState(data.GetMap(_currentMap.MapId));
+    }
+
+    // Deferred so the boot's LoadMap/phase state has fully settled first. The held
+    // action never releases; the loop repeats until the process exits.
+    private void HoldToolForScreenshot(string itemId)
+    {
+        InventoryData inv = SaveService.Instance.Current.Player.Inventory;
+        for (int i = 0; i < inv.Slots.Count; i++)
+        {
+            if (inv.SlotAt(i)?.ItemId == itemId)
+            {
+                WorldSim.Instance.SelectSlot(i);
+                Input.ActionPress("use_tool");
+                return;
+            }
+        }
+        // A fresh boot has empty hands (the kit waits in the barn chest) — conjure the
+        // named tool into slot 0 rather than walking the errand. In-memory only.
+        inv.Slots[0] = new ItemStackRecord { ItemId = itemId, Count = 1 };
+        WorldSim.Instance.SelectSlot(0);
+        Input.ActionPress("use_tool");
+    }
 
     // Deferred so the boot's LoadMap/phase state has fully settled first.
     private void OpenUiForScreenshot(string which)
@@ -246,6 +338,25 @@ public partial class Main : Node2D
                 break;
             case "help":
                 Input.ParseInputEvent(new InputEventAction { Action = "toggle_help", Pressed = true });
+                break;
+            case "mail":
+                WorldSim.Instance.OpenMailbox();
+                break;
+            case "garage":
+                WorldSim.Instance.OpenGarageSale();
+                break;
+            case "letter":
+                // Mail panel with the first letter opened: the queued Enter activates
+                // the focused list row through the GUI stage next frame.
+                WorldSim.Instance.OpenMailbox();
+                Input.ParseInputEvent(new InputEventKey { Keycode = Key.Enter, PhysicalKeycode = Key.Enter, Pressed = true });
+                Input.ParseInputEvent(new InputEventKey { Keycode = Key.Enter, PhysicalKeycode = Key.Enter, Pressed = false });
+                break;
+            case "quests":
+                Input.ParseInputEvent(new InputEventAction { Action = "toggle_quests", Pressed = true });
+                break;
+            case "skills":
+                Input.ParseInputEvent(new InputEventAction { Action = "toggle_skills", Pressed = true });
                 break;
         }
     }

@@ -13,7 +13,7 @@ public static class NpcTests
         // Boundary + priority semantics pinned on a locally built def, so the assertions
         // survive any re-staging of the shipped table: entries are start-inclusive /
         // end-exclusive, and the FIRST passing entry wins.
-        var overlapping = new NpcDef("test_npc", "Test", "#ffffff", new[]
+        var overlapping = new NpcDef("test_npc", "Test", CharacterSprites.SheetPath, 0, new[]
         {
             new ScheduleEntry(null, null, 120, 600, new NpcPlacement(MapIds.Town, 1, 1, 0)),
             new ScheduleEntry(null, null, 0, 1200, new NpcPlacement(MapIds.Farm, 2, 2, 1)),
@@ -38,7 +38,7 @@ public static class NpcTests
         t.AssertEqual(At(300), At(300), "same inputs resolve identically");
 
         // Flag gates: RequiresFlag absent or ForbidsFlag present skips the entry.
-        var gated = new NpcDef("test_gated", "Test", "#ffffff", new[]
+        var gated = new NpcDef("test_gated", "Test", CharacterSprites.SheetPath, 0, new[]
         {
             new ScheduleEntry("test.required", "test.forbidden", 0, 1200,
                 new NpcPlacement(MapIds.TownHall, 3, 3, 2)),
@@ -56,7 +56,7 @@ public static class NpcTests
             "ForbidsFlag present: entry skipped, npc absent");
 
         // No matching window at all: null = absent.
-        var windowed = new NpcDef("test_window", "Test", "#ffffff", new[]
+        var windowed = new NpcDef("test_window", "Test", CharacterSprites.SheetPath, 0, new[]
         {
             new ScheduleEntry(null, null, 500, 600, new NpcPlacement(MapIds.Farm, 4, 4, 3)),
         });
@@ -130,6 +130,20 @@ public static class NpcTests
             || beforeWindow.Value != new NpcPlacement(MapIds.TownHall, 20, 6, 0),
             "meeting pending: mayor not at the podium before 18:00");
 
+        // Overslept pending: the relocated wake arrives at dawn, so the mayor holds
+        // the podium around the clock until the meeting lands.
+        var oversleptPending = new GameData();
+        oversleptPending.TrySetFlag(StoryKeys.FirstPlanting, 1);
+        oversleptPending.TrySetFlag(StoryKeys.RoadCleared, 2);
+        oversleptPending.TrySetFlag(StoryKeys.CrewArrivalDone, 2);
+        oversleptPending.TrySetFlag(StoryKeys.Overslept, 3);
+        foreach (int minute in new[] { 0, 300, 719, 720, 1199 })
+        {
+            t.AssertEqual(new NpcPlacement(MapIds.TownHall, 20, 6, 0),
+                NpcSchedules.Resolve(NpcDefs.All["mayor"], oversleptPending, Day3(minute))!.Value,
+                $"overslept pending: mayor at the podium at minute {minute}");
+        }
+
         // After crew_done nobody stages on the farm — completed states never re-stage.
         var afterMeeting = new GameData();
         afterMeeting.TrySetFlag(StoryKeys.FirstPlanting, 1);
@@ -147,6 +161,7 @@ public static class NpcTests
                 }
             }
         }
+        afterMeeting.TrySetFlag(StoryKeys.Overslept, 2);   // MeetingDone must silence the overslept row too
         afterMeeting.TrySetFlag(StoryKeys.MeetingDone, 2);
         t.Assert(NpcSchedules.Resolve(NpcDefs.All["mayor"], afterMeeting, Day3(900)) == null
             || NpcSchedules.Resolve(NpcDefs.All["mayor"], afterMeeting, Day3(900))!.Value
@@ -162,7 +177,7 @@ public static class NpcTests
         // intro-flag combination — and never staged on farm/town/town_hall, so the
         // intro staging is untouched.
         NpcDef shopkeeper = NpcDefs.All["shopkeeper"];
-        var behindCounter = new NpcPlacement(MapIds.GeneralStore, 6, 3, 0);
+        var behindCounter = new NpcPlacement(MapIds.GeneralStore, 6, 3, 0, Ambit: 1);
         string[] introFlags =
         {
             StoryKeys.FirstPlanting, StoryKeys.RoadCleared,

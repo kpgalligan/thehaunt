@@ -65,8 +65,9 @@ public partial class StoryDirector : Node
         string mapId = SaveService.Instance.Current.Player.MapId;
         if (!WorldSim.Instance.IsMapActive(mapId)) return;
         StoryBeatId? beat = IntroRules.PendingBeat(SaveService.Instance.Current, Clock.Instance.Now, mapId);
-        if (beat == StoryBeatId.CrewArrival)  _ = RunBeat("intro_crew_arrival");
-        if (beat == StoryBeatId.TownMeeting)  _ = RunBeat("intro_town_meeting");
+        if (beat == StoryBeatId.CrewArrival)          _ = RunBeat("intro_crew_arrival");
+        if (beat == StoryBeatId.TownMeeting)          _ = RunBeat("intro_town_meeting");
+        if (beat == StoryBeatId.TownMeetingOverslept) _ = RunBeat("intro_town_meeting_overslept");
     }
 
     private async Task RunBeat(string dialogueId)

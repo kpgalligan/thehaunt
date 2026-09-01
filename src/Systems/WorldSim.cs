@@ -30,7 +30,10 @@ public partial class WorldSim : Node
     public event Action<string, long>? StoryFlagSet;
 
     /// <summary>(mapId, spawnId) — Main subscribes once and owns the fade/swap flow.</summary>
-    public event Action<string, string>? TravelRequested;
+    // (mapId, spawnId, arrivalOffset) — the offset is the travelling body's position
+    // relative to the exit zone it walked into, so the arrival can keep the player's
+    // place across the seam (MapRoot.GetArrival). Zero for door/scripted travel.
+    public event Action<string, string, Vector2>? TravelRequested;
 
     /// <summary>Mounted, dismounted, or the parked record moved.</summary>
     public event Action? ScooterChanged;
@@ -53,6 +56,35 @@ public partial class WorldSim : Node
 
     public event Action? ShopClosed;
 
+    /// <summary>The mailbox UI shows on this.</summary>
+    public event Action? MailboxOpened;
+
+    public event Action? MailboxClosed;
+
+    /// <summary>The garage-sale panel shows on this.</summary>
+    public event Action? GarageSaleOpened;
+
+    public event Action? GarageSaleClosed;
+
+    /// <summary>The garage jobs list changed (arrival, work banked, completion,
+    /// or the dawn resolution) — fired AFTER the repaint, so subscribers see the
+    /// repainted lifts. The quest log's garage section rebuilds on this.</summary>
+    public event Action? GarageJobsChanged;
+
+    /// <summary>A customer left a car (payload = the new job) — fired last in the
+    /// arrival sequence; the toast's "word from Mike".</summary>
+    public event Action<GarageJobRecord>? GarageCustomerArrived;
+
+    /// <summary>A repair finished (the job stays on its lift, paid at dawn) —
+    /// fired last in the completing press's sequence, after the skill events.</summary>
+    public event Action<GarageJobRecord>? GarageJobCompleted;
+
+    /// <summary>Some skill's XP changed (the skills panel's rebuild hook).</summary>
+    public event Action? SkillsChanged;
+
+    /// <summary>(skillId, newLevel) — only when a grant crosses a level edge.</summary>
+    public event Action<string, int>? SkillLeveledUp;
+
     public DialogueSession? ActiveDialogue { get; private set; }
 
     /// <summary>Storage id of the open chest session; null when none.</summary>
@@ -60,6 +92,12 @@ public partial class WorldSim : Node
 
     /// <summary>Catalog id of the open shop session; null when none.</summary>
     public string? OpenShopId { get; private set; }
+
+    /// <summary>True while the mailbox session is open (there is only one mailbox).</summary>
+    public bool MailboxOpen { get; private set; }
+
+    /// <summary>True while the garage-sale session is open (there is only one garage).</summary>
+    public bool GarageSaleOpen { get; private set; }
 
     private readonly List<MapRoot> _maps = new();
     private OvernightReport _pendingReport;
@@ -78,6 +116,7 @@ public partial class WorldSim : Node
         Clock.Instance.DayEnded += OnDayEnded;
         Clock.Instance.DayStarted += OnDayStarted;
         Clock.Instance.TenMinuteTicked += OnTenMinuteTicked;
+        Clock.Instance.HourTicked += OnHourTicked;
         // Autoload order GameState -> Clock -> SaveService -> WorldSim makes this safe.
         SaveService.Instance.AfterLoad += OnAfterLoad;
     }
@@ -87,6 +126,7 @@ public partial class WorldSim : Node
         Clock.Instance.DayEnded -= OnDayEnded;
         Clock.Instance.DayStarted -= OnDayStarted;
         Clock.Instance.TenMinuteTicked -= OnTenMinuteTicked;
+        Clock.Instance.HourTicked -= OnHourTicked;
         SaveService.Instance.AfterLoad -= OnAfterLoad;
     }
 
@@ -140,6 +180,17 @@ public partial class WorldSim : Node
                 }
                 StaminaChanged?.Invoke(data.Player.Stamina, data.Player.MaxStamina);
                 break;
+
+            case ActionOutcome.Struck:
+            case ActionOutcome.Felled:
+            case ActionOutcome.Broken:
+                map.RefreshObstacle(tile.X, tile.Y, data.GetMap(mapId).GetObject(tile.X, tile.Y));
+                if (outcome is ActionOutcome.Felled or ActionOutcome.Broken)
+                {
+                    InventoryChanged?.Invoke();   // the yield landed
+                }
+                StaminaChanged?.Invoke(data.Player.Stamina, data.Player.MaxStamina);
+                break;
         }
 
         // Story trigger observed at the bus — FarmActions stays story-free. Only-if-absent
@@ -148,8 +199,92 @@ public partial class WorldSim : Node
         {
             SetStoryFlag(StoryKeys.FirstPlanting);
         }
+        // Its sibling: the letter's ask ends "then water them", so the stamp needs a
+        // CROP under the can — watering empty tilled soil returns Watered too and
+        // must not count.
+        if (outcome == ActionOutcome.Watered
+            && data.GetMap(mapId).GetTile(tile.X, tile.Y)?.CropId is not null)
+        {
+            SetStoryFlag(StoryKeys.FirstWatering);
+        }
+        // Skills v1 (Kevin, 2026-08-30): "any harvested crop is 1 point" —
+        // observed here like the story stamps, so FarmActions stays XP-free.
+        // Regrowing crops grant on every harvest; a scythe CLEAR grants nothing.
+        if (outcome == ActionOutcome.Harvested)
+        {
+            GrantSkillXp(SkillIds.Farming);
+        }
 
         return outcome;
+    }
+
+    /// <summary>
+    /// One-shot field-obstacle generation for a freshly built map view (Main calls it
+    /// between AddChild and ApplyState, so the first paint already shows the trees).
+    /// Gated on <see cref="MapState.ObstaclesSeeded"/>: once per map per save, and a
+    /// map offering no candidate cells is left unseeded so a future build that gains
+    /// an area still generates. The player's own footing (and its ring) is excluded —
+    /// a save must never wake up inside a rock.
+    /// </summary>
+    public void EnsureObstacles(MapRoot map)
+    {
+        GameData data = SaveService.Instance.Current;
+        MapState state = data.GetMap(map.MapId);
+        if (state.ObstaclesSeeded)
+        {
+            return;
+        }
+        IReadOnlyList<Vector2I> candidates = map.ObstacleCandidates();
+        if (candidates.Count == 0)
+        {
+            return;
+        }
+
+        var blocked = new HashSet<Vector2I>();
+        if (data.Player.MapId == map.MapId && data.Player.HasPosition)
+        {
+            var feet = new Vector2I(
+                Mathf.FloorToInt(data.Player.X / MapRoot.TileSize),
+                Mathf.FloorToInt((data.Player.Y + 6) / MapRoot.TileSize));
+            for (int dy = -1; dy <= 1; dy++)
+            {
+                for (int dx = -1; dx <= 1; dx++)
+                {
+                    blocked.Add(new Vector2I(feet.X + dx, feet.Y + dy));
+                }
+            }
+        }
+        ScooterData scooter = data.Scooter;
+        if (!scooter.Mounted && scooter.MapId == map.MapId)
+        {
+            blocked.Add(new Vector2I(scooter.TileX, scooter.TileY));
+        }
+        // Every NPC staging slot this map can ever host (whole schedule, not just
+        // what resolves now) — a beat must never stage somebody inside a boulder.
+        foreach (NpcDef def in NpcDefs.All.Values)
+        {
+            foreach (ScheduleEntry entry in def.Schedule)
+            {
+                if (entry.Placement.MapId == map.MapId)
+                {
+                    blocked.Add(new Vector2I(entry.Placement.TileX, entry.Placement.TileY));
+                }
+            }
+        }
+
+        var open = new List<(int X, int Y)>(candidates.Count);
+        foreach (Vector2I cell in candidates)
+        {
+            if (!blocked.Contains(cell))
+            {
+                open.Add((cell.X, cell.Y));
+            }
+        }
+
+        // The layout is random per save ON PURPOSE; determinism for tests lives in
+        // ObstacleGen's explicit seed, not here.
+        state.Objects.AddRange(ObstacleGen.Generate(open, state, unchecked((int)GD.Randi())));
+        state.ObstaclesSeeded = true;
     }
 
     public bool DepositSelectedToBin()
@@ -280,6 +415,18 @@ public partial class WorldSim : Node
             return false;
         }
 
+        RepaintMaps();
+        SyncNpcsNow();
+        StoryFlagSet?.Invoke(flagId, day);
+        return true;
+    }
+
+    /// <summary>Full repaint of every live registered map — SetStoryFlag's step,
+    /// shared with the garage-job mutations (an arriving or finished car is
+    /// model-derived staging exactly like a guest car or the road blockade).</summary>
+    private void RepaintMaps()
+    {
+        GameData data = SaveService.Instance.Current;
         foreach (MapRoot map in _maps)
         {
             if (!map.IsQueuedForDeletion())
@@ -287,19 +434,18 @@ public partial class WorldSim : Node
                 map.ApplyState(data.GetMap(map.MapId));
             }
         }
-        SyncNpcsNow();
-        StoryFlagSet?.Invoke(flagId, day);
-        return true;
     }
 
-    /// <summary>Gate: player control + known map. True means <see cref="TravelRequested"/> fired.</summary>
-    public bool RequestTravel(string mapId, string spawnId)
+    /// <summary>Gate: player control + known map. True means <see cref="TravelRequested"/> fired.
+    /// <paramref name="arrivalOffset"/> is where the body stood relative to the exit zone
+    /// it entered (MapExit passes it; doors and scripted travel leave it zero).</summary>
+    public bool RequestTravel(string mapId, string spawnId, Vector2 arrivalOffset = default)
     {
         if (!GameState.Instance.PlayerHasControl || !MapRegistry.Contains(mapId))
         {
             return false;
         }
-        TravelRequested?.Invoke(mapId, spawnId);
+        TravelRequested?.Invoke(mapId, spawnId, arrivalOffset);
         return true;
     }
 
@@ -487,7 +633,8 @@ public partial class WorldSim : Node
     /// </summary>
     public bool OpenStorage(string storageId)
     {
-        if (!GameState.Instance.PlayerHasControl || OpenStorageId != null || OpenShopId != null)
+        if (!GameState.Instance.PlayerHasControl || OpenStorageId != null || OpenShopId != null
+            || MailboxOpen || GarageSaleOpen)
         {
             return false;
         }
@@ -515,7 +662,8 @@ public partial class WorldSim : Node
     /// </summary>
     public bool OpenShop(string catalogId)
     {
-        if (!GameState.Instance.PlayerHasControl || OpenStorageId != null || OpenShopId != null)
+        if (!GameState.Instance.PlayerHasControl || OpenStorageId != null || OpenShopId != null
+            || MailboxOpen || GarageSaleOpen)
         {
             return false;
         }
@@ -539,6 +687,117 @@ public partial class WorldSim : Node
         OpenShopId = null;
         GameState.Instance.TransitionTo(GameState.Phase.Playing);
         ShopClosed?.Invoke();
+    }
+
+    /// <summary>Same shape as <see cref="OpenStorage"/> — the third Menu session.</summary>
+    public bool OpenMailbox()
+    {
+        if (!GameState.Instance.PlayerHasControl || OpenStorageId != null || OpenShopId != null
+            || MailboxOpen || GarageSaleOpen)
+        {
+            return false;
+        }
+        MailboxOpen = true;
+        GameState.Instance.TransitionTo(GameState.Phase.Menu);
+        MailboxOpened?.Invoke();
+        return true;
+    }
+
+    /// <summary>Safe no-op when no mailbox session is open.</summary>
+    public void CloseMailbox()
+    {
+        if (!MailboxOpen)
+        {
+            return;
+        }
+        MailboxOpen = false;
+        GameState.Instance.TransitionTo(GameState.Phase.Playing);
+        MailboxClosed?.Invoke();
+    }
+
+    /// <summary>
+    /// Same shape as <see cref="OpenStorage"/> — the fourth Menu session, opened by
+    /// the west entry's FOR SALE board. Additionally refuses once the deed is
+    /// stamped: a sold garage has nothing left to sell.
+    /// </summary>
+    public bool OpenGarageSale()
+    {
+        if (!GameState.Instance.PlayerHasControl || OpenStorageId != null || OpenShopId != null
+            || MailboxOpen || GarageSaleOpen)
+        {
+            return false;
+        }
+        if (GarageRules.IsOwned(SaveService.Instance.Current))
+        {
+            return false;
+        }
+        GarageSaleOpen = true;
+        GameState.Instance.TransitionTo(GameState.Phase.Menu);
+        GarageSaleOpened?.Invoke();
+        return true;
+    }
+
+    /// <summary>Safe no-op when no garage-sale session is open.</summary>
+    public void CloseGarageSale()
+    {
+        if (!GarageSaleOpen)
+        {
+            return;
+        }
+        GarageSaleOpen = false;
+        GameState.Instance.TransitionTo(GameState.Phase.Playing);
+        GarageSaleClosed?.Invoke();
+    }
+
+    /// <summary>
+    /// Stamps the letter's ReadFlag (only-if-absent — re-reads are free). The mailbox
+    /// UI calls this when it puts a letter's body on screen. The stamp flows through
+    /// <see cref="SetStoryFlag"/>, so a letter that hands out a quest (QuestDefs
+    /// StartFlag) starts it here, and the mailbox lowers its signal on the repaint.
+    /// Unknown ids are a safe no-op. True on the first read.
+    /// </summary>
+    public bool ReadLetter(string letterId)
+    {
+        if (!MailboxOpen || LetterDefs.TryGet(letterId) is not { } letter)
+        {
+            return false;
+        }
+        return SetStoryFlag(letter.ReadFlag);
+    }
+
+    /// <summary>
+    /// Pays out a letter's package, all-or-nothing across the WHOLE package
+    /// (MailActions owns the joint room check). On Taken the TakenFlag lands through
+    /// <see cref="SetStoryFlag"/>, then <see cref="InventoryChanged"/> fires — the
+    /// flag is what makes the payout once-only. Unknown ids refuse as NothingToTake.
+    /// </summary>
+    public MailOutcome TakeLetterItems(string letterId)
+    {
+        if (LetterDefs.TryGet(letterId) is not { } letter)
+        {
+            return MailOutcome.NothingToTake;
+        }
+        return TakeLetterItems(letter);
+    }
+
+    /// <summary>
+    /// The def-shaped payout the id overload resolves into — also the seam that lets
+    /// tests drive the whole Taken path (flag stamp + events) with a synthetic
+    /// package letter, since no shipped letter carries one yet.
+    /// </summary>
+    public MailOutcome TakeLetterItems(LetterDef letter)
+    {
+        if (!MailboxOpen)
+        {
+            return MailOutcome.NothingToTake;
+        }
+        MailOutcome outcome = MailActions.TakeItems(letter, SaveService.Instance.Current);
+        if (outcome == MailOutcome.Taken)
+        {
+            SetStoryFlag(letter.TakenFlag!);
+            InventoryChanged?.Invoke();
+        }
+        return outcome;
     }
 
     /// <summary>
@@ -604,6 +863,128 @@ public partial class WorldSim : Node
     }
 
     /// <summary>
+    /// Buys the west-entry garage out of the open sale session, all-or-nothing.
+    /// BuyItem's discipline: every check lands strictly BEFORE any mutation — a
+    /// refusal touches nothing and fires no events. On Ok: debit, the deed stamped
+    /// through <see cref="SetStoryFlag"/> (repaint + StoryFlagSet, so a future
+    /// quest pair completes right here), then MoneyChanged, then the session closes
+    /// itself — the deal is done and the panel has nothing left to sell.
+    /// </summary>
+    public GarageSaleResult BuyGarage()
+    {
+        if (!GarageSaleOpen)
+        {
+            return GarageSaleResult.NotOpen;
+        }
+        GameData data = SaveService.Instance.Current;
+        GarageSaleResult check = GarageRules.CanBuy(data);
+        if (check != GarageSaleResult.Ok)
+        {
+            return check;
+        }
+
+        data.Player.Money -= GarageRules.Price;
+        SetStoryFlag(StoryKeys.GarageDeed);
+        MoneyChanged?.Invoke(data.Player.Money);
+        CloseGarageSale();
+        return GarageSaleResult.Ok;
+    }
+
+    // ------------------------------------------------------------------
+    // Garage operation (Kevin, 2026-08-30) — the owned shop's two write paths:
+    // the hourly customer roll and the work press. GarageOpsRules holds the pure
+    // halves; this bus owns the events and the repaint.
+    // ------------------------------------------------------------------
+
+    /// <summary>
+    /// One work press on a lift (the LiftStation's E). Refusals mutate nothing
+    /// and fire nothing (mutation discipline). Event order on Worked/CompletedJob:
+    /// repaint → StaminaChanged → GarageJobsChanged → (completion only)
+    /// SkillsChanged → SkillLeveledUp? → GarageJobCompleted.
+    /// "Any completed repair in the garage ... is one point" — the bus observes
+    /// CompletedJob and grants the mechanical-repair XP; Core stays XP-free.
+    /// </summary>
+    public GarageWorkResult WorkOnGarageJob(int lift)
+    {
+        GameData data = SaveService.Instance.Current;
+        GarageWorkResult result = GarageOpsRules.DoWork(data, lift);
+        if (result is not (GarageWorkResult.Worked or GarageWorkResult.CompletedJob))
+        {
+            return result;
+        }
+        RepaintMaps();
+        StaminaChanged?.Invoke(data.Player.Stamina, data.Player.MaxStamina);
+        GarageJobsChanged?.Invoke();
+        if (result == GarageWorkResult.CompletedJob)
+        {
+            GrantSkillXp(SkillIds.MechanicalRepair);
+            GarageJobCompleted?.Invoke(GarageOpsRules.JobAt(data, lift)!);
+        }
+        return result;
+    }
+
+    /// <summary>
+    /// Banks one practice point and fires the skill events (SkillsChanged always,
+    /// SkillLeveledUp on a crossed edge). Private on purpose: XP sources are bus
+    /// observations of outcomes (harvest, completed repair), never UI calls.
+    /// </summary>
+    private void GrantSkillXp(string skillId)
+    {
+        (int oldLevel, int newLevel) = SkillRules.AddXp(SaveService.Instance.Current, skillId);
+        SkillsChanged?.Invoke();
+        if (newLevel > oldLevel)
+        {
+            SkillLeveledUp?.Invoke(skillId, newLevel);
+        }
+    }
+
+    // The garage's hourly customer roll — LIVE play only: ticks fire while the
+    // clock runs, and AdvanceToDayStart fires no hour ticks, so slept-through
+    // open hours roll nothing (deliberate v1 limitation; CustomerRoll is a
+    // stateless hash, so a dawn catch-up pass could be added without reshuffling
+    // any existing schedule). --add-minutes fires every crossed tick, which is
+    // also the test path. Order on an arrival: mutate → repaint →
+    // GarageJobsChanged → GarageCustomerArrived (the toast reads a settled world).
+    private void OnHourTicked(GameTime now)
+    {
+        GameData data = SaveService.Instance.Current;
+        if (!GarageRules.IsOwned(data) || !GarageOpsRules.IsOpenHour(now.AbsoluteHour))
+        {
+            return;
+        }
+        if (GarageOpsRules.FreeLift(data) is not int lift)
+        {
+            return;   // "no more than two cars can be in the shop at the same time"
+        }
+        long day = now.DayIndex;
+        int hour = now.AbsoluteHour;
+        foreach (GarageJobRecord existing in data.GarageJobs)
+        {
+            if (existing.ArrivalDay == day && existing.ArrivalHour == hour)
+            {
+                return;   // this hour already landed its customer — a re-fired tick is idempotent
+            }
+        }
+        (bool arrived, int serviceIndex) = GarageOpsRules.CustomerRoll(data.Seed, day, hour);
+        if (!arrived)
+        {
+            return;
+        }
+
+        var job = new GarageJobRecord
+        {
+            ServiceId = GarageServices.All[serviceIndex].Id,
+            ArrivalDay = day,
+            ArrivalHour = hour,
+            Lift = lift,
+        };
+        data.GarageJobs.Add(job);
+        RepaintMaps();
+        GarageJobsChanged?.Invoke();
+        GarageCustomerArrived?.Invoke(job);
+    }
+
+    /// <summary>
     /// Re-derives NPC staging from (StoryFlags, Clock.Now) and pushes it to every live
     /// registered map. Maps with no scheduled NPC get an empty list — that is how
     /// departures despawn.
@@ -665,20 +1046,17 @@ public partial class WorldSim : Node
         }
 
         // 2) Full repaint per registered map: wet overlays flip everywhere, stages
-        //    advance, the road blockade toggles.
-        foreach (MapRoot map in _maps)
-        {
-            if (!map.IsQueuedForDeletion())
-            {
-                map.ApplyState(data.GetMap(map.MapId));
-            }
-        }
+        //    advance, the road blockade toggles, resolved garage cars leave.
+        RepaintMaps();
 
-        // 3) UI events.
+        // 3) UI events. GarageJobsChanged rides along unconditionally: the dawn
+        //    resolution (payments, reclaims) is the jobs list's biggest mutation,
+        //    and the event's contract is "fires on every change".
         OvernightCompleted?.Invoke(_pendingReport);
         MoneyChanged?.Invoke(data.Player.Money);
         StaminaChanged?.Invoke(data.Player.Stamina, data.Player.MaxStamina);
         InventoryChanged?.Invoke();
+        GarageJobsChanged?.Invoke();
 
         // 4) AdvanceToDayStart fires no ten-minute ticks — dawn staging would otherwise
         //    be stale until 6:10. The scooter restages too: OvernightSim just parked
@@ -710,15 +1088,20 @@ public partial class WorldSim : Node
         }
         ActiveDialogue = null;
 
-        // Same strand for the menu sessions: a load can land while a chest or shop is
-        // up (both always Menu-from-Playing), so the discarded session must give the
-        // phase back and tell its UI to hide. Flag-based — never a phase comparison.
-        if (OpenStorageId != null || OpenShopId != null)
+        // Same strand for the menu sessions: a load can land while a chest, shop,
+        // mailbox or garage sale is up (all always Menu-from-Playing), so the
+        // discarded session must give the phase back and tell its UI to hide.
+        // Flag-based — never a phase comparison.
+        if (OpenStorageId != null || OpenShopId != null || MailboxOpen || GarageSaleOpen)
         {
             bool storageWasOpen = OpenStorageId != null;
             bool shopWasOpen = OpenShopId != null;
+            bool mailboxWasOpen = MailboxOpen;
+            bool garageSaleWasOpen = GarageSaleOpen;
             OpenStorageId = null;
             OpenShopId = null;
+            MailboxOpen = false;
+            GarageSaleOpen = false;
             GameState.Instance.TransitionTo(GameState.Phase.Playing);
             if (storageWasOpen)
             {
@@ -727,6 +1110,14 @@ public partial class WorldSim : Node
             if (shopWasOpen)
             {
                 ShopClosed?.Invoke();
+            }
+            if (mailboxWasOpen)
+            {
+                MailboxClosed?.Invoke();
+            }
+            if (garageSaleWasOpen)
+            {
+                GarageSaleClosed?.Invoke();
             }
         }
 

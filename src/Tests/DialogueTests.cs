@@ -22,8 +22,8 @@ public static class DialogueTests
         // The §3.2 catalog must resolve — DialogueSelector and StoryDirector return these ids.
         foreach (string id in new[]
         {
-            "intro_crew_arrival", "intro_town_meeting", "foreman_wait",
-            "foreman_after", "mayor_after", "crew_worker_default",
+            "intro_crew_arrival", "intro_town_meeting", "intro_town_meeting_overslept",
+            "foreman_wait", "foreman_after", "mayor_after", "crew_worker_default",
         })
         {
             t.Assert(DialogueDefs.TryGet(id) != null, $"catalog dialogue '{id}' resolves");
@@ -101,6 +101,7 @@ public static class DialogueTests
         // the beat machine relies on the terminal stamp to not replay forever.
         AssertTerminalsSetFlag(t, DialogueDefs.Get("intro_crew_arrival"), StoryKeys.CrewArrivalDone);
         AssertTerminalsSetFlag(t, DialogueDefs.Get("intro_town_meeting"), StoryKeys.MeetingDone);
+        AssertTerminalsSetFlag(t, DialogueDefs.Get("intro_town_meeting_overslept"), StoryKeys.MeetingDone);
     }
 
     [SimTest]

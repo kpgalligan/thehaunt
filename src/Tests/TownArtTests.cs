@@ -162,37 +162,152 @@ public static class TownArtTests
     }
 
     [SimTest]
-    public static void CharacterSheet_TunicRecolorLeavesNoAuthoredPlum(TestContext t)
+    public static void CastSheets_MatchTheHandoffGrid(TestContext t)
     {
-        var tunic = new Color("3a6a9a");
-        Image recolored = CharacterSprites.Sheet(tunic).GetImage();
-        Image authored = GD.Load<Texture2D>(CharacterSprites.SheetPath).GetImage();
+        // Jane replaces the old sheet in place: same 96x96, 6x3 grid of 16x32 cells.
+        Image jane = GD.Load<Texture2D>(CharacterSprites.SheetPath).GetImage();
+        t.AssertEqual(96, jane.GetWidth(), "character.png width");
+        t.AssertEqual(96, jane.GetHeight(), "character.png height");
 
-        t.AssertEqual(authored.GetWidth(), recolored.GetWidth(), "sheet width");
-        t.AssertEqual(authored.GetHeight(), recolored.GetHeight(), "sheet height");
-
-        var plum = new Color("6b4560");
-        int swapped = 0;
-        for (int y = 0; y < recolored.GetHeight(); y++)
+        // Every NPC names a sheet that exists and a 96px block inside it, and the
+        // block actually holds a drawn character (an empty block means the atlas
+        // order and the def order drifted apart).
+        foreach (NpcDef def in NpcDefs.All.Values)
         {
-            for (int x = 0; x < recolored.GetWidth(); x++)
+            var sheet = GD.Load<Texture2D>(def.SpriteSheet);
+            t.Assert(sheet != null, $"'{def.Id}': sheet '{def.SpriteSheet}' loads");
+            Image image = sheet!.GetImage();
+            t.AssertEqual(96, image.GetHeight(), $"'{def.Id}': sheet height");
+            t.AssertEqual(0, image.GetWidth() % CharacterSprites.BlockWidth,
+                $"'{def.Id}': sheet width is whole blocks");
+            t.Assert(def.SpriteBlock >= 0
+                && (def.SpriteBlock + 1) * CharacterSprites.BlockWidth <= image.GetWidth(),
+                $"'{def.Id}': block {def.SpriteBlock} inside the atlas");
+
+            int drawn = 0;
+            for (int y = 0; y < 96; y++)
             {
-                Color pixel = recolored.GetPixel(x, y);
-                if (pixel.A == 0f)
-                    continue;
-                t.Assert(!(pixel.IsEqualApprox(plum)), $"pixel {x},{y} still holds the authored tunic");
-                if (pixel.IsEqualApprox(new Color(tunic, pixel.A)))
-                    swapped++;
+                for (int x = 0; x < CharacterSprites.BlockWidth; x++)
+                {
+                    if (image.GetPixel(def.SpriteBlock * CharacterSprites.BlockWidth + x, y).A > 0f)
+                        drawn++;
+                }
+            }
+            t.Assert(drawn > 500, $"'{def.Id}': block {def.SpriteBlock} holds a character ({drawn}px)");
+        }
+
+        // Dread accents stay off people in Act I (cast handoff rule 5): plum and
+        // bile-green appear on no sheet. The first character to wear one is the
+        // reveal — a repaint that spends them early spends the whole effect.
+        var reserved = new[] { new Color("6b4560"), new Color("7d8f4a") };
+        var sheets = new List<string> { CharacterSprites.SheetPath };
+        sheets.AddRange(NpcDefs.All.Values.Select(d => d.SpriteSheet).Distinct());
+        foreach (string path in sheets)
+        {
+            Image image = GD.Load<Texture2D>(path).GetImage();
+            for (int y = 0; y < image.GetHeight(); y++)
+            {
+                for (int x = 0; x < image.GetWidth(); x++)
+                {
+                    Color pixel = image.GetPixel(x, y);
+                    if (pixel.A == 0f)
+                        continue;
+                    foreach (Color accent in reserved)
+                    {
+                        t.Assert(!pixel.IsEqualApprox(accent),
+                            $"{path} pixel {x},{y} wears a reserved dread accent");
+                    }
+                }
             }
         }
-        // The authored sheet carries ~891 tunic pixels; the swap must find essentially all
-        // of them, not just the exact-match majority.
-        t.Assert(swapped > 850, $"the tunic ramp was swapped wholesale ({swapped} pixels)");
 
-        // Right is a mirror of left: the sheet holds down/left/up only.
+        // Right is a mirror of left: every sheet holds down/left/up only, and a
+        // packed atlas offsets by whole 96px blocks.
         t.AssertEqual(1, CharacterSprites.Row(2), "facing 2 reuses the left row");
         t.Assert(CharacterSprites.FlipH(2) && !CharacterSprites.FlipH(1), "facing 2 is the flip");
-        t.AssertEqual(new Rect2(2 * 16, 2 * 32, 16, 32), CharacterSprites.Region(3, 2),
-            "facing up, first walk frame");
+        t.AssertEqual(new Rect2(2 * 16, 2 * 32, 16, 32), CharacterSprites.Region(0, 3, 2),
+            "facing up, first walk frame, block 0");
+        t.AssertEqual(new Rect2(96 + 2 * 16, 32, 16, 32), CharacterSprites.Region(1, 1, 2),
+            "block 1 offsets the whole grid by 96px");
+    }
+
+    [SimTest]
+    public static void ToolSheets_MatchTheHandoffGrid(TestContext t)
+    {
+        // Tools handoff: every tool work sheet is 64x192 — 4 frame columns by
+        // 6 tier-x-facing rows of 16x32 cells — and every cell holds a drawn
+        // frame (an empty cell means the generator's row order drifted).
+        var kinds = new[] { ToolKind.Hoe, ToolKind.WateringCan, ToolKind.Axe, ToolKind.Pick };
+        var reserved = new[] { new Color("6b4560"), new Color("7d8f4a") };
+        Image jane = GD.Load<Texture2D>(CharacterSprites.SheetPath).GetImage();
+        int janeFeet = BottomOpaqueRow(jane, 0, 0);
+
+        foreach (ToolKind kind in kinds)
+        {
+            string? path = CharacterSprites.WorkSheet(kind);
+            t.Assert(path != null, $"{kind}: work sheet mapped");
+            Image image = GD.Load<Texture2D>(path!).GetImage();
+            t.AssertEqual(64, image.GetWidth(), $"{kind}: sheet width");
+            t.AssertEqual(192, image.GetHeight(), $"{kind}: sheet height");
+
+            for (int row = 0; row < 6; row++)
+            {
+                for (int frame = 0; frame < CharacterSprites.WorkFrames; frame++)
+                {
+                    int drawn = 0;
+                    for (int y = 0; y < 32; y++)
+                    {
+                        for (int x = 0; x < 16; x++)
+                        {
+                            Color pixel = image.GetPixel(frame * 16 + x, row * 32 + y);
+                            if (pixel.A == 0f)
+                                continue;
+                            drawn++;
+                            foreach (Color accent in reserved)
+                            {
+                                t.Assert(!pixel.IsEqualApprox(accent),
+                                    $"{kind} row {row} frame {frame} wears a reserved dread accent");
+                            }
+                        }
+                    }
+                    t.Assert(drawn > 100, $"{kind}: row {row} frame {frame} holds a figure ({drawn}px)");
+                }
+
+                // The windup and recover frames stand on the walk sheet's exact
+                // foot row, so entering and leaving a swing never pops vertically
+                // (the lean frames dip by design). If Jane's sheet is ever
+                // regenerated, the tool sheets must be regenerated with it.
+                t.AssertEqual(janeFeet, BottomOpaqueRow(image, 0, row),
+                    $"{kind}: row {row} windup feet on Jane's foot row");
+                t.AssertEqual(janeFeet, BottomOpaqueRow(image, 3, row),
+                    $"{kind}: row {row} recover feet on Jane's foot row");
+            }
+        }
+
+        // The scythe has no authored work animation — it stays on the instant path.
+        t.Assert(CharacterSprites.WorkSheet(ToolKind.Scythe) == null, "scythe has no work sheet");
+
+        // Row = tier * 2 + side; up reuses down; the side rows swing on the
+        // figure's RIGHT (handoff row table) and flip for LEFT, like the scooter.
+        t.AssertEqual(new Rect2(3 * 16, 5 * 32, 16, 32), CharacterSprites.WorkRegion(2, 2, 3),
+            "pro side recover cell");
+        t.AssertEqual(new Rect2(0, 4 * 32, 16, 32), CharacterSprites.WorkRegion(2, 3, 0),
+            "facing up reuses the down row");
+        t.Assert(CharacterSprites.WorkFlipH(1) && !CharacterSprites.WorkFlipH(2)
+            && !CharacterSprites.WorkFlipH(0) && !CharacterSprites.WorkFlipH(3),
+            "side rows flip for LEFT only");
+    }
+
+    private static int BottomOpaqueRow(Image image, int column, int row)
+    {
+        for (int y = 31; y >= 0; y--)
+        {
+            for (int x = 0; x < 16; x++)
+            {
+                if (image.GetPixel(column * 16 + x, row * 32 + y).A > 0f)
+                    return y;
+            }
+        }
+        return -1;
     }
 }

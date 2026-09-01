@@ -38,6 +38,11 @@ public static class MapIds
     // (docs/story/README.md). Jane's long-running refurbishment goal lives here later.
     public const string DriveIn = "drive_in";
 
+    // The repair garage's shop floor (Kevin's 2026-08-30 garage-operation
+    // commission): two lifts, Mike's counter, reachable through the west entry's
+    // deed-locked door once garage.deed is stamped.
+    public const string GarageInterior = "garage_interior";
+
     public static string MotelRoom(int room) => room switch
     {
         1 => MotelRoom1,
@@ -56,6 +61,7 @@ public static class MapIds
         TownHall, FarmHouse, GeneralStore, Barn,
         Motel, GasStation, BilliesBar, Salon,
         MotelRoom1, MotelRoom2, MotelRoom3, MotelRoom4,
+        GarageInterior,
     };
 
     /// <summary>False for unknown ids — outdoors is the safe default for a map this build cannot name.</summary>
@@ -67,5 +73,6 @@ public static class MapIds
         WestEntry, Billies, Fork, EastFork, EastEntry,
         Motel, GasStation, BilliesBar, Salon,
         MotelRoom1, MotelRoom2, MotelRoom3, MotelRoom4, DriveIn,
+        GarageInterior,
     };
 }

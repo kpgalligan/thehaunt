@@ -18,12 +18,13 @@ public partial class PlayerController : CharacterBody2D, IPersistentSystem
         "hotbar_6", "hotbar_7", "hotbar_8", "hotbar_9", "hotbar_10",
     };
 
-    private static readonly Color TunicColor = new("4a6ab0");
-
     public int Facing { get; private set; } // 0=down 1=left 2=right 3=up
     public InteractionProbe Probe { get; private set; } = null!;
 
     private CharacterSprite? _sprite;
+    private readonly WorkAnimation _work = new();
+    private ToolKind _workTool;
+    private Vector2I _workTarget;
     private Camera2D? _camera;
     private Rect2? _pendingCameraLimits;
     private float _sinceLastToolUse = UseToolCooldown; // start ready
@@ -44,7 +45,7 @@ public partial class PlayerController : CharacterBody2D, IPersistentSystem
         CollisionLayer = 1;
         CollisionMask = 1;
 
-        _sprite = new CharacterSprite { Tunic = TunicColor };
+        _sprite = new CharacterSprite(); // Jane's sheet is the default
         AddChild(_sprite);
 
         AddChild(new CollisionShape2D
@@ -78,6 +79,12 @@ public partial class PlayerController : CharacterBody2D, IPersistentSystem
             Velocity = Vector2.Zero;
             MoveAndSlide();
             _sprite?.SetMoving(false);
+            if (_work.Active)
+            {
+                // Control seized mid-swing (a story beat, sleep): drop the pose.
+                _work.Cancel();
+                _sprite?.SetWorking(null);
+            }
             return;
         }
 
@@ -88,6 +95,25 @@ public partial class PlayerController : CharacterBody2D, IPersistentSystem
         // closing E re-opens the conversation (and a closing click swings the tool).
         bool firstFrameBack = !_hadControlLastPhysicsFrame;
         _hadControlLastPhysicsFrame = true;
+
+        // The work loop (tools handoff): while a swing is live the player is
+        // planted, and the only inputs that matter are the hold on use_tool and a
+        // bailing direction press. The tile mutation fires on ENTRY to the impact
+        // frame — never at press time and never at loop end.
+        if (_work.Active)
+        {
+            Velocity = Vector2.Zero;
+            MoveAndSlide();
+            _sprite?.SetMoving(false);
+            WorkTick tick = _work.Advance((float)delta,
+                held: Input.IsActionPressed("use_tool"),
+                moving: Input.GetVector("move_left", "move_right", "move_up", "move_down")
+                    != Vector2.Zero);
+            if (tick.Impact)
+                WorldSim.Instance.UseSelectedItem(_workTarget);
+            _sprite?.SetWorking(_work.Active ? _workTool : null, _work.Frame);
+            return; // planted this frame either way; control resumes next tick
+        }
 
         var input = Input.GetVector("move_left", "move_right", "move_up", "move_down");
         Velocity = input * MoveSpeed * (riding ? ScooterRules.SpeedMultiplier : 1f);
@@ -111,6 +137,19 @@ public partial class PlayerController : CharacterBody2D, IPersistentSystem
         if (!firstFrameBack && Input.IsActionJustPressed("use_tool") && _sinceLastToolUse >= UseToolCooldown)
         {
             _sinceLastToolUse = 0f;
+            // Tools with authored work sheets swing through the four-frame loop
+            // and mutate at impact; everything else — seeds, the scythe, any use
+            // while riding — keeps the instant path.
+            ToolKind? tool = ItemDefs.TryGet(
+                SaveService.Instance.Current.Player.Inventory.Selected?.ItemId ?? "")?.Tool;
+            if (!riding && tool is ToolKind kind && CharacterSprites.WorkSheet(kind) != null)
+            {
+                _work.Start();
+                _workTool = kind;
+                _workTarget = TargetTile(); // locked at the windup: the swing keeps its tile
+                _sprite?.SetWorking(kind);
+                return; // the swing owns the rest of this frame (no hotbar mid-windup)
+            }
             WorldSim.Instance.UseSelectedItem(TargetTile());
         }
 
