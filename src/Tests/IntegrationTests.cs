@@ -941,7 +941,7 @@ public static class IntegrationTests
             var player = main.GetNodeOrNull<PlayerController>("World/Player")!;
 
             // Story quiet, and the arrival dice quiet too: a deed-owning test that
-            // crosses open hours must pin the seed or a 6% roll flakes it
+            // crosses open hours must pin the seed or the hourly roll flakes it
             // (src/Tests/CLAUDE.md).
             WorldSim.Instance.SetStoryFlag(StoryKeys.CrewArrivalDone);
             WorldSim.Instance.SetStoryFlag(StoryKeys.MeetingDone);

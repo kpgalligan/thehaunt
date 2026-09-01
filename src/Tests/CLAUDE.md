@@ -24,7 +24,7 @@ JSONs for the migration tests.
 - Any test owning the garage deed whose clock can cross open hours must pin the
   arrival dice: set `data.Seed` to a scanned quiet value (IntegrationTests.QuietSeed)
   or inject `GarageJobs` records directly — SaveService.NewGame rolls a RANDOM seed,
-  and an unpinned 6%/hour roll is a flake that lands an extra car/toast/log row.
+  and an unpinned hourly roll (10%) is a flake that lands an extra car/toast/log row.
   Model-side tests use `GameData.NewGame()` (seed 0) or scan for an arriving seed.
 - Presses aimed at the controller's PHYSICS poll (E via IsActionJustPressed) can
   phase-lock against PressKey's fixed process-frame cycle — landing every press or

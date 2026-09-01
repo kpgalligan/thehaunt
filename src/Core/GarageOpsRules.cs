@@ -10,7 +10,7 @@ public enum GarageWorkResult { Worked, CompletedJob, NoJob, AlreadyDone, NotEnou
 /// <summary>
 /// The owned garage's operating rules (Kevin, 2026-08-30). Open 7 days, 9 AM to
 /// 6 PM — the window gates customer ARRIVALS and Mike's presence only; Jane can
-/// walk in and work at any hour. Every open hour rolls a 6% chance of a customer
+/// walk in and work at any hour. Every open hour rolls a 10% chance of a customer
 /// (deterministic per (save seed, day, hour) — <see cref="CustomerRoll"/>), at
 /// most <see cref="MaxCars"/> cars in the shop at once, and a car occupies its
 /// lift until the overnight sim resolves the job.
@@ -39,7 +39,10 @@ public static class GarageOpsRules
     public const int OpenMinuteOfDay = (OpenHour - GameTime.DayStartHour) * 60;    // 180
     public const int CloseMinuteOfDay = (CloseHour - GameTime.DayStartHour) * 60;  // 720
 
-    public const int ArrivalPercent = 6;   // [KEVIN] "6% chance that a new customer will come in"
+    // [KEVIN] the hourly arrival chance — 6% at v1, raised to 10% on 2026-08-30
+    // ("bump the hourly chance to 10 percent"). Nine rolls an open day, so ~61%
+    // of days see at least one car (up from ~42%).
+    public const int ArrivalPercent = 10;
 
     public static bool IsOpenHour(int absoluteHour) =>
         absoluteHour >= OpenHour && absoluteHour < CloseHour;

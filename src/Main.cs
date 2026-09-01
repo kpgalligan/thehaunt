@@ -265,7 +265,7 @@ public partial class Main : Node2D
 
             // Dev-only: stamp the deed and put a car on a lift (the named service,
             // arriving "now"), so --screenshot can capture the shop floor without
-            // waiting out the 6% hourly roll. Repeat the flag for a second car.
+            // waiting out the hourly arrival roll. Repeat the flag for a second car.
             if (args[i] == "--garage-job")
                 CallDeferred(nameof(AddGarageJobForScreenshot), args[i + 1]);
         }

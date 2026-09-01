@@ -28,10 +28,10 @@ public static class GarageOpsTests
 
         // 9 AM - 6 PM, nine rolls a day, and the minute window Mike's schedule
         // derives from — the drift guard that keeps clerk and arrivals in step.
-        // The 6% is pinned EXACTLY: the statistical band in the determinism test
-        // tolerates 4-8% (it checks the mixer's health, not the tuning), so this
-        // line is the only thing standing between Kevin's number and a drift.
-        t.AssertEqual(6, GarageOpsRules.ArrivalPercent, "6% chance per open hour");
+        // The rate is pinned EXACTLY: the statistical band in the determinism test
+        // tolerates ±2 points (it checks the mixer's health, not the tuning), so
+        // this line is the only thing standing between Kevin's number and a drift.
+        t.AssertEqual(10, GarageOpsRules.ArrivalPercent, "10% chance per open hour");
         t.AssertEqual(2, GarageOpsRules.MaxCars, "no more than two cars");
         t.Assert(!GarageOpsRules.IsOpenHour(8), "8 AM is closed");
         t.Assert(GarageOpsRules.IsOpenHour(9), "9 AM opens");
@@ -70,8 +70,8 @@ public static class GarageOpsTests
         t.AssertEqual(first, GarageOpsRules.CustomerRoll(123, 45, 11), "pure hash");
 
         // Seed 0 is every migrated save: the mixer must not be degenerate there.
-        // 400 days x 9 open hours = 3600 rolls; a healthy 6% lands well inside
-        // [4%, 8%] (the actual value is ~6.4%), and every service gets drawn.
+        // 400 days x 9 open hours = 3600 rolls; a healthy 10% lands well inside
+        // [8%, 12%] (the actual value is ~10.4%), and every service gets drawn.
         int arrivals = 0;
         var services = new HashSet<int>();
         for (long day = 0; day < 400; day++)
@@ -87,8 +87,8 @@ public static class GarageOpsTests
                 }
             }
         }
-        t.Assert(arrivals >= 144 && arrivals <= 288,
-            $"seed-0 arrival rate ~6% (got {arrivals}/3600)");
+        t.Assert(arrivals >= 288 && arrivals <= 432,
+            $"seed-0 arrival rate ~10% (got {arrivals}/3600)");
         t.AssertEqual(GarageServices.All.Count, services.Count, "every service arrives eventually");
     }
 
@@ -328,7 +328,7 @@ public static class GarageOpsTests
             Clock.Instance.SetTime(new GameTime(179));
             sequence.Clear();
             Clock.Instance.AdvanceMinutes(1);
-            t.AssertEqual(1, data.GarageJobs.Count, "the 6% hour lands its customer");
+            t.AssertEqual(1, data.GarageJobs.Count, "an arriving hour lands its customer");
             GarageJobRecord job = data.GarageJobs[0];
             t.AssertEqual(GarageServices.All[expectedService].Id, job.ServiceId,
                 "the roll picked the service");

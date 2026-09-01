@@ -52,7 +52,8 @@
   9am-6pm — the hours gate customers and the clerk, never Jane, who can access it at
   any time. **Mike**, the clerk (Kevin's name), is friendly but not a mechanic: his
   only job is taking new customers and collecting money. Every hour the garage is
-  open there is a 6% chance a customer leaves a car; Jane gets a message from Mike
+  open there is a 10% chance a customer leaves a car (6% at v1, raised 2026-08-30 —
+  nine rolls an open day, so ~61% of days see one); Jane gets a message from Mike
   on screen and the job is recorded as a quest task with a 2-day deadline — miss it
   and the customer takes the car back unpaid; finish it and the money is collected
   the next day. No more than two cars at a time (the interior has two lifts, holding
@@ -171,7 +172,7 @@
   WorldSim.BuyGarage debiting the 100,000g and stamping `garage.deed` (GarageRules).
   2026-08-30 (Kevin's skills + garage-operation commission): the deed now opens a
   deed-locked door into the garage interior (two lifts, Mike's counter), the shop
-  runs on Canon §Garage's rules — hourly 6% arrivals into GameData.GarageJobs,
+  runs on Canon §Garage's rules — hourly 10% arrivals into GameData.GarageJobs,
   E-press repairs draining stamina on the level curve, dawn payments/reclaims in
   the overnight sim and its report card, "word from Mike" toasts and quest-log
   tasks — and skills v1 ships whole: XP in PlayerData.SkillXp, harvests and
