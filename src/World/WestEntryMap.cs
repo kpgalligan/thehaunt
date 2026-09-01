@@ -1,4 +1,5 @@
 using Godot;
+using TheHaunt.Content;
 using TheHaunt.Core;
 using TheHaunt.Systems;
 
@@ -228,7 +229,7 @@ public partial class WestEntryMap : ExteriorMap
         gas.AddChild(new NeonWordSign
         {
             Word = "OPEN",
-            OnAt = m => m is >= NpcSchedules.GasOpenMinute and < NpcSchedules.GasCloseMinute,
+            OnAt = m => m is >= GasStation.OpenMinute and < GasStation.CloseMinute,
             Position = new Vector2(-24, -39),
         });
         AddChild(gas);

@@ -1,4 +1,5 @@
 using System.Text.Json;
+using TheHaunt.Content;
 using TheHaunt.Core;
 using TheHaunt.Systems;
 

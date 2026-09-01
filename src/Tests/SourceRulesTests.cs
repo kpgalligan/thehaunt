@@ -37,6 +37,43 @@ public static class SourceRulesTests
     }
 
     [SimTest]
+    public static void Source_ContentHasNoGodotDependency(TestContext t)
+    {
+        // src/Content is the story layer (characters, places, arcs, words) and keeps
+        // Core's purity contract: content stays testable without a scene tree.
+        string[] files = SourceFiles("res://src/Content");
+        t.Assert(files.Length > 5, $"found the Content sources to check ({files.Length} files)");
+
+        List<string> offenders = files
+            .Where(path => File.ReadAllText(path).Contains("using Godot", StringComparison.Ordinal))
+            .Select(Path.GetFileName)
+            .Select(name => name ?? "?")
+            .ToList();
+
+        t.AssertEqual("", string.Join(", ", offenders),
+            "no file under src/Content may take a dependency on Godot");
+    }
+
+    [SimTest]
+    public static void Source_CoreNeverReferencesContent(TestContext t)
+    {
+        // Dependency direction is Systems/World/UI/Story -> Content -> Core. Core must
+        // stay buildable and reasoned about without the story layer; the first engine
+        // rule that reaches up into a content registry inverts the layering.
+        string[] files = SourceFiles("res://src/Core");
+        t.Assert(files.Length > 20, $"found the Core sources to check ({files.Length} files)");
+
+        List<string> offenders = files
+            .Where(path => File.ReadAllText(path).Contains("TheHaunt.Content", StringComparison.Ordinal))
+            .Select(Path.GetFileName)
+            .Select(name => name ?? "?")
+            .ToList();
+
+        t.AssertEqual("", string.Join(", ", offenders),
+            "no file under src/Core may reference TheHaunt.Content");
+    }
+
+    [SimTest]
     public static void Source_EditorHintsStayOutOfTheGameLayers(TestContext t)
     {
         // The map editor works by hand-instantiating the four autoloads and letting map code
@@ -45,7 +82,7 @@ public static class SourceRulesTests
         // misbehaviour with an Engine.IsEditorHint() guard in src/World, that property is
         // gone and the divergence between what the editor shows and what the game runs
         // starts. Editor concerns live in src/EditorTools and addons only.
-        string[] layers = { "src/World", "src/Systems", "src/Player", "src/UI", "src/Story", "src/Core" };
+        string[] layers = { "src/World", "src/Systems", "src/Player", "src/UI", "src/Story", "src/Core", "src/Content" };
         var offenders = new List<string>();
         int scanned = 0;
 

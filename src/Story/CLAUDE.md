@@ -4,7 +4,7 @@ One file: `StoryDirector` — a plain Node child of Main, NOT an autoload; it di
 Main, so headless tests that never boot Main never evaluate beats. It runs the scripted
 intro beats (`intro_crew_arrival`, `intro_town_meeting`,
 `intro_town_meeting_overslept`), derived per check from
-`IntroRules.PendingBeat(save, now, mapId)` in Core. It never writes the model: flags
+`IntroRules.PendingBeat(save, now, mapId)` in src/Content/Story. It never writes the model: flags
 flow through `WorldSim.SetStoryFlag` and the dialogue's terminal SetsFlag.
 
 ## Rules

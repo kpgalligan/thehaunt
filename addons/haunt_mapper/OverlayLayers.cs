@@ -1,4 +1,5 @@
 #if TOOLS
+using TheHaunt.Content;
 namespace TheHaunt.Addons.HauntMapper;
 
 /// <summary>

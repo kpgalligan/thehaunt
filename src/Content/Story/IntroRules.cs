@@ -1,4 +1,6 @@
-namespace TheHaunt.Core;
+using TheHaunt.Core;
+
+namespace TheHaunt.Content;
 
 public enum StoryBeatId { CrewArrival, TownMeeting, TownMeetingOverslept }
 

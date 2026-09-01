@@ -1,4 +1,6 @@
-namespace TheHaunt.Core;
+using TheHaunt.Core;
+
+namespace TheHaunt.Content;
 
 /// <summary>
 /// The mail catalog. Insertion order below is the canonical iteration order for

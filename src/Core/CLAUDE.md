@@ -9,7 +9,8 @@ registries ItemDefs/CropDefs/ObstacleDefs), InventoryData, FarmActions, Obstacle
 (seeded one-shot field generation — WorldSim owns the trigger and the randomness),
 OvernightSim + ShippedLine + GarageLine;
 storage: StackOps/StorageData/StorageIds; scooter: ScooterData/ScooterRules;
-mail: LetterDef(s)/MailRules/MailActions; quests: QuestDef(s)/QuestRules;
+mail: LetterDef + MailActions; quests: QuestDef (their registries and derivations
+live in src/Content/Story);
 skills v1 (Kevin, 2026-08-30): SkillIds/SkillRules — XP in PlayerData.SkillXp is
 the stored truth (monotone, accumulates past the level-10 cap), level always
 derived (10 XP each); grants flow through WorldSim.GrantSkillXp only;
@@ -21,11 +22,17 @@ final press, which is load-bearing for Kevin's exactly-3-oil-changes-at-L1),
 DevScaffold (TEMPORARY daily 150k money floor — see its doc for how to unwind);
 WorkAnimation (the tool work loop's pure timing/interruption contract — the tile
 mutation fires on ENTRY to its impact frame, never at press time); shop:
-ShopCatalog (+ ShopEntry/BuyResult)/ShopHours; story: StoryKeys/IntroRules/BarnRules/
-MotelRules/GarageRules (the west-entry garage sale: Price + the pure CanBuy check
-behind WorldSim.BuyGarage; ownership = the garage.deed day-stamp)/MapIds/RoadWrap,
-DialogueDef(s)/DialogueSession/DialogueSelector,
-NpcDef(s)/NpcSchedules.
+ShopCatalog (+ ShopEntry/BuyResult)/ShopHours; story TYPES + schema: StoryKeys/MapIds/
+RoadWrap, GarageRules (the west-entry garage sale: Price + the pure CanBuy check
+behind WorldSim.BuyGarage; ownership = the garage.deed day-stamp — stays in Core
+because GarageOpsRules reads it), DialogueDef(s)/DialogueSession, NpcDef
+(+ NpcPlacement/ScheduleEntry).
+
+The story-shaped REGISTRIES and rules — NpcDefs/NpcSchedules, DialogueDefs/
+DialogueSelector, QuestDefs/QuestRules, LetterDefs/MailRules, IntroRules,
+MotelRules/BarnRules — live in `src/Content` (see its CLAUDE.md). Dependency
+direction is Content -> Core, never back: no file here may reference
+TheHaunt.Content (test-enforced, Source_CoreNeverReferencesContent).
 
 ## Rules (violations are bugs)
 

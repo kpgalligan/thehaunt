@@ -1,4 +1,5 @@
 #if TOOLS
+using TheHaunt.Content;
 using Godot;
 using TheHaunt.Core;
 using TheHaunt.EditorTools;

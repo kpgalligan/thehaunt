@@ -1,4 +1,6 @@
-namespace TheHaunt.Core;
+using TheHaunt.Core;
+
+namespace TheHaunt.Content;
 
 /// <summary>
 /// The barn's repair state as the art draws it: 0 derelict, 1 weathertight, 2 restored

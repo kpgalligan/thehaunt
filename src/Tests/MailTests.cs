@@ -1,4 +1,5 @@
 using System.Reflection;
+using TheHaunt.Content;
 using TheHaunt.Core;
 using TheHaunt.Systems;
 

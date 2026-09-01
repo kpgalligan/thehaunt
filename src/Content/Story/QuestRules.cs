@@ -1,4 +1,6 @@
-namespace TheHaunt.Core;
+using TheHaunt.Core;
+
+namespace TheHaunt.Content;
 
 /// <summary>
 /// Pure quest-lifecycle derivations over the two flag stamps (QuestDef). A quest is

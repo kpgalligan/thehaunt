@@ -1,4 +1,5 @@
 using System.Text.Json;
+using TheHaunt.Content;
 using TheHaunt.Core;
 using TheHaunt.Systems;
 
@@ -39,7 +40,7 @@ public static class GarageOpsTests
         t.Assert(!GarageOpsRules.IsOpenHour(18), "6 PM is closed");
         t.AssertEqual(180, GarageOpsRules.OpenMinuteOfDay, "9 AM in schedule minutes");
         t.AssertEqual(720, GarageOpsRules.CloseMinuteOfDay, "6 PM in schedule minutes");
-        ScheduleEntry mike = NpcSchedules.Mike[0];
+        ScheduleEntry mike = Mike.Schedule[0];
         t.AssertEqual(StoryKeys.GarageDeed, mike.RequiresFlag!, "Mike is hired with the deed");
         t.AssertEqual(GarageOpsRules.OpenMinuteOfDay, mike.StartMinuteOfDay,
             "Mike clocks in when the window opens");

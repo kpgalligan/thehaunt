@@ -1,4 +1,5 @@
 using Godot;
+using TheHaunt.Content;
 using TheHaunt.Core;
 
 namespace TheHaunt.World;

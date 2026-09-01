@@ -1,4 +1,6 @@
-namespace TheHaunt.Core;
+using TheHaunt.Core;
+
+namespace TheHaunt.Content;
 
 /// <summary>
 /// The motor court's story-state reads (docs/designs/design_handoff_motel_signage):

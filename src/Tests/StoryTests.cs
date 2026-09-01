@@ -1,5 +1,6 @@
 using System.Text.Json.Nodes;
 using Godot;
+using TheHaunt.Content;
 using TheHaunt.Core;
 using TheHaunt.Systems;
 using TheHaunt.World;

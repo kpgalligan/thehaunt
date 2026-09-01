@@ -1,4 +1,6 @@
-namespace TheHaunt.Core;
+using TheHaunt.Core;
+
+namespace TheHaunt.Content;
 
 /// <summary>
 /// Pure mail derivations. The model keeps NO mail state beyond story flags: a
