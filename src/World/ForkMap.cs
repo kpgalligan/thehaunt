@@ -7,7 +7,7 @@ namespace TheHaunt.World;
 /// The fork, 40x30 tiles: the crossroads west of the town centre. East-west road on
 /// rows 14-15 (Billie's to the west, town to the east), the farm road running north
 /// out of the frame, and a southbound stub that is chained off — it leads to something
-/// later, and the chain says so without saying what (docs/story/README.md). No
+/// later, and the chain says so without saying what (src/Content/Places). No
 /// buildings; this frame is all road.
 /// </summary>
 public partial class ForkMap : ExteriorMap

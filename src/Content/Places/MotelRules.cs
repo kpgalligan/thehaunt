@@ -3,9 +3,17 @@ using TheHaunt.Core;
 namespace TheHaunt.Content;
 
 /// <summary>
-/// The motor court's story-state reads (docs/designs/design_handoff_motel_signage):
-/// four guest rooms that unlock individually, the night-time occupancy tell, and the
-/// pole sign's NO circuit. Pure model reads — a flag's value in this model is the day
+/// The motel — the west entry's motor court (Walt's — Characters/Walt).
+/// CANON (Kevin, 2026-08-26): a shit motel, and the place many of the SACRIFICES
+/// will ultimately come from when they are strangers — the town is much more likely
+/// to make its demand when strangers arrive and stay (deferred Phase 5 machinery;
+/// in Act I it surfaces only as Pell, the guest who cannot quite leave). Its NAME
+/// is deliberately unwritten: the pole sign's nameplate ships blank and waits on
+/// Kevin.
+///
+/// The story-state reads (docs/designs/design_handoff_motel_signage): four guest
+/// rooms that unlock individually, the night-time occupancy tell, and the pole
+/// sign's NO circuit. Pure model reads — a flag's value in this model is the day
 /// it was stamped, never a level (see <see cref="BarnRules"/>), which is why the
 /// handoff's "int 1-4" occupancy state ships as a derivation instead.
 /// </summary>

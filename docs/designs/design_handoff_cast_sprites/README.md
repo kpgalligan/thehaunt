@@ -34,7 +34,7 @@ All at native 16px. Cells are **16 wide × 32 tall**.
 | `art/character.png` | 96×96 | Jane. **Replaces the existing file in place.** |
 | `art/cast_west.png` | 480×96 | walt, dennis, gloria, pell, mike |
 | `art/cast_billies.png` | 768×96 | billie, bud, pete, moody, lyle, harriet, ray, nora |
-| `art/cast_east.png` | 192×96 | sam, abe |
+| `art/cast_east.png` | 288×96 | sam, abe, shelly (2026-09-01) |
 | `art/cast_town.png` | 480×96 | mayor, foreman, crew_worker_a, crew_worker_b, shopkeeper |
 | `art/cast_<id>.png` | 96×96 | Each of the 19 NPCs standalone, for per-NPC loading |
 
@@ -47,6 +47,16 @@ In every packed atlas, character *n* occupies `x = n * 96 .. n * 96 + 95`, full 
 > harness for this file's generator) and recomposed so blocks 0-3 kept their
 > shipped bytes. No standalone `cast_mike.png` was produced (the standalones are
 > unshipped).
+
+> **Amendment (2026-09-01, Kevin's drive-in commission):** `shelly` (the drive-in's
+> owner; the name is Kevin's) appended to `cast_east` as block 2 — append-only; the
+> final atlas was composed from the SHIPPED sam/abe pixels plus the new block, and
+> the regenerated blocks were verified pixel-identical to shipped first. Her spec
+> lives in `art/gen_cast.js`; head shape is a grey bun (no glasses — Harriet owns
+> bun+glasses, and the in-frame set is sam's crop and abe's cap+beard). No
+> standalone `cast_shelly.png` is shipped. Character canon: `src/Content/Characters/
+> Shelly.cs` (the story docs this bundle originally cited moved into `src/Content`
+> the same day).
 
 ### Sheet layout — 96×96, 16×32 cells
 

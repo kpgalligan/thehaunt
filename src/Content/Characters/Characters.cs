@@ -4,7 +4,7 @@ namespace TheHaunt.Content;
 /// The cast registry — one <see cref="CharacterDef"/> per character, each authored
 /// whole in its own file (this folder). Insertion order below is the canonical
 /// iteration order (unchanged from the pre-split NpcDefs order): the intro cast,
-/// then the road strip west to east, then Mike.
+/// then the road strip west to east, then Mike, then the drive-in's summer cast.
 ///
 /// A character file must never reference this class — the registry observes the
 /// characters, and a cycle would hand static initialisation a half-built list.
@@ -18,6 +18,7 @@ public static class Characters
         Billie.Def, Bud.Def, Pete.Def, Moody.Def, Lyle.Def, Harriet.Def, Ray.Def, Nora.Def,
         Sam.Def, Abe.Def,
         Mike.Def,
+        Shelly.Def,
     };
 
     private static readonly Dictionary<string, CharacterDef> ById =

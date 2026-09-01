@@ -20,7 +20,7 @@ public partial class TestRunner : Node
     // + 2 quests + 4 mail + 2 mailbox/quest-log integration + 5 garage sale
     // + 3 skills + 10 garage ops + 1 garage-operation integration).
     // Re-pin to the exact count whenever tests ship.
-    private const int MinimumExpectedTests = 195; // re-pinned for the two Content source-rule tests
+    private const int MinimumExpectedTests = 202; // re-pinned: +2 Content source rules, +6 ContentTests, +1 drive-in gate
 
     public override async void _Ready()
     {

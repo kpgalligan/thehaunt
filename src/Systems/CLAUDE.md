@@ -55,7 +55,7 @@ gating, GetTree().Paused ownership) are in src/CLAUDE.md.
 - OvernightSim mutates the model on DayEnded (payload day — the day being closed);
   WorldSim repaints maps and fires UI events on DayStarted. Both fire synchronously
   inside AdvanceToDayStart, before Main's autosave.
-- OnDayStarted's committed ordering (spec §1.4, risk R3): 1 dawn flags, 2 repaint,
+- OnDayStarted's committed ordering (design-review risk R3): 1 dawn flags, 2 repaint,
   3 UI events (OvernightCompleted, MoneyChanged, StaminaChanged, InventoryChanged,
   GarageJobsChanged), 4 NPC + scooter sync, 5 StoryFlagSet — all before Main's
   autosave. Violating it is a bug.

@@ -6,7 +6,7 @@ namespace TheHaunt.World;
 /// <summary>
 /// Billie's, 40x30 tiles: the dive bar between the west entry and the fork, and — in
 /// the same frame, south of the road — the pit: a covered hole nobody talks about,
-/// chained off behind a warning sign (docs/story/README.md). The bar has no art or
+/// chained off behind a warning sign (src/Content/Places). The bar has no art or
 /// interior yet, so it ships as a <see cref="PlaceholderBuilding"/>; the pit is a
 /// <see cref="PitCover"/> behind a <see cref="RoadBarrier"/>, all of it blocked.
 /// </summary>

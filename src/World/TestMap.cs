@@ -11,7 +11,7 @@ namespace TheHaunt.World;
 /// town's grass, so the two maps never read as the same field — with a woods edge for the
 /// map limit, a track from the farmhouse door east to the wagon road — which bends south
 /// at the yard's east end and leaves through the south treeline for the fork (the farm
-/// sits NORTH of the fork; docs/story/README.md) — the barn across the yard, and a
+/// sits NORTH of the fork; src/Content/Places) — the barn across the yard, and a
 /// fenced pen in the south-west.
 ///
 /// Layer child order = draw order: Ground, FarmSoil, Crops, Obstacles. Ground carries

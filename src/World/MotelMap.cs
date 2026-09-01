@@ -8,7 +8,7 @@ namespace TheHaunt.World;
 /// The motel lobby, 14x10 tiles: a short registration desk in the north-west corner
 /// with the till, the registry and one lamp on it, a rug that was nice once, and a
 /// waiting bench nobody waits on — except lately Mr. Pell, who is in no hurry at all
-/// (docs/story/cast.md). Two windows on the back wall: one lit, one dark. Walt runs
+/// (src/Content/Characters). Two windows on the back wall: one lit, one dark. Walt runs
 /// four rooms and lights two, and the lobby says so without a word of dialogue.
 ///
 /// Walt stands at the open end of his desk, so the Talk prompt never depends on

@@ -3,7 +3,7 @@ namespace TheHaunt.Core;
 public enum GarageSaleResult { Ok, NotOpen, AlreadyOwned, InsufficientFunds }
 
 /// <summary>
-/// The repair garage beside the west entry's gas station (docs/story/README.md
+/// The repair garage beside the west entry's gas station (src/Content/Places
 /// §West entry): for sale until Jane buys it, and ownership is the day-stamped
 /// garage.deed flag — one monotone flag, never a level. The asking price is
 /// Kevin's "$100k, for now". The deed is read by the whole operation layer

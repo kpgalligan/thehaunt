@@ -6,7 +6,7 @@ namespace TheHaunt.World;
 /// <summary>
 /// Sam's salon, 12x9 tiles: a checkerboard floor, the styling chair on a small rug
 /// in the middle of the room, and a stained-glass piece in the corner that nobody
-/// asks about (docs/story/cast.md). Candles, a basin, a shelf of what might be
+/// asks about (src/Content/Characters). Candles, a basin, a shelf of what might be
 /// poetry. The haircut itself comes later; early game the room is Sam, and Sam is
 /// texture.
 ///

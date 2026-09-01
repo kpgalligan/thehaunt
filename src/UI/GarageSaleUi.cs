@@ -117,7 +117,7 @@ public partial class GarageSaleUi : Control
 
         vbox.AddChild(new HSeparator());
 
-        // [KEVIN] placeholder copy — canon restatement only (docs/story/README.md
+        // [KEVIN] placeholder copy — canon restatement only (canon — Kevin, 2026-08-26,
         // §West entry): the closed repair garage beside the gas station.
         var body = new Label
         {

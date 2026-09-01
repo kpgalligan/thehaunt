@@ -1,0 +1,18 @@
+using TheHaunt.Core;
+
+namespace TheHaunt.Content;
+
+/// <summary>
+/// The east entry: police station and hardware store north of the road, Sam's salon
+/// across it (Characters/Sam). The east mouth is the other road out of town — for a
+/// resident it wraps to the west entry (RoadWrap).
+/// PLANNED — THE POLICE (Kevin, 2026-08-26): "we'll detail later, but they'll have
+/// an important place in the story." Cast-empty by design; no sprites exist.
+/// CANON — THE HARDWARE STORE: starts closed; the owner is in the hospital. The
+/// sign says only that it is closed — nobody mentions the hospital stay, and the
+/// dark band sign (nobody paying its bill) is the only other tell.
+/// </summary>
+public static class EastEntry
+{
+    public const string MapId = MapIds.EastEntry;
+}

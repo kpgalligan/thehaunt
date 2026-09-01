@@ -9,7 +9,8 @@ public readonly record struct NpcPlacement(string MapId, int TileX, int TileY, i
 public sealed record ScheduleEntry(
     string? RequiresFlag, string? ForbidsFlag,
     int StartMinuteOfDay, int EndMinuteOfDay,      // inclusive / exclusive; 0..1200, no wrap
-    NpcPlacement Placement);
+    NpcPlacement Placement,
+    Season? InSeason = null);                      // null = every season; the drive-in's summer cast is the first user
 
 // SpriteSheet is a res:// path to a cast sheet (cast-sprites handoff);
 // SpriteBlock is the character's 96px-wide block index inside it.

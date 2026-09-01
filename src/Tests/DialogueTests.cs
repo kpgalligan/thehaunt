@@ -12,7 +12,7 @@ public static class DialogueTests
     [SimTest]
     public static void Dialogue_DefsValidate(TestContext t)
     {
-        // The only legal flag ids in code are the StoryKeys constants (spec §1.2).
+        // The only legal flag ids in code are the StoryKeys constants (StoryKeys' contract).
         HashSet<string> legalFlags = typeof(StoryKeys)
             .GetFields(BindingFlags.Public | BindingFlags.Static)
             .Where(f => f.IsLiteral && f.FieldType == typeof(string))

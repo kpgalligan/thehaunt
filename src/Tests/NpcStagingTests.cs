@@ -8,7 +8,7 @@ using TheHaunt.World;
 namespace TheHaunt.Tests;
 
 /// <summary>
-/// The road-strip cast (docs/story/cast.md): every scheduled staging tile must be
+/// The road-strip cast (src/Content/Characters): every scheduled staging tile must be
 /// ground an NPC can actually stand on, and every dialogue id the selector can hand
 /// out must resolve. Both were previously unguarded — a placement inside a counter
 /// blocker or a selector arm pointing at a missing def fails silently in play

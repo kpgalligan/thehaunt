@@ -10,7 +10,7 @@ namespace TheHaunt.World;
 /// on rows 14-15, the motor court long and low against the treeline on the north
 /// side — office, four guest rooms, concrete walkway, asphalt lot and the googie
 /// pole sign, all to the motel handoff's spec — with the gas station across the road
-/// and the fireworks stand further along (docs/story/README.md). The west mouth is
+/// and the fireworks stand further along (src/Content/Places). The west mouth is
 /// the road out of town, and for a resident it only leads back in: walking off the
 /// west edge wraps to the east entry's east mouth (<see cref="RoadWrap"/>).
 ///
@@ -22,7 +22,7 @@ namespace TheHaunt.World;
 ///
 /// The gas station, the stand and the repair garage still ship as
 /// <see cref="PlaceholderBuilding"/>s, now wearing their sign mounts. The garage
-/// (docs/story/README.md) starts shut and FOR SALE — its board opens WorldSim's
+/// (src/Content/Places) starts shut and FOR SALE — its board opens WorldSim's
 /// garage-sale session — and its door is deed-locked (garage.deed): buying the
 /// place opens the shop floor behind it (<see cref="GarageInteriorMap"/>, Kevin's
 /// 2026-08-30 garage-operation commission). The dark band sign stays dark either
@@ -234,7 +234,7 @@ public partial class WestEntryMap : ExteriorMap
         });
         AddChild(gas);
 
-        // The repair garage, shut and for sale (docs/story/README.md): Jane's route
+        // The repair garage, shut and for sale (src/Content/Places): Jane's route
         // back into her father's trade once the skills system lands. Same closed-
         // and-dark treatment as the hardware store — the band sign's bill is not
         // being paid, and the missing OPEN neon is itself the tell.

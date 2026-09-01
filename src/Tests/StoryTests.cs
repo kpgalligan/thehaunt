@@ -67,7 +67,7 @@ public static class StoryTests
 
         // Post-midnight planting: 1:30 AM of day N is still DayIndex N (the day runs
         // 6:00 -> 26:00 monotonic), so the stamp is the ENDING day and the road clears
-        // at the very next dawn (N+1). Intended per spec §1.3.
+        // at the very next dawn (N+1). Intended — IntroRules' header states it.
         var night = new GameData();
         var pastMidnight = new GameTime(7 * GameTime.MinutesPerDay + 1170); // day 7, 1:30 AM
         t.AssertEqual(7L, pastMidnight.DayIndex, "past-midnight time still reads as day 7");
@@ -443,7 +443,7 @@ public static class StoryTests
         }
     }
 
-    // Debris blockade cells — phase3-spec §6, amended 2026-08-27: the farm road
+    // Debris blockade cells — the blockade design, amended 2026-08-27: the farm road
     // leaves SOUTH now (the farm sits north of the fork), so the blockade sits on
     // the southbound leg just above the mouth.
     private static readonly Vector2I[] RoadBlockCells =

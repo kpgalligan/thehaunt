@@ -12,7 +12,7 @@ namespace TheHaunt.Tests;
 public static class IntegrationTests
 {
     // Bed Area2D position in FarmHouseMap: the centre of its footprint, tiles
-    // (12,2)-(12,3). The bed moved indoors with the 3b farmhouse (phase3b-spec §4.4)
+    // (12,2)-(12,3). The bed moved indoors with the 3b farmhouse (the 3b farmhouse design)
     // and on to the tile grid with the drawn art — the 16x32 sprite covers exactly
     // those two cells, where the placeholder sat half a cell low.
     private static readonly Vector2 BedPosition = new(200, 48);
@@ -67,7 +67,7 @@ public static class IntegrationTests
     public static async Task Farm_ReservedTilesRefuseTilling(TestContext t)
     {
         // Interactable footprint tiles sit on tillable terrain but are reserved: tilling
-        // under a bed/sign/bin would render invisibly beneath its sprite. See spec §3.
+        // under a bed/sign/bin would render invisibly beneath its sprite.
         SaveService service = SaveService.Instance;
         TestMap? map = null;
         try
@@ -1325,7 +1325,7 @@ public static class IntegrationTests
         }
     }
 
-    // Debris blockade cells — phase3-spec §6, amended 2026-08-27: the road leaves south.
+    // Debris blockade cells — the blockade design, amended 2026-08-27: the road leaves south.
     private static readonly Vector2I[] RoadBlockCells =
     {
         new(36, 26), new(36, 27), new(37, 26), new(37, 27),
@@ -1484,7 +1484,7 @@ public static class IntegrationTests
         return false;
     }
 
-    // --- Pure cell-state function (recomputed independently of the map code, spec §3) ---
+    // --- Pure cell-state function (recomputed independently of the map code) ---
     // FarmSoil atlas: row 1 dry, row 2 wet, column chosen by which sides are still grass;
     // wet iff the record was watered on the CURRENT day at refresh time. Crops atlas:
     // (column, row) = (StageForDay(GrowthDay), index of the crop in CropDefs order).

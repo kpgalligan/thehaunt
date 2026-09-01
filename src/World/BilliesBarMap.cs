@@ -8,7 +8,7 @@ namespace TheHaunt.World;
 /// with its back bar sealed by construction (the store's precedent), a hearth nook in
 /// the north-east corner — the only fire in the room, which is all the light a dive
 /// needs — and two tables in the south half where the shifts sit out their hours
-/// (docs/story/cast.md). Shut windows on the south wall: whatever the hour outside,
+/// (src/Content/Characters). Shut windows on the south wall: whatever the hour outside,
 /// in here it is always evening.
 ///
 /// Billie and Bud stand on the OPEN side of the counter, not behind it, so the

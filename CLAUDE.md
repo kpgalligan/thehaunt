@@ -3,15 +3,17 @@
 A 2D life sim game (Stardew Valley-like) built with Godot 4.7 (.NET build) and C#.
 Premise: a small New England town, hidden from every map, where buying property binds
 you to the town under a malevolent force — cozy town sim (farming, mining, fishing)
-layered under a supernatural endgame. `docs/design.md` holds the canon and the roadmap,
-and `docs/story/README.md` is the expanding lore doc (locations, cast, the wrap-around
-roads); check with the user before inventing lore beyond what those two state (most
-names and specialties are deliberately undecided).
+layered under a supernatural endgame. Story content — characters, places, arcs, the
+words — lives in `src/Content` (its CLAUDE.md is the writing contract; every file
+marks CANON / PROPOSED / PLANNED / DEFERRED). `docs/design.md` is VISION and open
+questions only and never describes what the game does. Never invent names or lore
+beyond a file's CANON block without asking Kevin — the town, the malevolence, the
+motel and more are deliberately unnamed.
 
 Context is split into directory-scoped CLAUDE.md files: this file keeps only what is
-project-wide, and each directory below documents its own contracts. The architecture
-specs (docs/*-spec.md) and the cross-cutting code rules are in `src/CLAUDE.md`; the
-art contract (six binding handoffs) is in `docs/designs/CLAUDE.md`.
+project-wide, and each directory below documents its own contracts. The cross-cutting
+code rules are in `src/CLAUDE.md`; the art contract (six binding handoffs) is in
+`docs/designs/CLAUDE.md`.
 
 ## Toolchain
 
@@ -43,7 +45,9 @@ art contract (six binding handoffs) is in `docs/designs/CLAUDE.md`.
 Each directory's CLAUDE.md carries its contracts — read it before working there.
 
 - `src/Core/` — PURE C# model layer (no `using Godot`, test-enforced): time, save
-  data + migrations, item/crop/npc/dialogue defs, rules, overnight sim
+  data + migrations, item/crop catalogs, engine rules, overnight sim
+- `src/Content/` — PURE C# story layer (depends on Core only, test-enforced): one
+  file per character/place/arc — schedules, dialogue, selectors, quests, letters
 - `src/Systems/` — the four autoloads: GameState, Clock, SaveService, WorldSim (the
   single gameplay-mutation bus)
 - `src/World/` — maps and views (all programmatic), the art layer, signage, recipes

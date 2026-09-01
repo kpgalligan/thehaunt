@@ -35,7 +35,7 @@ public static class StoryKeys
     // letter is also what starts the first-crops quest (QuestDefs).
     public const string FarewellRead = "mail.farewell.read";
 
-    // The west-entry repair garage (docs/story/README.md §West entry): the deed,
+    // The west-entry repair garage (canon — Kevin, 2026-08-26): the deed,
     // stamped by WorldSim.BuyGarage when Jane buys the place out of the sale
     // session. Ownership is this one monotone flag, and the operation layer
     // (2026-08-30) hangs off it: the deed-locked shop door, Mike's schedule, the

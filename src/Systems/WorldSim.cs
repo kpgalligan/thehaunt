@@ -330,7 +330,7 @@ public partial class WorldSim : Node
 
     /// <summary>
     /// Moves the WHOLE stack in <paramref name="inventorySlot"/> into the storage,
-    /// partial-on-overflow. Loss/dupe-proof ordering (spec §1.5): the source slot is
+    /// partial-on-overflow. Loss/dupe-proof ordering (contract-pinned): the source slot is
     /// vacated BEFORE the add, and the remainder (if any) goes back into that
     /// just-vacated slot — it cannot collide with the add. Phase-free model op like
     /// <see cref="DepositSelectedToBin"/>; the UI owns gating. False = nothing moved
@@ -602,7 +602,7 @@ public partial class WorldSim : Node
         }
     }
 
-    // Finish sequence (spec §3.5), in order: flags land through SetStoryFlag (repaint +
+    // Finish sequence, in contractual order: flags land through SetStoryFlag (repaint +
     // NPC resync + StoryFlagSet per new flag), the session dies, the phase restores iff
     // this bus took it, THEN listeners hear the def id — so DialogueFinished handlers
     // always observe the post-dialogue world.
@@ -803,7 +803,7 @@ public partial class WorldSim : Node
 
     /// <summary>
     /// Buys <paramref name="count"/> of <paramref name="itemId"/> from the open shop's
-    /// catalog, all-or-nothing. Integrity ordering (spec §3.2): every check lands
+    /// catalog, all-or-nothing. Integrity ordering (contract-pinned): every check lands
     /// strictly BEFORE any mutation — a failed buy touches neither money nor inventory
     /// and fires no events. On Ok: MoneyChanged THEN InventoryChanged.
     /// </summary>
@@ -1029,7 +1029,7 @@ public partial class WorldSim : Node
         _pendingReport = OvernightSim.Run(SaveService.Instance.Current, endedDay.DayIndex);
     }
 
-    // Committed ordering (spec §1.4, risk R3): 1 dawn flags, 2 repaint, 3 UI events,
+    // Committed ordering (design-review risk R3): 1 dawn flags, 2 repaint, 3 UI events,
     // 4 NPC sync, 5 StoryFlagSet — all before Main's autosave. Violating it is a bug.
     private void OnDayStarted(GameTime newDay)
     {

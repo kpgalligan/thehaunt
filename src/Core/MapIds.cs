@@ -10,7 +10,7 @@ public static class MapIds
     public const string Barn = "barn";
 
     // The road frames, west to east: west_entry, billies, fork, town, east_fork,
-    // east_entry (docs/story/README.md). The fork also runs north to the farm; the
+    // east_entry (src/Content/Places). The fork also runs north to the farm; the
     // two entry maps' outward mouths wire through RoadWrap.
     public const string WestEntry = "west_entry";
     public const string Billies = "billies";
@@ -18,7 +18,7 @@ public static class MapIds
     public const string EastFork = "east_fork";
     public const string EastEntry = "east_entry";
 
-    // The road strip's interiors (docs/story/cast.md): the motel lobby and the gas
+    // The road strip's interiors (src/Content/Characters): the motel lobby and the gas
     // station shop on the west entry, the bar room behind Billie's, and Sam's salon
     // on the east entry.
     public const string Motel = "motel";
@@ -35,7 +35,7 @@ public static class MapIds
     public const string MotelRoom4 = "motel_room_4";
 
     // The dead drive-in theater, off the road south of the east fork
-    // (docs/story/README.md). Jane's long-running refurbishment goal lives here later.
+    // (src/Content/Places). Jane's long-running refurbishment goal lives here later.
     public const string DriveIn = "drive_in";
 
     // The repair garage's shop floor (Kevin's 2026-08-30 garage-operation

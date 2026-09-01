@@ -228,6 +228,17 @@ nora:{slim:1, hair:{base:P.earthMid,light:P.earthLight,style:'long'},
   shirt:{base:P.greenPale,light:'#a2c477',shade:P.greenMid},
   pants:{base:P.waterMid,light:'#5f8fa3',shade:P.waterDeep}, shoes:P.cream},
 
+// Shelly, the drive-in's owner (Kevin's 2026-09-01 drive-in commission; the name is
+// Kevin's). 63, retired clinic nurse; summers in a chair by the benches, reading.
+// Grey bun (no glasses — Harriet owns bun+glasses), soft blue blouse under a pale
+// cardigan, khakis: comfortable sitting-out clothes, nothing ragged — she is not
+// poor, she is stuck. Appended as cast_east block 2 (append-only; existing block
+// order is fixed by the README).
+shelly:{slim:1, hair:{base:P.stoneLight,light:P.bone,style:'bun'},
+  shirt:{base:P.waterMid,light:'#5f8fa3',shade:P.waterDeep},
+  over:{base:P.stonePale,light:P.cream,shade:P.stoneShade},
+  pants:{base:P.earthLight,light:'#bfa07a',shade:P.earthMid}, shoes:P.earthDark},
+
 sam:{slim:1, hair:{base:P.ink7,light:P.ink5,style:'crop'},
   shirt:{base:P.cream,light:'#ffffff',shade:P.stonePale},
   smock:{base:P.stoneShade,light:P.stoneBase,shade:P.stoneDark},
@@ -258,7 +269,7 @@ shopkeeper:{hair:{base:P.stoneShade,light:P.stoneLight,style:'thin'},
 const groups={
   cast_west:['walt','dennis','gloria','pell','mike'],
   cast_billies:['billie','bud','pete','moody','lyle','harriet','ray','nora'],
-  cast_east:['sam','abe'],
+  cast_east:['sam','abe','shelly'],
   cast_town:['mayor','foreman','crew_worker_a','crew_worker_b','shopkeeper'],
 };
 await saveFile('art/character.png', sheet(C.jane));

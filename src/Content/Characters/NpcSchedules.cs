@@ -25,6 +25,10 @@ public static class NpcSchedules
             {
                 continue;
             }
+            if (entry.InSeason is { } season && now.Season != season)
+            {
+                continue;
+            }
             if (minute < entry.StartMinuteOfDay || minute >= entry.EndMinuteOfDay)
             {
                 continue;

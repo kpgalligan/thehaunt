@@ -5,7 +5,7 @@ namespace TheHaunt.World;
 
 /// <summary>
 /// The drive-in theater, 30x24 tiles, off the south side of the road in the east
-/// fork's frame (docs/story/README.md): the screen tower at the far end, a cracked
+/// fork's frame (src/Content/Places): the screen tower at the far end, a cracked
 /// asphalt field ramped for cars, speaker posts with their cables perished, a bench
 /// row for people who came without cars, and the boarded concession stand. It shut
 /// down years ago and nothing here works; Jane's long-running goal of refurbishing

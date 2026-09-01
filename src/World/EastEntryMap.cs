@@ -5,7 +5,7 @@ namespace TheHaunt.World;
 
 /// <summary>
 /// The east entry, 48x30 tiles: the police station and the hardware store north of
-/// the road, the hair salon across it (docs/story/README.md). The hardware store
+/// the road, the hair salon across it (src/Content/Places). The hardware store
 /// starts closed — its owner is in the hospital, though the sign says only that it
 /// is closed. The
 /// east mouth is the other road out of town, and for a resident it wraps to the west

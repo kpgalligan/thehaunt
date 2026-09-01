@@ -27,8 +27,9 @@ flow through `WorldSim.SetStoryFlag` and the dialogue's terminal SetsFlag.
   flow stamps `intro.overslept` and swaps the map behind the sleep fade, BEFORE the
   morning autosave, and the overslept beat (narration line, then the shared meeting
   nodes) fires off the director's normal deferred check. The flag also holds the
-  mayor at the podium around the clock (NpcSchedules), so the dawn meeting is never
-  castless. This supersedes phase3-spec's "missed-meeting recovery is free" line —
+  mayor at the podium around the clock (the schedule table in Content's Mayor.cs),
+  so the dawn meeting is never castless. This supersedes the original phase-3
+  design's "missed-meeting recovery is free" line —
   the recovery is now scripted, not passive.
 - Any Main-booting test that plants and sleeps must pre-stamp the intro completion
   flags (crew_arrival_done, meeting_done) or drive the dialogue — otherwise the crew

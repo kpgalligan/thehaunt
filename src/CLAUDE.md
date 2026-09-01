@@ -1,11 +1,10 @@
 # src/ — cross-cutting code rules
 
-Read the architecture contracts before touching Core/Systems code — public signatures
-and semantics are specified there: `docs/foundation-spec.md` (clock/save/state base),
-`docs/phase2-spec.md` (items/inventory, farming, stamina, economy), `docs/phase3-spec.md`
-(story flags, maps/travel, dialogue, NPCs, scripted intro), and `docs/phase3b-spec.md`
-(storage/chest + save v4, general store + buy flow, overnight report, Menu phase, help
-panel). The art contract is `docs/designs/` — see `docs/designs/CLAUDE.md`.
+The contracts live WITH the code: each directory's CLAUDE.md carries its layer's
+rules, the tests pin the semantics, and story content is `src/Content` (its CLAUDE.md
+is the writing contract). The dated phase specs that once planned these layers were
+deleted on 2026-09-01 (Kevin's D12 — a stale plan reads as authority; git history
+keeps them). The art contract is `docs/designs/` — see `docs/designs/CLAUDE.md`.
 
 `src/Main.cs` + `scenes/Main.tscn` are the composition root: boot, map loading, and the
 sleep + travel flows. Each subdirectory carries its own CLAUDE.md with its local rules.

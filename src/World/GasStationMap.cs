@@ -6,7 +6,7 @@ namespace TheHaunt.World;
 /// <summary>
 /// The gas station shop, 12x9 tiles: a stone floor, two shelf aisles of food and
 /// sundries, a stack of crates that never gets unpacked, and the counter in the
-/// east corner where Dennis serves out his sentence (docs/story/cast.md). One shelf
+/// east corner where Dennis serves out his sentence (src/Content/Characters). One shelf
 /// on the back wall is empty — restock day is whenever the truck feels like it.
 /// Nothing here sells anything yet; the catalog comes with the economy pass.
 ///

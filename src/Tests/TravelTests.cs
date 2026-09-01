@@ -8,7 +8,7 @@ namespace TheHaunt.Tests;
 
 public static class TravelTests
 {
-    // Documented spawn roster per map (phase3-spec §2.6 + phase3b-spec §4) — each
+    // Documented spawn roster per map (the shipped maps' contract) — each
     // must resolve to a real Marker2D, never the camera-center fallback.
     private static readonly Dictionary<string, string[]> DocumentedSpawns = new()
     {

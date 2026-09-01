@@ -3,7 +3,10 @@ using TheHaunt.Core;
 namespace TheHaunt.Content;
 
 /// <summary>
-/// The barn's repair state as the art draws it: 0 derelict, 1 weathertight, 2 restored
+/// The barn came with the farm and is falling down — run down and empty (canon,
+/// Kevin 2026-08-26), holding only the chest with the previous owner's starter kit.
+///
+/// Its repair state as the art draws it: 0 derelict, 1 weathertight, 2 restored
 /// (farm/interiors handoff §4). Three states, not a percentage — a completion slider
 /// would need art for every value in between, and three clean reads is what was drawn.
 ///

@@ -1,7 +1,7 @@
 namespace TheHaunt.Core;
 
 /// <summary>
-/// The town's primary secret, as geometry (docs/story/README.md): a resident who keeps
+/// The town's primary secret, as geometry (docs/design.md §Premise): a resident who keeps
 /// driving out past the west entry arrives rolling in from the east, and one who leaves
 /// east arrives from the west. The two outermost frames wire their outward road mouths
 /// through this table so the pair cannot drift apart. Leaving town is never gated — the

@@ -7,7 +7,7 @@ using TheHaunt.World;
 namespace TheHaunt.Tests;
 
 /// <summary>
-/// The road strip (docs/story/README.md) — west_entry, billies, fork, town, east_fork,
+/// The road strip (src/Content/Places) — west_entry, billies, fork, town, east_fork,
 /// east_entry, with the farm hanging off the fork's north road — and the town's primary
 /// secret: walking out past either entry wraps to the other side. The graph test walks
 /// every exit and door on every map and proves its destination spawn is a real marker,
