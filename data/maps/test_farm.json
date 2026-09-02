@@ -6,13 +6,13 @@
     {"kind": "mailbox", "id": "mailbox", "x": 6, "y": 8},
     {"kind": "spawn", "id": "house_door", "x": 7, "y": 8},
     {"kind": "shipping_bin", "id": "bin", "x": 10, "y": 8},
-    {"kind": "sign", "id": "Sign", "x": 12, "y": 8, "text": "Placeholder sign. Real text comes later."},
+    {"kind": "sign", "id": "Sign", "x": 12, "y": 8},
     {"kind": "door", "id": "barn", "x": 27, "y": 9, "spawn": "entry"},
     {"kind": "spawn", "id": "barn_door", "x": 27, "y": 10},
     {"kind": "spawn", "id": "default", "x": 20, "y": 15},
     {"kind": "spawn", "id": "road", "x": 36, "y": 24},
     {"kind": "scatter", "id": "log", "x": 17, "y": 25},
-    {"kind": "sign", "id": "BlockadeSign", "x": 35, "y": 26, "text": "The storm brought half the hillside down. No getting through today."},
+    {"kind": "sign", "id": "BlockadeSign", "x": 35, "y": 26},
     {"kind": "exit", "id": "fork", "x": 36, "y": 28, "h": 1, "spawn": "from_farm", "w": 2}
   ]
 }

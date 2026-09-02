@@ -15,4 +15,10 @@ namespace TheHaunt.Content;
 public static class EastEntry
 {
     public const string MapId = MapIds.EastEntry;
+
+    // [KEVIN] placeholder copy — canon restatement only, no names. The hardware
+    // sign says only that it is closed; the hospital stay goes unmentioned.
+    public const string PoliceSignText = "Police.";
+    public const string HardwareSignText = "Hardware. Closed until further notice.";
+    public const string SalonSignText = "Salon.";
 }

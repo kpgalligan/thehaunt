@@ -117,6 +117,17 @@ public static class ContentTests
                     $"letter '{letter.Id}' mentions Sam and uses a pronoun");
             }
         }
+        foreach (Type place in Places.All)
+        {
+            foreach ((string name, string value) in Places.CopyOf(place))
+            {
+                if (value.Contains("Sam", StringComparison.Ordinal))
+                {
+                    t.Assert(!pronoun.IsMatch(value),
+                        $"{place.Name}.{name} mentions Sam and uses a pronoun");
+                }
+            }
+        }
         t.Assert(checkedLines > 50, $"the sweep actually read the copy ({checkedLines} lines)");
     }
 
@@ -170,6 +181,69 @@ public static class ContentTests
         {
             t.Assert(!id.StartsWith(DriveInArc.IdPrefix, StringComparison.Ordinal),
                 $"letter '{id}' ships under the planned arc's prefix");
+        }
+    }
+
+    // Place copy — sign boards (...Text) and locked-handle lines (...Line) — lives
+    // on the place classes and is enumerable (Places.CopyOf), so the maps can only
+    // reference it and the dump can only print it; this pins that it is all real.
+    [SimTest]
+    public static void Content_PlaceCopyIsPresentAndClean(TestContext t)
+    {
+        int total = 0;
+        foreach (Type place in Places.All)
+        {
+            foreach ((string name, string value) in Places.CopyOf(place))
+            {
+                total++;
+                t.Assert(value.Trim().Length > 0, $"{place.Name}.{name} has copy");
+                t.AssertEqual(value.Trim(), value, $"{place.Name}.{name} carries no stray whitespace");
+            }
+        }
+        t.Assert(total >= 15, $"the sweep found the copy ({total} strings)");
+
+        // The farm's recipe-driven signs resolve here by placement id; unknown ids
+        // fall back to the recipe's own text (an editor board not yet promoted).
+        t.AssertEqual(Farm.YardSignText, Farm.SignTextFor("Sign")!, "farm yard sign resolves");
+        t.AssertEqual(Farm.BlockadeSignText, Farm.SignTextFor("BlockadeSign")!, "blockade sign resolves");
+        t.Assert(Farm.SignTextFor("editor_added_board") == null, "unknown ids stay the recipe's");
+    }
+
+    // The dump is the generated review view: it must actually carry the world —
+    // every character, every dialogue id, every piece of place copy, every quest
+    // and letter — or a reviewer trusts an incomplete picture.
+    [SimTest]
+    public static void Content_DumpRendersEverything(TestContext t)
+    {
+        string dump = ContentDump.Render();
+        t.Assert(dump.Length > 4000, $"the dump has substance ({dump.Length} chars)");
+        foreach (CharacterDef c in Characters.All)
+        {
+            t.Assert(dump.Contains($"`{c.Npc.Id}`", StringComparison.Ordinal),
+                $"dump names '{c.Npc.Id}'");
+        }
+        foreach (string id in DialogueDefs.All.Keys)
+        {
+            t.Assert(dump.Contains($"`{id}`", StringComparison.Ordinal),
+                $"dump carries dialogue '{id}'");
+        }
+        foreach (Type place in Places.All)
+        {
+            foreach ((string name, string value) in Places.CopyOf(place))
+            {
+                t.Assert(dump.Contains(value, StringComparison.Ordinal),
+                    $"dump carries {place.Name}.{name}");
+            }
+        }
+        foreach (QuestDef quest in QuestDefs.All.Values)
+        {
+            t.Assert(dump.Contains(quest.Title, StringComparison.Ordinal),
+                $"dump carries quest '{quest.Id}'");
+        }
+        foreach (LetterDef letter in LetterDefs.All.Values)
+        {
+            t.Assert(dump.Contains(letter.Title, StringComparison.Ordinal),
+                $"dump carries letter '{letter.Id}'");
         }
     }
 

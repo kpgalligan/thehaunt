@@ -1,4 +1,5 @@
 using Godot;
+using TheHaunt.Content;
 using TheHaunt.Core;
 using TheHaunt.Systems;
 using TheHaunt.World;
@@ -77,8 +78,11 @@ public static class MapSeedTests
             {
                 var post = map.GetNodeOrNull<Sign>($"Interactables/{sign.Id}");
                 t.Assert(post != null, $"sign '{sign.Id}' is in the scene under its own name");
-                t.AssertEqual(sign.Text(PlacementFields.Text), post!.Message,
-                    $"sign '{sign.Id}' carries the copy the file gives it");
+                // Promoted copy lives with the place (Farm.SignTextFor); the recipe's
+                // text field is only the editor's scratch for an unpromoted board.
+                t.AssertEqual(Farm.SignTextFor(sign.Id) ?? sign.Text(PlacementFields.Text),
+                    post!.Message,
+                    $"sign '{sign.Id}' carries the place's copy (or the file's, unpromoted)");
             }
 
             var doors = new List<Door>();

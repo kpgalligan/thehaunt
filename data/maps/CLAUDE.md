@@ -35,9 +35,10 @@ graphical editor is the Haunt Mapper (`scenes/editor/MapStage.tscn` +
   exits, signs, furniture and the interactables.
 - Field keys are `PlacementFields` constants, never literals: a mistyped key is not an
   error, it is an unknown field that round-trips perfectly and is silently ignored by
-  the builder — the worst possible failure. A sign's `text` field is [KEVIN]-provisional
-  (sign copy will move into the owning place's file under src/Content/Places when a
-  copy pass lands — docs/content-spec plan §9).
+  the builder — the worst possible failure. A sign's `text` field is the EDITOR'S
+  scratch channel only: a promoted sign resolves its words from the owning place's
+  file (src/Content/Places — `Farm.SignTextFor`, by placement id), which wins over
+  the field; a freshly dragged board carries its text here until it is promoted.
 - Seeding: `MapRecipeSeeds` exports a map's first recipe from its C# placement literals
   (fidelity by construction — never transcribe coordinates by hand). Once a map is
   seeded, its file is the map; the seed lives on as the missing-file fallback, and

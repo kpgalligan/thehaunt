@@ -1,4 +1,5 @@
 using Godot;
+using TheHaunt.Content;
 using TheHaunt.Core;
 
 namespace TheHaunt.World;
@@ -153,13 +154,13 @@ public partial class DriveInMap : ExteriorMap
 
     private void BuildInteractables()
     {
-        // [KEVIN] placeholder copy: the marquee reads exactly what is drawn on it.
+        // Copy lives with the place (src/Content/Places/DriveIn.cs).
         AddChild(new Sign
         {
             Name = "MarqueeRead",
             DrawPlaceholder = false,
             Position = new Vector2(Marquee.X * TileSize + 8, Marquee.Y * TileSize + 8),
-            Message = "The letter board spells CLO ED. It has for years.",
+            Message = DriveIn.MarqueeReadText,
         });
     }
 

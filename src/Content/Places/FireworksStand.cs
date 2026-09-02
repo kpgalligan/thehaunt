@@ -13,4 +13,7 @@ namespace TheHaunt.Content;
 public static class FireworksStand
 {
     public const string MapId = MapIds.WestEntry;   // the stand shares the west entry frame
+
+    // [KEVIN] placeholder copy — canon restatement only, no names.
+    public const string RoadSignText = "Fireworks.";
 }

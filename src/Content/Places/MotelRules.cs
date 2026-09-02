@@ -21,6 +21,13 @@ public static class MotelRules
 {
     public const int Rooms = 4;
 
+    // [KEVIN] placeholder copy — the pole sign's read restates only what is drawn;
+    // the locked-handle lines answer the guest-room doors (room 3 is Pell's — the
+    // radio is the court's one look-twice tell, and it never explains itself).
+    public const string PoleSignReadText = "MOTEL. Under it, a blank nameplate. NO VACANCY — the NO is dark.";
+    public const string RoomLockedLine = "Locked.";
+    public const string Room3LockedLine = "Locked. A radio plays low inside.";
+
     public static string RoomFlag(int room) => room switch
     {
         1 => StoryKeys.MotelRoom1Open,

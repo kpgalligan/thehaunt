@@ -166,17 +166,17 @@ public partial class EastForkMap : ExteriorMap
         {
             Name = "MansionChainSign",
             Position = new Vector2(18 * TileSize + 8, (ChainRow + 1) * TileSize + 8),
-            Message = "KEEP OUT.",
+            Message = EastFork.MansionChainSignText,
         });
 
-        // The theater chain's board — canon words (the drive-in doc): private
-        // property, closed. Present only while the chain is up; its copy is only
-        // true then (the farm blockade sign's rule). [KEVIN]
+        // The theater chain's board — present only while the chain is up; its copy
+        // is only true then (the farm blockade sign's rule). Words with the place
+        // (src/Content/Places/EastFork.cs).
         _theaterChainSign = new Sign
         {
             Name = "TheaterChainSign",
             Position = new Vector2(32 * TileSize + 8, 26 * TileSize + 8),
-            Message = "PRIVATE PROPERTY. CLOSED.",
+            Message = EastFork.TheaterChainSignText,
         };
         AddChild(_theaterChainSign);
     }

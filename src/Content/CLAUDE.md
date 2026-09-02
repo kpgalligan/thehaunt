@@ -61,6 +61,19 @@ execution; the artifact copy holds the plan and Kevin's twelve decisions).
 - **Content tests are the sync mechanism** (src/Tests/ContentTests.cs +
   Dialogue_DefsValidate + the staging tests). A canon writing rule that can be
   checked is checked.
+- **Place copy lives on the place class** as public const strings — `...Text` for
+  boards the player reads, `...Line` for what a handle or fixture answers. Maps
+  reference the consts (compile-checked); the farm's recipe-driven signs resolve by
+  placement id through `Farm.SignTextFor` (the recipe's `text` field survives only
+  as the editor's scratch for boards not yet promoted). `Places.All` +
+  `Places.CopyOf` enumerate every string for the tests and the dump — a new const
+  needs no registration.
+- **The review view is GENERATED, never maintained**: `ContentDump.Render()` prints
+  the whole layer — characters, schedules, sampled talk tables, places and copy,
+  quests, letters, flags, every dialogue line. Run
+  `godot-mono --headless --path . -- --dump-content /tmp/content.md`, read it,
+  throw it away; committing or editing the output would be the parallel-prose
+  problem again (Content_DumpRendersEverything pins its completeness).
 
 ## Writing rules (Act I — binding)
 

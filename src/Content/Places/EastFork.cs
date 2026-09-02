@@ -15,4 +15,10 @@ namespace TheHaunt.Content;
 public static class EastFork
 {
     public const string MapId = MapIds.EastFork;
+
+    // [KEVIN] placeholder copy. The mansion chain admits nothing about the mansion,
+    // not even that anyone owns it; the theater board carries the drive-in doc's
+    // canon words and stands only while the chain is up (its copy is only true then).
+    public const string MansionChainSignText = "KEEP OUT.";
+    public const string TheaterChainSignText = "PRIVATE PROPERTY. CLOSED.";
 }

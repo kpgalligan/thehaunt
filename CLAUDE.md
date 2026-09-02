@@ -36,6 +36,10 @@ code rules are in `src/CLAUDE.md`; the art contract (six binding handoffs) is in
   boot, for capturing the riding sprite;
   `--work-tool <itemId>` selects that tool and holds use_tool from boot, for capturing
   the work loop — boot physics catch-up outruns the frame count, so expect mid-loop)
+- Content dump (the generated "read the world" review doc — characters, schedules,
+  sampled talk tables, places + copy, quests, letters, flags, every dialogue line):
+  `godot-mono --headless --path . -- --dump-content /tmp/content.md`
+  (output is GENERATED: read it, throw it away, never commit it)
 - Edit a map graphically: `godot-mono --path . --editor` — full workflow in
   `src/EditorTools/CLAUDE.md` (Save in the Haunt Mapper dock; Ctrl+S saves the SCENE,
   not the map)

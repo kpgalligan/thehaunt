@@ -22,4 +22,19 @@ namespace TheHaunt.Content;
 public static class Farm
 {
     public const string MapId = MapIds.Farm;
+
+    // [KEVIN] placeholder copy. The recipe (data/maps/test_farm.json) holds the sign
+    // PLACEMENTS; the words live here and are resolved by placement id at build time
+    // (the promotion PlacementFields.Text always promised).
+    public const string YardSignText = "Placeholder sign. Real text comes later.";
+    public const string BlockadeSignText = "The storm brought half the hillside down. No getting through today.";
+
+    /// <summary>Copy for the farm's recipe-driven signs, by placement id. Null = an
+    /// unpromoted sign (an editor-added board still carrying its own recipe text).</summary>
+    public static string? SignTextFor(string placementId) => placementId switch
+    {
+        "Sign" => YardSignText,
+        "BlockadeSign" => BlockadeSignText,
+        _ => null,
+    };
 }

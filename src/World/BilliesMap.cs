@@ -1,4 +1,5 @@
 using Godot;
+using TheHaunt.Content;
 using TheHaunt.Core;
 
 namespace TheHaunt.World;
@@ -133,19 +134,18 @@ public partial class BilliesMap : ExteriorMap
 
     private void BuildInteractables()
     {
-        // The bar is NAMED in canon — Billie's is Billie's. The pit sign restates the
-        // one thing anyone will say about it. [KEVIN] placeholder copy on both.
+        // Copy lives with the place (src/Content/Places/Billies.cs).
         AddChild(new Sign
         {
             Name = "BarSign",
             Position = new Vector2(15 * TileSize + 8, 12 * TileSize + 8),
-            Message = "Billie's.",
+            Message = Billies.BarSignText,
         });
         AddChild(new Sign
         {
             Name = "PitSign",
             Position = new Vector2(24 * TileSize + 8, ChainRow * TileSize + 8),
-            Message = "DANGER. KEEP OUT.",
+            Message = Billies.PitSignText,
         });
     }
 

@@ -15,4 +15,7 @@ namespace TheHaunt.Content;
 public static class GasStation
 {
     public const int OpenMinute = 60, CloseMinute = 1140;   // 7:00 AM - 1:00 AM
+
+    // [KEVIN] placeholder copy — canon restatement only, no names.
+    public const string RoadSignText = "Gas.";
 }

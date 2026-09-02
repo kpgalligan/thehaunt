@@ -303,15 +303,14 @@ public partial class WestEntryMap : ExteriorMap
     private void BuildInteractables()
     {
         // The pole sign's read area rides its foot tile; the art draws it, the node
-        // answers for it. [KEVIN] placeholder copy — restates only what is drawn.
+        // answers for it. Copy lives with the places (src/Content/Places).
         AddChild(new Sign
         {
             Name = "MotelSignRead",
             DrawPlaceholder = false,
             Position = new Vector2(SignFoot.X * TileSize + 8, SignFoot.Y * TileSize + 8),
-            Message = "MOTEL. Under it, a blank nameplate. NO VACANCY — the NO is dark.",
+            Message = MotelRules.PoleSignReadText,
         });
-        // [KEVIN] placeholder copy on both — canon restatement only, no names.
         AddChild(new Sign
         {
             Name = "GasSign",
@@ -319,13 +318,13 @@ public partial class WestEntryMap : ExteriorMap
             // inside its drawn face and Y-sorts invisible. East of the doorway so the
             // door approach stays clear.
             Position = new Vector2(28 * TileSize + 8, 21 * TileSize + 8),
-            Message = "Gas.",
+            Message = GasStation.RoadSignText,
         });
         AddChild(new Sign
         {
             Name = "FireworksSign",
             Position = new Vector2(36 * TileSize + 8, 12 * TileSize + 8),
-            Message = "Fireworks.",
+            Message = FireworksStand.RoadSignText,
         });
         // The garage's FOR SALE board — south of the footprint for the same Y-sort
         // reason as the gas sign, east of the drawn doorway. A press opens the sale
@@ -363,9 +362,9 @@ public partial class WestEntryMap : ExteriorMap
                 TargetMapId = MapIds.MotelRoom(room),
                 TargetSpawnId = "entry",
                 RequiredFlag = MotelRules.RoomFlag(room),
-                // [KEVIN] locked-handle lines. Room 3 is Pell's — the radio is the
-                // court's one look-twice tell, and it never explains itself.
-                LockedMessage = room == 3 ? "Locked. A radio plays low inside." : "Locked.",
+                // Locked-handle lines live with the motel (src/Content/Places/
+                // MotelRules.cs). Room 3 is Pell's — the radio never explains itself.
+                LockedMessage = room == 3 ? MotelRules.Room3LockedLine : MotelRules.RoomLockedLine,
                 DrawPlaceholder = false,
                 Position = new Vector2(RoomDoorX[room - 1] * TileSize + 8, DoorRow * TileSize + 8),
             });
@@ -388,7 +387,7 @@ public partial class WestEntryMap : ExteriorMap
             TargetMapId = MapIds.GarageInterior,
             TargetSpawnId = "entry",
             RequiredFlag = StoryKeys.GarageDeed,
-            LockedMessage = "Closed.",   // [KEVIN] locked-handle line
+            LockedMessage = Garage.DoorLockedLine,   // copy with the place (Places/Garage.cs)
             DrawPlaceholder = false,
             Position = new Vector2(GarageDoorX * TileSize + 8, GarageBottom * TileSize + 8),
         });

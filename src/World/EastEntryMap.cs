@@ -1,4 +1,5 @@
 using Godot;
+using TheHaunt.Content;
 using TheHaunt.Core;
 
 namespace TheHaunt.World;
@@ -147,18 +148,18 @@ public partial class EastEntryMap : ExteriorMap
 
     private void BuildInteractables()
     {
-        // [KEVIN] placeholder copy on all three — canon restatement only, no names.
+        // Copy lives with the place (src/Content/Places/EastEntry.cs).
         AddChild(new Sign
         {
             Name = "PoliceSign",
             Position = new Vector2(10 * TileSize + 8, 12 * TileSize + 8),
-            Message = "Police.",
+            Message = EastEntry.PoliceSignText,
         });
         AddChild(new Sign
         {
             Name = "HardwareSign",
             Position = new Vector2(23 * TileSize + 8, 12 * TileSize + 8),
-            Message = "Hardware. Closed until further notice.",
+            Message = EastEntry.HardwareSignText,
         });
         AddChild(new Sign
         {
@@ -167,7 +168,7 @@ public partial class EastEntryMap : ExteriorMap
             // inside its drawn face and Y-sorts invisible. West of the doorway so the
             // door approach stays clear.
             Position = new Vector2(32 * TileSize + 8, 21 * TileSize + 8),
-            Message = "Salon.",
+            Message = EastEntry.SalonSignText,
         });
     }
 

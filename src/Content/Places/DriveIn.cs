@@ -19,6 +19,9 @@ public static class DriveIn
 {
     public const int OpenMinute = 180, CloseMinute = 720;   // 9:00 AM - 6:00 PM
 
+    // [KEVIN] placeholder copy: the marquee reads exactly what is drawn on it.
+    public const string MarqueeReadText = "The letter board spells CLO ED. It has for years.";
+
     /// <summary>True while the entry chain is open: summer, within the open window.
     /// A pure read of the clock — the east fork's barrier, its sign and its south
     /// exit all derive from this one answer.</summary>

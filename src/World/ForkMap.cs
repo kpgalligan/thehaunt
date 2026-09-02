@@ -1,4 +1,5 @@
 using Godot;
+using TheHaunt.Content;
 using TheHaunt.Core;
 
 namespace TheHaunt.World;
@@ -102,19 +103,18 @@ public partial class ForkMap : ExteriorMap
 
     private void BuildInteractables()
     {
-        // [KEVIN] placeholder copy on both — directions restate the map graph, and the
-        // chain's sign says nothing about what is behind it, which is the point.
+        // Copy lives with the place (src/Content/Places/Fork.cs).
         AddChild(new Sign
         {
             Name = "FingerPost",
             Position = new Vector2(22 * TileSize + 8, 13 * TileSize + 8),
-            Message = "North: the farm. East: town. West: the west road.",
+            Message = Fork.FingerPostText,
         });
         AddChild(new Sign
         {
             Name = "SouthChainSign",
             Position = new Vector2(18 * TileSize + 8, (ChainRow - 1) * TileSize + 8),
-            Message = "Road closed.",
+            Message = Fork.SouthChainSignText,
         });
     }
 

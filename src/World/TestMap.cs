@@ -255,13 +255,11 @@ public partial class TestMap : MapRoot
 
         // The Bed moved indoors with the farmhouse (FarmHouseMap); its old tiles
         // (8,8)/(8,9) are plain tillable pasture now.
-        recipe.Add(PlacementKinds.Sign, "Sign", 12, 8)
-            .SetText(PlacementFields.Text, "Placeholder sign. Real text comes later.");
-        // [KEVIN] placeholder copy — canon restatement only. Beside the southbound
-        // leg, one column west of the debris.
-        recipe.Add(PlacementKinds.Sign, BlockadeSignId, 35, 26)
-            .SetText(PlacementFields.Text,
-                "The storm brought half the hillside down. No getting through today.");
+        // The signs' WORDS live with the place (Farm.SignTextFor, by placement id) —
+        // the recipe holds only where each board stands. Beside the southbound leg,
+        // one column west of the debris.
+        recipe.Add(PlacementKinds.Sign, "Sign", 12, 8);
+        recipe.Add(PlacementKinds.Sign, BlockadeSignId, 35, 26);
 
         recipe.Add(PlacementKinds.ShippingBin, FarmBuildings.BinId, 10, 8);
 
@@ -903,7 +901,9 @@ public partial class TestMap : MapRoot
                 // is how anything finds one again.
                 Name = sign.Id,
                 Position = Centre(sign),
-                Message = sign.Text(PlacementFields.Text),
+                // Promoted copy lives with the place; the recipe's text field is
+                // only the editor's scratch for a board not yet promoted.
+                Message = Farm.SignTextFor(sign.Id) ?? sign.Text(PlacementFields.Text),
             };
             interactables.AddChild(post);
             _reservedTiles.Add(sign.Cell);

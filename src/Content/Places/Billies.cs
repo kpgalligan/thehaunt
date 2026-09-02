@@ -20,4 +20,10 @@ namespace TheHaunt.Content;
 public static class Billies
 {
     public const string MapId = MapIds.Billies;
+
+    // [KEVIN] placeholder copy. The bar is NAMED in canon — Billie's is Billie's.
+    // The pit's warning sign restates the one thing anyone will say about it (the
+    // sign may say DANGER; the people never say pit — the writing rule).
+    public const string BarSignText = "Billie's.";
+    public const string PitSignText = "DANGER. KEEP OUT.";
 }

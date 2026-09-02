@@ -269,6 +269,14 @@ public partial class Main : Node2D
             // waiting out the hourly arrival roll. Repeat the flag for a second car.
             if (args[i] == "--garage-job")
                 CallDeferred(nameof(AddGarageJobForScreenshot), args[i + 1]);
+
+            // Dev-only: render the content layer's generated review doc
+            // (ContentDump.Render — characters, schedules, talk tables, places and
+            // their copy, quests, letters, flags, every dialogue line) to the given
+            // path, then quit. The output is GENERATED: read it, throw it away,
+            // never commit it.
+            if (args[i] == "--dump-content")
+                CallDeferred(nameof(DumpContentAndQuit), args[i + 1]);
         }
 
         // Dev-only (flag, no value): mount the scooter after boot so --screenshot can
@@ -281,6 +289,21 @@ public partial class Main : Node2D
     }
 
     private void MountScooterForScreenshot() => WorldSim.Instance.MountScooter();
+
+    // Deferred so the boot has settled; pure render, no model writes, quits after.
+    private void DumpContentAndQuit(string path)
+    {
+        try
+        {
+            File.WriteAllText(path, ContentDump.Render());
+            GD.Print($"Content dump written to {path}");
+        }
+        catch (Exception e)
+        {
+            GD.PushError($"--dump-content failed: {e}");
+        }
+        GetTree().Quit();
+    }
 
     // Deferred so the boot's LoadMap/phase state has fully settled first. In-memory
     // dev seeding only — the real paths are BuyGarage and the hourly roll.
