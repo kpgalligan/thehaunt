@@ -1,4 +1,5 @@
 using Godot;
+using TheHaunt.Content;
 using TheHaunt.Core;
 using TheHaunt.Systems;
 
@@ -14,9 +15,9 @@ namespace TheHaunt.World;
 /// </summary>
 public partial class ShopCounter : Area2D, IInteractable
 {
-    // [KEVIN] "Closed (9-5)" placeholder copy — hours restated from ShopHours.
+    // The closed line lives with the place (src/Content/Places/Town.cs).
     public string PromptText =>
-        ShopHours.IsOpen(Clock.Instance.Now.MinuteOfDay) ? "Shop" : "Closed (9-5)";
+        ShopHours.IsOpen(Clock.Instance.Now.MinuteOfDay) ? "Shop" : Town.CounterClosedLine;
 
     public bool CanInteract(Node2D interactor) =>
         GameState.Instance.PlayerHasControl;

@@ -19,4 +19,10 @@ namespace TheHaunt.Content;
 public static class Town
 {
     public const string MapId = MapIds.Town;
+
+    // [KEVIN] placeholder copy — the general store's board, and what its counter
+    // answers outside hours. The hours restate ShopHours (Core); the store's NAME
+    // is not invented.
+    public const string StoreSignText = "General store. Open 9 to 5.";
+    public const string CounterClosedLine = "Closed (9-5)";
 }

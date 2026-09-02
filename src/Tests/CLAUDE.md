@@ -38,7 +38,9 @@ JSONs for the migration tests.
   private-copy (CacheMode.Ignore) + idempotency contract; MapSeedTests guards recipe
   seeds against their C# literals until a map's file and seed part company on purpose.
 - SourceRulesTests reads the source tree itself, for standing rules nothing else can
-  catch (breaking them compiles and passes every other test): src/Core stays free of
-  `using Godot`, and `Engine.IsEditorHint()`/`[Tool]` stay out of the game layers
+  catch (breaking them compiles and passes every other test): src/Core and
+  src/Content stay free of `using Godot`, src/Core never references Content (the
+  layering is `Systems/World/UI/Story -> Content -> Core`), and
+  `Engine.IsEditorHint()`/`[Tool]` stay out of the game layers
   (src/EditorTools and addons only). Its file counts are asserted non-zero first on
   purpose — a test that silently found zero files would pass forever.

@@ -279,6 +279,14 @@ public partial class Main : Node2D
                 CallDeferred(nameof(DumpContentAndQuit), args[i + 1]);
         }
 
+        // A trailing --dump-content has no path: fail loudly. Ignoring it would boot
+        // a headless run that never quits.
+        if (args.Length > 0 && args[^1] == "--dump-content")
+        {
+            GD.PushError("--dump-content needs an output path, e.g. --dump-content /tmp/content.md");
+            GetTree().Quit(1);
+        }
+
         // Dev-only (flag, no value): mount the scooter after boot so --screenshot can
         // capture the riding sprite. Refused by the bus unless the boot map holds it.
         foreach (string arg in args)
@@ -301,6 +309,8 @@ public partial class Main : Node2D
         catch (Exception e)
         {
             GD.PushError($"--dump-content failed: {e}");
+            GetTree().Quit(1);
+            return;
         }
         GetTree().Quit();
     }

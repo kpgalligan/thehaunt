@@ -21,7 +21,7 @@ The implementation task is to build the motel as a real Godot map in the existin
 
 - Every colour is exact and comes from the locked palette. Every pixel measurement below is exact.
 - The motel does not exist anywhere in the repo — no file mentions it. Map ids, flag names, and tile coordinates below are proposals, named to match existing conventions (`MapIds.Town`, `MapIds.GeneralStore`).
-- The motel's **name is unknown**. The pole sign has a blank nameplate panel with one ruled line where the name goes. It is blank on purpose. `docs/story/README.md` and `docs/story/cast.md` are not on `main`, so the canon name and the full location list were unavailable. Do not invent a name.
+- The motel's **name is unknown**. The pole sign has a blank nameplate panel with one ruled line where the name goes. It is blank on purpose. The story docs were not on `main` when this was drawn, so the canon name and the full location list were unavailable (the motel's canon now lives in `src/Content/Places/MotelRules.cs`, still nameless). Do not invent a name.
 
 ## Screens / Views
 
@@ -356,7 +356,7 @@ Repository context this was built against: `src/World/TownMap.cs` (tile grammar,
 
 ## Open questions for the client
 
-1. **Motel name.** The nameplate is blank. `docs/story/README.md` and `docs/story/cast.md` are not on `main` and no file in the repo mentions a motel.
+1. **Motel name.** The nameplate is blank. The story docs were not on `main` when this was drawn and no file in the repo named the motel (`src/Content/Places/MotelRules.cs` now holds its canon — still nameless).
 2. **Full location list.** Same blocker. The per-location signs (which stores, which bars, the police station's name) are unauthored until those docs are pushed.
 3. **Own map, or part of town?** The mockup assumes the motel is its own 26 × 18 map reached off the road, rather than a district inside the existing 48 × 30 `TownMap`.
 4. **Interiors.** Not drawn. Five are needed: the office, plus four rooms — three can share one shell with swapped furniture, one should differ.

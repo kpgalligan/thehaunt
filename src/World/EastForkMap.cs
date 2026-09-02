@@ -45,6 +45,8 @@ public partial class EastForkMap : ExteriorMap
     // inside at close walks out north of it — never trapped. Woods seal the row
     // either side of the drive's gap.
     private const int TheaterChainRow = 27;
+    // The chain's board (BuildInteractables): its blocker returns with the chain.
+    private const int TheaterChainSignX = 32, TheaterChainSignY = 26;
 
     private TileMapLayer? _obstacles;
     private RoadBarrier? _theaterChain;
@@ -175,7 +177,7 @@ public partial class EastForkMap : ExteriorMap
         _theaterChainSign = new Sign
         {
             Name = "TheaterChainSign",
-            Position = new Vector2(32 * TileSize + 8, 26 * TileSize + 8),
+            Position = new Vector2(TheaterChainSignX * TileSize + 8, TheaterChainSignY * TileSize + 8),
             Message = EastFork.TheaterChainSignText,
         };
         AddChild(_theaterChainSign);
@@ -188,8 +190,10 @@ public partial class EastForkMap : ExteriorMap
         // 2x1, wider than deep, like every north-south mouth: the shape is how
         // GetArrival knows which axis carries an entering player's lane. Gated on
         // the theater chain — belt (the blocked cells) and suspenders (the
-        // disabled exit), the farm blockade's pairing. Only the TOWN-LINE mouths
-        // are never gated; a private drive may be.
+        // disabled exit), the farm blockade's pairing. The gate reads the chain's
+        // ACTUAL state rather than the clock: while a raise is held back (see
+        // _Process) the drive is still open, so the exit must still work. Only
+        // the TOWN-LINE mouths are never gated; a private drive may be.
         var southExit = new MapExit
         {
             Name = "SouthExit",
@@ -197,7 +201,7 @@ public partial class EastForkMap : ExteriorMap
             TargetSpawnId = "from_road",
             Position = new Vector2(TheaterDriveLeft * TileSize, (Height - 2) * TileSize)
                 + new Vector2(2 * TileSize, TileSize) / 2f,
-            IsEnabled = () => DriveIn.ChainDown(Clock.Instance.Now),
+            IsEnabled = () => _chainDown == true,
         };
         southExit.AddChild(new CollisionShape2D
         {
@@ -217,8 +221,28 @@ public partial class EastForkMap : ExteriorMap
         if (_obstacles == null)
             return;
         bool down = DriveIn.ChainDown(Clock.Instance.Now);
-        if (_chainDown != down)
-            RefreshChain(down);
+        if (_chainDown == down)
+            return;
+        // Raising is the one direction that can put a collider on the player, and
+        // nothing else in the game raises collision under someone's feet at runtime
+        // (the farm blockade only clears; the garage bays stay blocked for exactly
+        // this reason). Hold the chain down while the feet box overlaps its cells
+        // or the sign's, and retry next frame; the exit stays open meanwhile.
+        if (!down && PlayerOnChainCells())
+            return;
+        RefreshChain(down);
+    }
+
+    private bool PlayerOnChainCells()
+    {
+        if (GetTree().GetFirstNodeInGroup(PlayerGroup) is not Node2D player)
+            return false;
+        var feet = new Rect2(player.GlobalPosition + PlayerFeetBox.Position, PlayerFeetBox.Size);
+        var chainCells = new Rect2(TheaterDriveLeft * TileSize, TheaterChainRow * TileSize,
+            (TheaterDriveRight - TheaterDriveLeft + 1) * TileSize, TileSize);
+        var signCell = new Rect2(TheaterChainSignX * TileSize, TheaterChainSignY * TileSize,
+            TileSize, TileSize);
+        return feet.Intersects(chainCells.Grow(1)) || feet.Intersects(signCell.Grow(1));
     }
 
     private void RefreshChain(bool down)

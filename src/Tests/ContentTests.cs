@@ -1,3 +1,4 @@
+using System.Reflection;
 using System.Text.RegularExpressions;
 using TheHaunt.Content;
 using TheHaunt.Core;
@@ -6,8 +7,8 @@ namespace TheHaunt.Tests;
 
 /// <summary>
 /// Validation over the content layer — the tests that replaced the lore markdown as
-/// the mechanism keeping "the world" and "the game" the same thing
-/// (docs/content-spec.md §7.2). Pure model reads; no scene tree.
+/// the mechanism keeping "the world" and "the game" the same thing (the rules in
+/// src/Content/CLAUDE.md). Pure model reads; no scene tree.
 /// </summary>
 public static class ContentTests
 {
@@ -85,13 +86,15 @@ public static class ContentTests
         }
     }
 
-    // Canon writing rule (Kevin, 2026-09-01 / D9): the writing uses no pronouns for
-    // Sam, ever. Sam's own lines may speak of others; a line ABOUT Sam may not
-    // gender Sam.
+    // Writing rule (Kevin, 2026-09-01 / D9): the writing uses no pronouns for Sam,
+    // ever. Sam's own lines may speak of others; a line ABOUT Sam may not gender
+    // Sam. A TRIPWIRE, not a proof: only lines that NAME Sam are swept, and today
+    // none does — the pronoun check first fires the day someone writes one.
     [SimTest]
     public static void Content_SamIsNeverGendered(TestContext t)
     {
         var pronoun = new Regex(@"\b(he|she|him|her|his|hers)\b", RegexOptions.IgnoreCase);
+        var namesSam = new Regex(@"\bSam\b");
         int checkedLines = 0;
         foreach (DialogueDef def in DialogueDefs.All.Values)
         {
@@ -100,7 +103,7 @@ public static class ContentTests
                 foreach (DialogueLine line in node.Lines)
                 {
                     checkedLines++;
-                    if (line.SpeakerRole == Sam.Id || !line.Text.Contains("Sam", StringComparison.Ordinal))
+                    if (line.SpeakerRole == Sam.Id || !namesSam.IsMatch(line.Text))
                     {
                         continue;
                     }
@@ -111,7 +114,7 @@ public static class ContentTests
         }
         foreach (LetterDef letter in LetterDefs.All.Values)
         {
-            if (letter.Body.Contains("Sam", StringComparison.Ordinal))
+            if (namesSam.IsMatch(letter.Body))
             {
                 t.Assert(!pronoun.IsMatch(letter.Body),
                     $"letter '{letter.Id}' mentions Sam and uses a pronoun");
@@ -121,7 +124,7 @@ public static class ContentTests
         {
             foreach ((string name, string value) in Places.CopyOf(place))
             {
-                if (value.Contains("Sam", StringComparison.Ordinal))
+                if (namesSam.IsMatch(value))
                 {
                     t.Assert(!pronoun.IsMatch(value),
                         $"{place.Name}.{name} mentions Sam and uses a pronoun");
@@ -166,21 +169,27 @@ public static class ContentTests
         }
     }
 
-    // Planned stubs stay out of the game until they ship (content-spec principle 4):
-    // the drive-in arc reserves its id prefix and registers nothing under it.
+    // Planned stubs stay out of the game until they ship (src/Content/CLAUDE.md:
+    // PLANNED is registered NOWHERE): the drive-in arc reserves its id prefix, and no
+    // quest, letter, dialogue, npc or story flag exists under it.
     [SimTest]
     public static void Content_PlannedStubsAreUnregistered(TestContext t)
     {
-        t.AssertEqual("drive_in.", DriveInArc.IdPrefix, "the arc's reserved prefix");
-        foreach (string id in QuestDefs.All.Keys)
+        var registered = new List<(string Kind, string Id)>();
+        registered.AddRange(QuestDefs.All.Keys.Select(id => ("quest", id)));
+        registered.AddRange(LetterDefs.All.Keys.Select(id => ("letter", id)));
+        registered.AddRange(DialogueDefs.All.Keys.Select(id => ("dialogue", id)));
+        registered.AddRange(NpcDefs.All.Keys.Select(id => ("npc", id)));
+        foreach (FieldInfo field in typeof(StoryKeys).GetFields(BindingFlags.Public | BindingFlags.Static))
         {
-            t.Assert(!id.StartsWith(DriveInArc.IdPrefix, StringComparison.Ordinal),
-                $"quest '{id}' ships under the planned arc's prefix");
+            if (field.IsLiteral && field.GetRawConstantValue() is string flag)
+                registered.Add(("flag", flag));
         }
-        foreach (string id in LetterDefs.All.Keys)
+        t.Assert(registered.Count > 50, $"the sweep read the registries ({registered.Count} ids)");
+        foreach ((string kind, string id) in registered)
         {
             t.Assert(!id.StartsWith(DriveInArc.IdPrefix, StringComparison.Ordinal),
-                $"letter '{id}' ships under the planned arc's prefix");
+                $"{kind} '{id}' ships under the planned arc's prefix");
         }
     }
 

@@ -3,8 +3,8 @@
 The single source of truth for story content. If the game does it, code here (or in
 Core) says it — no markdown describes runtime behaviour, content, numbers, hours,
 prices or state, anywhere in the repo. `docs/design.md` is vision and open questions
-only. This layout shipped 2026-09-01 from `docs/content-spec.md` (deleted after
-execution; the artifact copy holds the plan and Kevin's twelve decisions).
+only. This layout shipped 2026-09-01; the twelve decisions the code cites by
+number (D1–D12) are logged at the bottom of this file.
 
 ## Layering (test-enforced)
 
@@ -89,9 +89,37 @@ execution; the artifact copy holds the plan and Kevin's twelve decisions).
   Billie's curse-fighting past, the farmer's wine (Places/Farm), and Pell is never
   threatened on screen.
 - Sam takes no pronouns, ever — in dialogue, letters, and any line about Sam
-  (test-enforced).
+  (test-guarded: Content_SamIsNeverGendered sweeps every line, letter and sign
+  that names Sam; today none does, so the tripwire fires on the first that will).
 - Deliberately unnamed, waiting on Kevin: the town, the malevolence, the motel
   (blank nameplate), the drive-in's marquee, the general store, the intro cast
   (mayor / foreman / repair workers / shopkeeper — role labels, D3).
 - Dialogue is authored short: a linear def is 2-3 lines; letters fit the mailbox
   panel unscrolled (~15 wrapped lines at font 8).
+
+## Decision log (Kevin, 2026-09-01) — the D-numbers the code cites
+
+The twelve calls that shipped this layout, in Kevin's words (condensed):
+
+- D1 — Jane: farming AND mechanic work. While the family owned the farm her father
+  did a lot of the work on the equipment; after they lost it he was a mechanic
+  full time, and taught Jane what he knew.
+- D2 — the proposed cast names (Walt, Dennis, Gloria, Pell, Pete, Moody, Lyle,
+  Harriet, Ray, Nora; June and Otis inside lines) are accepted as canon.
+- D3 — the intro cast (mayor, foreman, repair workers, shopkeeper) stays
+  role-labelled and unnamed.
+- D4 — the drive-in is CHAINED: build it. Shelly is periodically there, so Jane
+  can learn about it.
+- D5 — the farm's well is dropped; nuance for the farm mechanics comes later.
+- D6 — fireworks, the gas-station shelf and haircuts stay PLANNED; each needs a
+  focused design.
+- D7 — the town centre stays PLANNED; planned items must be easy to track down
+  for later review (`rg PLANNED src/Content`).
+- D8 — `docs/design.md` stays a separate, trimmed vision doc.
+- D9 — both writing rules ship as tests: Sam is never gendered; Act I never names
+  the pit.
+- D10 — Bud's war (Vietnam) stays canon, unnamed in dialogue; there is a lot more
+  to reveal about "Bud" later.
+- D11 — `[KEVIN]` comment markers stay the review queue (no status enum).
+- D12 — planning docs that contradict the code are deleted, not kept: the story
+  is meant to change as we go.

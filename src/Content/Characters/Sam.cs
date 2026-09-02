@@ -5,11 +5,14 @@ namespace TheHaunt.Content;
 /// <summary>
 /// Sam — owns and operates the hair salon on the east entry (canon name, docs
 /// 2026-08-26).
-/// CANON (Kevin): gender unclear — THE WRITING USES NO PRONOUNS FOR SAM, EVER
-/// (test-enforced, Content_SamIsNeverGendered; the art carries the same rule). Sam
-/// only communicates in vaguely poetic statements that MOSTLY rhyme — the lines
-/// that don't rhyme are the ones that land. The player can get their hair styled
-/// there, but nothing much happens early game in the salon.
+/// CANON (Kevin): gender unclear. Sam only communicates in vaguely poetic
+/// statements that MOSTLY rhyme. The player can get their hair styled there, but
+/// nothing much happens early game in the salon.
+/// WRITING RULE (Kevin, 2026-09-01 / D9): THE WRITING USES NO PRONOUNS FOR SAM,
+/// EVER — the art carries the same rule. Content_SamIsNeverGendered is the
+/// tripwire: it sweeps every line, letter and sign that names Sam (none does yet),
+/// never Sam's own lines.
+/// PROPOSED [KEVIN]: the lines that don't rhyme are the ones that land.
 /// PLANNED: the haircut itself needs a focused design (Kevin, 2026-09-01 / D6);
 /// early game Sam is texture.
 /// Look: cast_east block 0 (grey cutting smock — built to refuse the question: no

@@ -56,7 +56,7 @@ Each directory's CLAUDE.md carries its contracts — read it before working ther
   single gameplay-mutation bus)
 - `src/World/` — maps and views (all programmatic), the art layer, signage, recipes
 - `src/Player/` — PlayerController (the one IPersistentSystem) + InteractionProbe
-- `src/Story/` — StoryDirector, the scripted intro beats
+- `src/Story/` — StoryDirector (runs the intro beats defined in `src/Content/Story`)
 - `src/UI/` — the code-built HUD and menu layer
 - `src/Tests/` — headless [SimTest] suite + TestRunner (scenes/tests/TestRunner.tscn)
 - `src/EditorTools/` + `addons/haunt_mapper/` — the in-editor map editor (stage + plugin)

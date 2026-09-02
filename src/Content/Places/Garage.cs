@@ -19,4 +19,11 @@ public static class Garage
     // [KEVIN] locked-handle line — the shut shop door before the deed. A locked
     // handle answers with a line, never silence (the motel-room rule).
     public const string DoorLockedLine = "Closed.";
+
+    // [KEVIN] placeholder copy — what the for-sale board answers once the deed is
+    // stamped (whether it comes down after the sale is staging for later), and
+    // the two lines a lift answers: a finished job, and a press with no stamina.
+    public const string SaleSignSoldLine = "SOLD.";
+    public const string LiftDoneLine = "Done. The owner picks it up tomorrow.";
+    public const string LiftTooTiredLine = "Too tired.";
 }

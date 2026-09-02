@@ -280,7 +280,8 @@ public abstract partial class ExteriorMap : MapRoot
         new() { Name = name, Position = new Vector2(x * TileSize + 8, y * TileSize + 8) };
 
     /// <summary>A walk-on exit covering a road mouth's cells, top-left cell (x, y).
-    /// Always enabled — leaving any frame of this town is never gated.</summary>
+    /// Always enabled — the TOWN-LINE mouths are never gated. A private drive may be
+    /// (EastForkMap builds its chained south exit by hand).</summary>
     protected void AddRoadExit(string name, string targetMapId, string targetSpawnId,
         int x, int y, int widthTiles = 1, int heightTiles = 2)
     {

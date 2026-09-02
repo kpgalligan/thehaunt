@@ -9,9 +9,9 @@ namespace TheHaunt.Content;
 /// rumor — an unreliable information source, some of it useful. Doesn't talk much in
 /// the morning, most insightful from about 2 PM to 5 PM, and from there on mostly
 /// sad about his lost wife and failing business. The motel is where many of the
-/// sacrifices will ultimately come from, when they are strangers — Walt doesn't
-/// know that part is his to host.
-/// PROPOSED [KEVIN] (2026-08-27 commission): his wife June, "lost" eleven years ago
+/// sacrifices will ultimately come from, when they are strangers.
+/// PROPOSED [KEVIN] (2026-08-27 commission): Walt doesn't know that part is his to
+/// host; his wife June, "lost" eleven years ago
 /// — "lost" is all he ever says; he lights two lamps of an evening (the lobby and
 /// the one paying room); the registry is the one thing he keeps precise. Voice:
 /// sandpaper declaratives; the fourth drink makes him accurate before it makes him

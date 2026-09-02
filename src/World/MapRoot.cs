@@ -8,6 +8,15 @@ public partial class MapRoot : Node2D
 {
     public const int TileSize = 16;
 
+    /// <summary>The scene-tree group the player joins, so a map can find the one body
+    /// a raised collider must never land on (EastForkMap's theater chain).</summary>
+    public const string PlayerGroup = "player";
+
+    /// <summary>The player's feet collider, relative to the player's position — what
+    /// stands on a tile. PlayerController builds its shape from this and FeetTile reads
+    /// its centre, so the box is defined once.</summary>
+    public static readonly Rect2 PlayerFeetBox = new(-6, 2, 12, 8);
+
     // 480x270 shows 30x17 tiles — roughly double the apparent size of every character
     // and building against the old 640x360 (art bible §01). Kept in sync with
     // display/window/size in project.godot.

@@ -2,7 +2,7 @@
 
 ## Overview
 
-Twenty character sprite sheets for The Haunt — Jane (the player) plus the fourteen road-strip cast members in `docs/story/cast.md` and the five NPC role ids already in `src/Core/NpcDefs.cs`. They replace the procedural placeholder in `src/World/PlaceholderSprites.cs`.
+Twenty character sprite sheets for The Haunt — Jane (the player) plus the fourteen road-strip cast members and the five NPC role ids, all defined in `src/Content/Characters` (one file per character; `Characters.cs` fixes the order). They replace the procedural placeholder in `src/World/PlaceholderSprites.cs`.
 
 The brief that produced them: the town's *buildings* are stuck in the late 1950s because nothing new has been built there, but the *people* live in the present. The previous placeholder sprites read as period farmhands. These do not — every character wears plain, current, off-a-rack clothing: tees, jeans, ball caps, a zip hoodie, cardigans, a hi-vis vest, work aprons. Plain, not sophisticated. No waistcoats, no long skirts over aprons, no bonnets.
 
@@ -126,7 +126,7 @@ Order in the atlas is the shift order: `billie, bud, pete, moody, lyle, harriet,
 
 ### Town centre — `art/cast_town.png`
 
-The five ids in `src/Core/NpcDefs.cs`, in `All` order. These are phase-3 beat roles, not road-strip cast: they have no names in `cast.md` and none here.
+The five role ids (`src/Content/Characters`: Mayor, Foreman, CrewWorkerA/B, Shopkeeper), in `Characters.All` order. These are intro beat roles, not road-strip cast: they have no names (Kevin, D3) and none here.
 
 | id | Silhouette | Wardrobe |
 | --- | --- | --- |
@@ -218,8 +218,8 @@ reference/…Cast Sprites.dc.html  the design document (reference only)
 
 ## Source of the design
 
-- `docs/story/cast.md` — the cast, their roles and their voices
-- `docs/story/README.md` — Jane's history and the town's geography
-- `src/Core/NpcDefs.cs` — the five role ids that exist in code
+- `src/Content/Characters/` — the cast, their roles, their voices, and Jane's history
+  (the `docs/story` markdown these were drawn from retired into code, 2026-09-01)
+- `src/Content/Places/` — the town's geography
 - `src/World/PlaceholderSprites.cs` — what these replace
 - The Art Direction Bible (`design_handoff_town_art/README.md`) — palette, projection, outline and lighting rules

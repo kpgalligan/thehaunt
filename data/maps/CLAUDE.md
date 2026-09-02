@@ -18,8 +18,7 @@ graphical editor is the Haunt Mapper (`scenes/editor/MapStage.tscn` +
 - A map with no recipe falls back to its C# literals, so every map stays constructible
   with no file present. A recipe that exists but cannot be read throws
   `MapRecipeException`, which always names the file. Maps are NOT becoming .tscn —
-  `MapRegistry`'s and phase3-spec's "becomes PackedScene.Instantiate" comments are
-  superseded.
+  `MapRegistry`'s "becomes PackedScene.Instantiate" comment is superseded.
 - Canonical text format, for legible diffs (being mergeable is most of why this is JSON
   and not a scene): one placement per line, sorted by y then x then kind, fields in a
   fixed order, "\n" endings on every platform. Serialising the same recipe twice is

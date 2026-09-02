@@ -6,7 +6,7 @@ namespace TheHaunt.Content;
 
 /// <summary>
 /// Renders the whole content layer to one markdown document — the generated
-/// "read the world" review view (the content plan's §9). GENERATED output: write it
+/// "read the world" review view. GENERATED output: write it
 /// to a scratch path via Main's <c>--dump-content</c> dev flag, read it, throw it
 /// away. Never commit it and never edit it — the registries are the truth it is
 /// printed from, and a maintained copy would be the parallel-prose problem again.

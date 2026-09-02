@@ -1,4 +1,5 @@
 using Godot;
+using TheHaunt.Content;
 using TheHaunt.Core;
 using TheHaunt.Systems;
 
@@ -34,12 +35,12 @@ public partial class LiftStation : Area2D, IInteractable
         }
         if (job.Completed)
         {
-            ShowLine("Done. The owner picks it up tomorrow.");   // [KEVIN] canon restatement
+            ShowLine(Garage.LiftDoneLine); // words with the place (src/Content/Places/Garage.cs)
             return;
         }
         if (WorldSim.Instance.WorkOnGarageJob(Lift) == GarageWorkResult.NotEnoughStamina)
         {
-            ShowLine("Too tired.");   // [KEVIN]
+            ShowLine(Garage.LiftTooTiredLine);
         }
     }
 

@@ -1,4 +1,5 @@
 using Godot;
+using TheHaunt.Content;
 using TheHaunt.Core;
 
 namespace TheHaunt.World;
@@ -257,8 +258,7 @@ public partial class TownMap : ExteriorMap
         {
             Name = "StoreSign",
             Position = new Vector2(12 * TileSize + 8, 12 * TileSize + 8), // (200, 200), beside the door path
-            // [KEVIN] placeholder copy — hours restate ShopHours; store NAME not invented.
-            Message = "General store. Open 9 to 5.",
+            Message = Town.StoreSignText, // words with the place (src/Content/Places/Town.cs)
         });
     }
 

@@ -1,4 +1,5 @@
 using Godot;
+using TheHaunt.Content;
 using TheHaunt.Core;
 using TheHaunt.Systems;
 
@@ -32,9 +33,7 @@ public partial class GarageSaleSign : Area2D, IInteractable
             WorldSim.Instance.OpenGarageSale();
             return;
         }
-        // [KEVIN] placeholder copy — whether the board comes down after the sale
-        // is staging for later; for now it simply answers.
-        ShowLine("SOLD.");
+        ShowLine(Garage.SaleSignSoldLine); // words with the place (src/Content/Places/Garage.cs)
     }
 
     private void ShowLine(string text)

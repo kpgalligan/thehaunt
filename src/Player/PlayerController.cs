@@ -44,14 +44,15 @@ public partial class PlayerController : CharacterBody2D, IPersistentSystem
     {
         CollisionLayer = 1;
         CollisionMask = 1;
+        AddToGroup(MapRoot.PlayerGroup);
 
         _sprite = new CharacterSprite(); // Jane's sheet is the default
         AddChild(_sprite);
 
         AddChild(new CollisionShape2D
         {
-            Position = new Vector2(0, 6), // feet
-            Shape = new RectangleShape2D { Size = new Vector2(12, 8) },
+            Position = MapRoot.PlayerFeetBox.GetCenter(), // feet
+            Shape = new RectangleShape2D { Size = MapRoot.PlayerFeetBox.Size },
         });
 
         Probe = new InteractionProbe();
@@ -214,7 +215,7 @@ public partial class PlayerController : CharacterBody2D, IPersistentSystem
     /// <summary>The tile under the feet collider — where a dismount parks the scooter.</summary>
     public Vector2I FeetTile()
     {
-        Vector2 feet = GlobalPosition + new Vector2(0, 6);
+        Vector2 feet = GlobalPosition + MapRoot.PlayerFeetBox.GetCenter();
         return new Vector2I(
             Mathf.FloorToInt(feet.X / TileSize),
             Mathf.FloorToInt(feet.Y / TileSize));

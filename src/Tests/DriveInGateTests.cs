@@ -1,6 +1,7 @@
 using Godot;
 using TheHaunt.Content;
 using TheHaunt.Core;
+using TheHaunt.Player;
 using TheHaunt.Systems;
 using TheHaunt.World;
 
@@ -13,13 +14,17 @@ public static class DriveInGateTests
     /// trading hours — barrier drawn, cells blocked, south exit disabled — and down
     /// within them. The map polls the clock, so a season/hour change flips the
     /// chain with no repaint call. The arrival spawn from the theater sits NORTH of
-    /// the chain row, so leaving after close is always possible.
+    /// the chain row, so leaving after close is always possible — and a raise is
+    /// HELD while the player's feet are on the chain's cells or the sign's, so a
+    /// collider never lands on the player (the drive, exit included, stays open
+    /// until the feet clear).
     /// </summary>
     [SimTest]
     public static async Task DriveIn_ChainGatesTheDrive(TestContext t)
     {
         SaveService service = SaveService.Instance;
         EastForkMap? map = null;
+        PlayerController? player = null;
         try
         {
             service.NewGame();                          // day 0 — Spring
@@ -53,14 +58,36 @@ public static class DriveInGateTests
             t.Assert(exit.IsEnabled!(), "south exit enabled");
             t.Assert(chain is { Visible: false }, "the chain is not drawn while down");
 
-            // 6 PM sharp: back up.
+            // 6 PM sharp with the player's feet on a chain cell: the raise is held —
+            // the cell stays open and so does the exit — until the feet clear.
+            player = new PlayerController();
+            t.Host.AddChild(player);
+            await t.WaitFrames(1);
+            t.Assert(player.IsInGroup(MapRoot.PlayerGroup), "the player joins the player group");
+            player.GlobalPosition = new Vector2(33 * 16 + 8, 27 * 16 + 2); // feet box inside (33,27)
             Clock.Instance.SetTime(new GameTime(summerDay * GameTime.MinutesPerDay + 720));
+            await t.WaitFrames(2);
+            t.Assert(!DriveIn.ChainDown(Clock.Instance.Now), "summer 6 PM: the clock says up");
+            t.Assert(map.IsStandable(new Vector2I(33, 27)), "but the raise is held under the player");
+            t.Assert(exit.IsEnabled!(), "and the exit stays open while the chain is still down");
+
+            // The sign's cell counts too: its blocker returns with the chain.
+            player.GlobalPosition = new Vector2(32 * 16 + 8, 26 * 16 + 2);
+            await t.WaitFrames(2);
+            t.Assert(map.IsStandable(new Vector2I(33, 27)), "held while the player stands on the sign's cell");
+
+            // Feet clear: the next poll raises it.
+            player.GlobalPosition = new Vector2(33 * 16 + 8, 24 * 16 + 8);
             await t.WaitFrames(2);
             t.Assert(!map.IsStandable(new Vector2I(33, 27)), "chain back up at close");
             t.Assert(!exit.IsEnabled!(), "south exit disabled again at close");
         }
         finally
         {
+            if (player != null && GodotObject.IsInstanceValid(player))
+            {
+                player.Free();
+            }
             if (map != null && GodotObject.IsInstanceValid(map))
             {
                 map.Free();
