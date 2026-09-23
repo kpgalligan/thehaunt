@@ -60,9 +60,6 @@ GROUND_PLANE_Z = -0.05      # just under the tiles, no z-fighting
 
 # Everything outside the maps is forest floor (Phase 4 plants it): this surface.
 WILD_SURFACE = "Woods"
-# Surfaces whose shared tile edges are softened (ragged sub-cell dither); built
-# surfaces (asphalt, concrete, cobble, road) keep hard edges.
-SOFT_SURFACES = ("Grass", "Woods", "Pasture", "Dirt", "Path", "Gravel")
 # Prop kinds the ground itself models (no placeholder box).
 GROUND_PROP_KINDS = ("kerb_cut", "worn_cobble", "stall_stripes", "ramp_rows")
 
@@ -139,6 +136,31 @@ WOODS_SHADE_M = (900.0, 500.0)  # the forest floor darkens to canopy shade from 
 VERGE_M = (6.0, 10.0)       # the road-outs' grassed verge fades out over this distance
 LITTER_M = 6.0              # fallen leaves reach this far out of the woods onto open ground
 
+# Phase 4b: the surfaces as smooth fields (surfaces.py). The tiles place things; the
+# shapes are natural: no tile stair-steps anywhere.
+SURF_PX_M = 0.3125          # the field raster (half a ground sub-cell)
+SURF_CAP_M = 6.0            # signed distances are exact up to (and clamped at) this
+# Every surface kind as a field, bottom -> top (the layer order the shader paints in):
+# (surface, blur sigma m, baked edge noise m, shader edge softness m). A point shows the
+# kind whose field is highest (a partition: no gaps, no slivers); the blur rounds
+# corners and leaves straight edges where they are; each kind's own noise makes its
+# edges wander (a boundary moves by the mean of its two sides), calmed next to the
+# built kinds (config.SURF_BUILT) so a lot or walk keeps a clean straight edge.
+SURF_KINDS = (("Woods", 1.6, 2.2, 0.3), ("Grass", 1.4, 1.6, 0.3), ("Pasture", 1.4, 1.6, 0.3),
+              ("Dirt", 0.7, 0.7, 0.1), ("Path", 0.6, 0.55, 0.08), ("Gravel", 0.6, 0.45, 0.06),
+              ("Asphalt", 0.7, 0.0, 0.012), ("Concrete", 0.45, 0.0, 0.012),
+              ("Cobble", 0.45, 0.0, 0.012), ("Road", 0.0, 0.0, 0.012))
+SURF_BUILT = ("Asphalt", "Concrete", "Cobble", "Road")
+SURF_BUILT_CALM_M = (0.4, 3.5)  # natural edge noise fades in over this distance from them
+SURF_NOISE_WAVES_M = ((13.0, 0.5), (5.0, 0.32), (1.9, 0.18))
+SURF_DETAIL_M = (1.4, 0.12)     # shader-only edge wobble (wavelength, amplitude); < open margin
+TRACK_FILLET_M = 3.5        # centreline radius at a traced corner (within ~half a tile)
+TRACK_HALF_M = 2.5          # the band's half width (the two tiles)
+TRACK_RUT_M = (0.75, 0.33)  # rut offset from the centreline, width
+TRACK_FADE_M = 12.0         # a forest continuation narrows and grasses over at its end
+TRACK_ROAD_OVERLAP_M = 3.0  # the band starts this far back under the road (no gap at the kerb)
+FOREST_OPEN_MARGIN_M = 0.35 # trunks stand where the open field is below -this (exact check)
+
 # Drive-in ramps (rows from the dump's ramp_rows): crest height, run-up, drop.
 RAMP_H_M = 0.55
 RAMP_RISE_M = 7.5           # north of the crest (cars face the screen, south)
@@ -152,55 +174,95 @@ RAMP_DASH_M = (1.4, 3.4)    # faint ramp-line dash length, pitch
 
 COL_FOREST = "Flyover_Forest"
 COL_FOREST_KIT = "Flyover_ForestKit"   # the prototypes (excluded from the view layer)
+COL_FOREST_CARDS = "Flyover_ForestCards"   # their leaf cards (excluded; a shadowless cloud)
 FOREST_SEED = 11
 # The kit, in instance-index order: (family, variants). trees.py builds one prototype
 # per variant ("FK_<nn>_<family>_<A..>", origin at the trunk base, metres at scale 1).
+# A `<family>_lo` is the same tree at a coarser tessellation (tier B, saplings).
 FOREST_KIT = (("maple", 3), ("birch", 2), ("oak", 2), ("pine", 2), ("hemlock", 2),
-              ("bare", 2), ("clump", 3), ("stump", 1), ("boulder", 2), ("tuft", 2))
+              ("bare", 2), ("maple_lo", 2), ("birch_lo", 1), ("oak_lo", 1), ("pine_lo", 1),
+              ("hemlock_lo", 1), ("clump", 3), ("stump", 1), ("boulder", 2), ("tuft", 2),
+              ("leaves", 1))
 TREE_FAMILIES = ("maple", "birch", "oak", "pine", "hemlock", "bare")
 
+
+def _rgb(c):
+    h = PALETTE.get(c, c)
+    return [int(h[i:i + 2], 16) for i in (1, 3, 5)]
+
+
+def _mix_hex(a, b, t):
+    return "#" + "".join(f"{round(x + (y - x) * t):02x}" for x, y in zip(_rgb(a), _rgb(b)))
+
+
+def _brighten(a, k):
+    return "#" + "".join(f"{min(255, round(x * k)):02x}" for x in _rgb(a))
+
+
+# Autumn tints DERIVED from the palette (blends of palette neighbours, one brightened
+# lantern): New England peak foliage led by the palette's golds and ambers. Leaves only;
+# nothing else uses them.
+TINTS = {
+    "gold-bright": _brighten("lantern", 1.05),                  # lantern, sunlit
+    "lemon": _brighten(_mix_hex("lantern", "green-pale", 0.14), 1.08),   # birch yellow
+    "amber": _mix_hex("lantern", "barn-red", 0.22),             # orange-leaning amber
+    "deep-amber": _mix_hex("lantern", "barn-red", 0.38),
+    "ochre": _mix_hex("lantern", "earth-base", 0.45),
+    "yellow-green": _mix_hex("green-pale", "lantern", 0.5),     # still turning
+    "copper": _mix_hex("barn-red", "earth-light", 0.4),         # muted, a few trees only
+    "rust": _mix_hex("barn-red", "earth-mid", 0.45),
+}
+
 # Palette colours per family, (name, weight), BRIGHT -> DARK (a spatially coherent pick
-# walks this list, so neighbouring trees share a hue). New England autumn from the
-# palette's golds, ambers, ochres and earth browns against conifer greens; lantern
-# sparingly; barn red only as a rare muted rust maple (FOREST_RUST_P): the art bible
-# keeps restored barn red the only saturated red mass in the game.
+# walks this list, so neighbouring trees share a hue). Peak foliage: golds, ambers and
+# ochres, some yellow-green and still-green trees, conifers dark green, birch bright
+# yellow. NO saturated red mass: the art bible keeps restored barn red the only one in
+# the game, so red appears only as the rare muted copper / rust tree (FOREST_RUST_P).
 FOREST_CROWN = {
-    "maple":   (("lantern", 0.22), ("earth-light", 0.4), ("earth-base", 0.26), ("earth-mid", 0.12)),
-    "birch":   (("lantern", 0.58), ("earth-light", 0.27), ("green-pale", 0.15)),
-    "oak":     (("earth-light", 0.12), ("earth-base", 0.34), ("earth-mid", 0.32), ("wood-warm", 0.14),
-                ("green-mid", 0.08)),
-    "pine":    (("green-mid", 0.5), ("green-dark", 0.5)),
-    "hemlock": (("green-mid", 0.12), ("green-dark", 0.88)),
+    "maple":   (("gold-bright", 0.2), ("lantern", 0.22), ("amber", 0.2), ("deep-amber", 0.08),
+                ("ochre", 0.1), ("yellow-green", 0.12), ("green-base", 0.08)),
+    "birch":   (("gold-bright", 0.42), ("lemon", 0.38), ("lantern", 0.14), ("yellow-green", 0.06)),
+    "oak":     (("amber", 0.12), ("ochre", 0.26), ("deep-amber", 0.18), ("earth-light", 0.06),
+                ("yellow-green", 0.15), ("green-base", 0.08), ("green-mid", 0.14)),
+    "pine":    (("green-base", 0.12), ("green-mid", 0.44), ("green-dark", 0.44)),
+    "hemlock": (("green-mid", 0.15), ("green-dark", 0.85)),
     "bare":    (("earth-dark", 1.0),),
     "stump":   (("earth-light", 1.0),),          # the cut face
-    "boulder": (("stone-base", 0.45), ("stone-shade", 0.4), ("stone-dark", 0.15)),
-    "tuft":    (("earth-light", 0.25), ("green-base", 0.15), ("green-mid", 0.4), ("green-dark", 0.2)),
+    "boulder": (("stone-base", 0.45), ("stone-light", 0.25), ("stone-shade", 0.3)),
+    "tuft":    (("earth-light", 0.3), ("green-base", 0.15), ("green-mid", 0.4), ("green-dark", 0.15)),
+    "leaves":  (("gold-bright", 0.2), ("amber", 0.3), ("ochre", 0.25), ("earth-light", 0.25)),
 }
 FOREST_BARK = {
-    "maple": (("wood-warm", 0.6), ("earth-dark", 0.4)), "birch": (("cream", 0.55), ("stone-pale", 0.45)),
-    "oak": (("earth-dark", 0.6), ("wood-warm", 0.4)), "pine": (("earth-mid", 0.5), ("wood-warm", 0.5)),
-    "hemlock": (("earth-dark", 0.7), ("wood-warm", 0.3)), "bare": (("wood-warm", 0.5), ("earth-dark", 0.5)),
+    "maple": (("wood-warm", 0.5), ("earth-dark", 0.3), ("stone-shade", 0.2)),
+    "birch": (("cream", 0.6), ("stone-pale", 0.4)),
+    "oak": (("earth-dark", 0.5), ("stone-shade", 0.3), ("wood-warm", 0.2)),
+    "pine": (("earth-mid", 0.4), ("wood-warm", 0.4), ("earth-dark", 0.2)),
+    "hemlock": (("earth-dark", 0.6), ("wood-warm", 0.4)), "bare": (("stone-shade", 0.5), ("earth-dark", 0.5)),
     "stump": (("wood-warm", 1.0),), "boulder": (("stone-base", 1.0),), "tuft": (("green-mid", 1.0),),
-    "clump": (("earth-dark", 1.0),),
+    "clump": (("earth-dark", 1.0),), "leaves": (("earth-dark", 1.0),),
 }
-# crown2 (the kit's `alt` faces: a crown's under-lobes, a boulder's moss, a tuft's tips)
+# crown2: the crown's second tone (patches within it, its inner and lower leaves); a
+# boulder's moss, a tuft's tips, the other half of the fallen leaves.
 FOREST_SHADE = {
-    "lantern": "earth-light", "earth-light": "earth-base", "earth-base": "earth-mid",
+    "gold-bright": "lantern", "lantern": "ochre", "lemon": "yellow-green", "amber": "deep-amber",
+    "deep-amber": "ochre", "ochre": "earth-light", "yellow-green": "green-base",
+    "copper": "rust", "rust": "earth-mid",
+    "earth-light": "ochre", "earth-base": "earth-mid",
     "earth-mid": "wood-warm", "wood-warm": "earth-dark", "earth-dark": "ink-500",
     "green-pale": "green-base", "green-base": "green-mid", "green-mid": "green-dark",
-    "green-dark": "green-dark", "barn-red": "earth-mid", "stone-light": "green-mid",
+    "green-dark": "green-dark", "stone-light": "green-mid",
     "stone-base": "green-dark", "stone-shade": "green-dark", "stone-dark": "green-dark",
 }
-FOREST_RUST_P = 0.004       # a rare muted rust maple: barn red on its under-lobes only
-RUST_CROWN = ("earth-mid", "barn-red")      # (crown, crown2)
-DARK_BAND_CROWN = (("green-dark", 1.0),)    # conifers in the mansion band ...
+FOREST_RUST_P = 0.012       # the few muted copper / rust maples and oaks
+RUST_CROWN = ("copper", "rust")             # (crown, crown2)
+DARK_BAND_CROWN = (("green-dark", 1.0),)    # conifers deep in the mansion band ...
 DARK_BAND_SHADE = "green-dark"              # ... all the way down
 
 # Tiers: (cell m, keep, scale). Full-detail trees within TIER_A of the world bounds or
 # the road-outs, bigger sparser trees to TIER_B (both "full" canopy), then canopy
 # clumps out to the terrain's edge. Tiers cross-fade over +-blend metres.
-FOREST_TIER_A = (4.3, 0.8, 1.0)
-FOREST_TIER_B = (7.6, 0.85, 1.3)
+FOREST_TIER_A = (6.0, 0.82, 1.0)
+FOREST_TIER_B = (9.0, 0.86, 1.08)
 FOREST_TIER_C = (24.0, 0.9, 1.0)
 FOREST_TIER_A_M, FOREST_TIER_A_BLEND = 380.0, 80.0
 FOREST_TIER_B_M, FOREST_TIER_B_BLEND = 1200.0, 150.0
@@ -219,29 +281,33 @@ FOREST_EDGE_MIN = 0.62      # ... from this fraction at the treeline
 UNDER_BAND_M = 7.0          # understorey band depth past the setback
 UNDER_CELL_M = 2.0
 UNDER_KEEP = 0.55
-UNDER_SCALE = (0.28, 0.5)
+UNDER_SCALE = (0.25, 0.45)
 
 # Species mix (stands via low-frequency noise).
 CONIFER_BASE = 0.26
 CONIFER_UPHILL = (40.0, 160.0, 0.16)    # more conifers from this elevation to that, +p
-CONIFER_PATCH = 0.5         # +-p/2 from the stand noise
-SPECIES_SCALE = {"maple": (0.8, 1.15), "birch": (0.8, 1.1), "oak": (0.8, 1.15),
-                 "pine": (0.8, 1.2), "hemlock": (0.75, 1.15), "bare": (0.75, 1.1),
-                 "clump": (0.8, 1.25), "stump": (0.85, 1.15), "boulder": (0.55, 1.2),
-                 "tuft": (0.6, 1.3)}
-FOREST_SINK_M = {"tree": 0.35, "clump": 2.5, "stump": 0.08, "boulder": 0.12, "tuft": 0.03}
+CONIFER_PATCH = 0.65        # +-p/2 from the stand noise (other dark stands: the band is one of many)
+# Kit heights are real (maple ~19 m, oak ~18, birch ~14, white pine ~24, hemlock ~20),
+# so these spread them over believable ranges.
+SPECIES_SCALE = {"maple": (0.8, 1.15), "birch": (0.8, 1.2), "oak": (0.82, 1.25),
+                 "pine": (0.85, 1.2), "hemlock": (0.8, 1.15), "bare": (0.8, 1.15),
+                 "clump": (0.85, 1.2), "stump": (0.85, 1.15), "boulder": (0.55, 1.3),
+                 "tuft": (0.7, 1.3), "leaves": (0.8, 1.4)}
+FOREST_SINK_M = {"tree": 0.3, "clump": 2.5, "stump": 0.08, "boulder": 0.15, "tuft": 0.03,
+                 "leaves": 0.0}
 
 # The mansion: a deep, dark band along the drive past its chain, tall trees ringing the
 # clearing (Guide_MansionClearing) so later only the roofline shows through.
-BAND_M = (40.0, 80.0)       # full band within, fading out by (edge wobbled by noise)
-BAND_WOBBLE_M = 22.0
-BAND_CONIFER = 0.88
+BAND_M = (25.0, 150.0)      # full band within, feathering out by (edge wobbled by noise)
+BAND_WOBBLE_M = 30.0        # ... at two scales (BAND_WOBBLE_WL_M), so it has no outline
+BAND_WOBBLE_WL_M = (70.0, 23.0)
+BAND_CONIFER = 0.75
 BAND_HEMLOCK = 0.85
 BAND_BARE = 0.22            # dead snags among the band's hardwoods
 BAND_SCALE = 1.2
 RING_M = 14.0               # the tall ring's depth around the clearing
 RING_SETBACK_M = 3.5        # ring trunks stand back so their crowns meet the clearing's edge
-RING_SCALE = (1.45, 1.7)
+RING_SCALE = (1.15, 1.35)
 RING_PINE = 0.35
 
 # The farm's per-save sample (dump "sample": true), placed exactly.
@@ -257,9 +323,13 @@ TUFT_ROAD_STEP_M = 1.2
 TUFT_ROAD_KEEP = 0.55
 TUFT_TOWN_V_M = (2.95, 1.4) # in-town verge tufts, past the kerb
 TUFT_TOWN_KEEP = 0.14
-TUFT_EDGE_CELL_M = 1.3      # the open side of a treeline
-TUFT_EDGE_M = 2.5
-TUFT_EDGE_KEEP = 0.45
+TUFT_EDGE_CELL_M = 0.8      # the open side of a treeline
+TUFT_EDGE_M = 3.5
+TUFT_EDGE_KEEP = 0.5
+LEAF_EDGE_CELL_M = 0.9      # fallen-leaf scatters on open ground near a treeline (town only)
+LEAF_EDGE_M = 7.0
+LEAF_EDGE_KEEP = 0.55
+LEAF_ROAD_CLEAR_M = 4.6     # past the kerb / rural shoulder
 TUFT_FIELD_MAP = "drive_in" # "weeds thickest at the edges" of the drive-in's field
 TUFT_FIELD_CELL_M = 1.0
 TUFT_FIELD_M = 2.5
@@ -319,5 +389,7 @@ def hex_rgba(hex_colour, alpha=1.0):
 
 
 def colour(name_or_hex):
-    """A palette name or a raw '#rrggbb' from the dump -> hex."""
-    return name_or_hex if name_or_hex.startswith("#") else PALETTE[name_or_hex]
+    """A palette name, a foliage tint (TINTS) or a raw '#rrggbb' from the dump -> hex."""
+    if name_or_hex.startswith("#"):
+        return name_or_hex
+    return PALETTE.get(name_or_hex) or TINTS[name_or_hex]

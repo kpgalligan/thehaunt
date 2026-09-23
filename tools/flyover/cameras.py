@@ -127,7 +127,8 @@ def build_views(world, terrain, col):
     field = _prop_rect(world, "ramp_rows")
     if field is not None:
         x0, y0, x1, y1 = field
-        views.append(_look("Cam_DriveIn", col, (x1 + 8.0, y1 + 14.0, 16.0),
+        # over the field's grass north of the lot, above the (real-height) treeline
+        views.append(_look("Cam_DriveIn", col, (x1 - 3.0, y1 + 12.0, 22.0),
                            ((x0 + x1) / 2 - 4.0, (y0 + y1) / 2 - 4.0, 0.0)))
     # East out: on the road near the east edge, looking east into the curve.
     ex, ey, _ = _at_arc(r.out_e, 200.0)

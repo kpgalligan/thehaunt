@@ -6,7 +6,8 @@ Headless:
         [--render-dir <dir>] [--px-per-tile 6] [--diorama] [--views]
   --diorama builds the Phase 2 flat per-tile diorama instead of terrain + roads (the
   top-down layout/fidelity reference). --views also renders the EEVEE perspective
-  stills (named cameras) + an EEVEE top-down into --render-dir.
+  stills (named cameras) + an EEVEE top-down into --render-dir
+  ([--view-names a,b] [--view-res 3840x2160] [--samples 32] [--no-layout]).
   Opens --out if it exists (the rebuild replaces only the Flyover tree inside it),
   otherwise starts from an empty file; saves back to --out.
 
@@ -26,8 +27,8 @@ if PKG_DIR not in sys.path:
     sys.path.insert(0, PKG_DIR)
 
 DEFAULT_OUT = os.path.join(PKG_DIR, "out", "town.blend")
-_MODULES = ("config", "world", "routes", "terrain", "forest", "scene", "materials", "diorama",
-            "ground", "road", "tracks", "markings", "guides", "templight", "placeholders", "trees",
+_MODULES = ("config", "world", "routes", "terrain", "surfaces", "forest", "scene", "materials",
+            "diorama", "ground", "road", "markings", "guides", "templight", "placeholders", "trees",
             "scatter", "cameras", "render")
 
 
@@ -70,13 +71,12 @@ def build(world_path, only_map=None, diorama=False):
         world.terrain = terr
         guides = scene.collection(config.COL_GUIDES, root)
         light = scene.collection(config.COL_TEMP_LIGHT, root)
-        m["materials"].surface_materials(mats, world)
+        m["materials"].surface_materials(mats, world, terr)
         m["materials"].road_materials(mats)
         paint = m["materials"].paint_material(mats)
         m["ground"].build(terr, ground, mats, only_map)
         if only_map is None:
             m["road"].build(terr, ground, mats)
-            m["tracks"].build(terr, ground, mats)
         m["markings"].build(world, terr, ground, paint, only_map)
         m["guides"].build(terr, guides)
         m["templight"].build(light)
@@ -108,13 +108,10 @@ def render_stills(world, out_dir, px_per_tile=6, only_map=None):
     return _modules()["render"].stills(world, out_dir, px_per_tile, only_map)
 
 
-def render_views(world, out_dir, names=VIEWS, samples=16):
+def render_views(world, out_dir, names=VIEWS, samples=32, res=(1920, 1080), topdown=True, suffix=""):
     import render
-    out = render.eevee_stills(world, out_dir, names, samples=samples)
-    # the forest at the game's native resolution (the Phase 8 pixel-pass question)
-    out += render.eevee_stills(world, out_dir, ["Cam_Overview"], res=(480, 270),
-                               samples=samples, topdown=False, suffix="_480")
-    return out
+    return render.eevee_stills(world, out_dir, names, res=res, samples=samples, topdown=topdown,
+                               suffix=suffix)
 
 
 def _parse(argv):
@@ -127,6 +124,10 @@ def _parse(argv):
     p.add_argument("--px-per-tile", type=int, default=6)
     p.add_argument("--diorama", action="store_true", help="the flat Phase 2 diorama instead")
     p.add_argument("--views", action="store_true", help="also render the EEVEE view stills")
+    p.add_argument("--view-names", default=None, help="comma-separated cameras (default: all)")
+    p.add_argument("--view-res", default="1920x1080", help="EEVEE still size, e.g. 3840x2160")
+    p.add_argument("--samples", type=int, default=32, help="EEVEE samples per still")
+    p.add_argument("--no-layout", action="store_true", help="skip the Workbench layout stills")
     return p.parse_args(argv)
 
 
@@ -143,11 +144,17 @@ def main():
     bpy.ops.wm.save_as_mainfile(filepath=out)
     print(f"flyover: saved {out}")
     if args.render_dir:
-        for path in render_stills(world, os.path.abspath(args.render_dir), args.px_per_tile,
-                                  args.only_map):
-            print(f"flyover: rendered {path}")
+        if not args.no_layout:
+            for path in render_stills(world, os.path.abspath(args.render_dir), args.px_per_tile,
+                                      args.only_map):
+                print(f"flyover: rendered {path}")
         if args.views and not args.diorama:
-            for path, secs in render_views(world, os.path.abspath(args.render_dir)):
+            names = args.view_names.split(",") if args.view_names else VIEWS
+            w, h = (int(v) for v in args.view_res.split("x"))
+            suffix = "" if (w, h) == (1920, 1080) else f"_{h}p"
+            for path, secs in render_views(world, os.path.abspath(args.render_dir), names,
+                                           args.samples, (w, h), topdown=args.view_names is None,
+                                           suffix=suffix):
                 print(f"flyover: rendered {path} in {secs:.1f}s")
 
 

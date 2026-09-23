@@ -1,12 +1,13 @@
-"""The forest in the scene: ONE point cloud (Forest_Points, a vertex-only mesh in
-Flyover_Forest) holding forest.py's table as point attributes, and ONE Geometry Nodes
-modifier (FO_ForestScatter) that drops every point onto the ground and instances the
-kit on it. No per-tree objects.
+"""The forest in the scene: ONE point cloud (the vertex-only mesh Forest_Points in
+Flyover_Forest) holding forest.py's table as point attributes, used by two objects:
+Forest_Points, whose Geometry Nodes modifier (FO_ForestScatter) drops every point onto
+the ground and instances the kit's bodies on it, and Forest_Cards (FO_ForestCards: the
+same, instancing the leaf-card kit), which casts no shadow. No per-tree objects.
 
 Point attributes: `kind` (INT, the kit index), `scale` (FLOAT_VECTOR), `rot` (FLOAT, z
-turn), `sink` (FLOAT, how far the base goes below the ground), `crown` / `crown2` /
-`bark` (FLOAT_COLOR, linear palette colours; they propagate to the instances, where the
-Forest_* materials read them as INSTANCER attributes).
+turn), `sink` (FLOAT, how far the base goes below the ground), `seed` (FLOAT 0..1),
+`crown` / `crown2` / `bark` (FLOAT_COLOR, linear palette colours); they propagate to the
+instances, where the Forest_* materials read them as INSTANCER attributes.
 
 Grounding: a Raycast straight down onto the joined ground meshes (Ground_Terrain + every
 Ground_<map>, the meshes the camera sees), so a trunk sits on the rendered surface
@@ -31,7 +32,8 @@ def _points(table, col):
     co = np.stack([table.x, table.y, np.full(n, RAY_FROM_Z)], 1).astype(np.float32)
     me.vertices.foreach_set("co", co.ravel())
     for name, kind, vals in (("kind", "INT", table.kind), ("rot", "FLOAT", table.rot),
-                             ("sink", "FLOAT", table.sink), ("scale", "FLOAT_VECTOR", table.scale),
+                             ("sink", "FLOAT", table.sink), ("seed", "FLOAT", table.seed),
+                             ("scale", "FLOAT_VECTOR", table.scale),
                              ("crown", "FLOAT_COLOR", table.crown),
                              ("crown2", "FLOAT_COLOR", table.crown2),
                              ("bark", "FLOAT_COLOR", table.bark)):
@@ -64,8 +66,8 @@ class _Tree:
         return n.outputs["Attribute"]
 
 
-def node_group(grounds, kit):
-    ng = scene.tag(bpy.data.node_groups.new("FO_ForestScatter", "GeometryNodeTree"))
+def node_group(grounds, kit, name="FO_ForestScatter"):
+    ng = scene.tag(bpy.data.node_groups.new(name, "GeometryNodeTree"))
     ng.interface.new_socket("Geometry", in_out="INPUT", socket_type="NodeSocketGeometry")
     ng.interface.new_socket("Geometry", in_out="OUTPUT", socket_type="NodeSocketGeometry")
     t = _Tree(ng)
@@ -118,11 +120,17 @@ def node_group(grounds, kit):
     return ng
 
 
-def build(table, grounds, kit, col):
-    """The point cloud + its scatter modifier. grounds: the ground mesh objects."""
+def build(table, grounds, kits, col):
+    """The point cloud + its two scatter objects. grounds: the ground mesh objects;
+    kits: (body kit collection, card kit collection) from trees.build."""
+    kit, cards = kits
     ob = _points(table, col)
     mod = ob.modifiers.new("FO_ForestScatter", "NODES")
     mod.node_group = node_group(grounds, kit)
     for g, n in table.counts().items():
         ob[f"count_{g}"] = int(n)
+    cob = scene.new_object("Forest_Cards", ob.data, col)
+    cob.visible_shadow = False
+    mod = cob.modifiers.new("FO_ForestCards", "NODES")
+    mod.node_group = node_group(grounds, cards, "FO_ForestCards")
     return ob

@@ -3,8 +3,10 @@ map's north-west corner, tile-local vertices, as in the diorama) and Ground_Terr
 for everything outside the maps (near wild tiles + the far ring, world origin).
 
 Face material_index = config.SURFACES order on every ground mesh (Woods is the wild
-forest floor). Point attributes `rut`, `crown`, `edge` drive the shaders. The paved
-road's rows are left out of the map meshes: road.py lays the road there.
+forest floor): the tile's surface, for the Workbench layout stills; every slot wraps
+the one ground look (materials.ground_look), which paints the smooth surface fields.
+Point attribute `verge` (road-out verges). Smooth-shaded. The paved road's rows are
+left out of the map meshes: road.py lays the road there.
 """
 
 import numpy as np
@@ -27,6 +29,7 @@ def build(terrain, col, mats, only=None):
         verts, quads, mi, attrs = terrain.map_mesh(k)
         origin = np.array([placed.ox * t, -placed.oy * t, 0.0])
         me = scene.mesh_from_arrays(f"Ground_{mid}", verts - origin, quads, mi, _slots(mats), attrs)
+        me.shade_smooth()
         ob = scene.new_object(f"Ground_{mid}", me, col, map_id=mid, tile_ox=placed.ox,
                               tile_oy=placed.oy)
         ob.location = tuple(origin)
@@ -34,6 +37,7 @@ def build(terrain, col, mats, only=None):
     if only is None:
         verts, quads, mi, attrs = terrain.terrain_mesh()
         me = scene.mesh_from_arrays("Ground_Terrain", verts, quads, mi, _slots(mats), attrs)
+        me.shade_smooth()
         ob = scene.new_object("Ground_Terrain", me, col)
         x0, y0, x1, y1 = terrain.far_rect
         ob["extent_m"] = [x0, y0, x1, y1]

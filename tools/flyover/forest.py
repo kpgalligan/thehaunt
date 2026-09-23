@@ -5,7 +5,8 @@ ground; trees.py builds the kit (config.FOREST_KIT order = the instance index).
 
 The density field (everything derived from the dump via world / routes / terrain):
   open ground   the OPEN raster (config.FOREST_CELL_M over the near lattice, every guide
-                and the clearing): map sub-cells that are not Woods, each guide's
+                and the clearing): cells that may touch open ground in the smooth
+                surface fields (surfaces.Surfaces.open_field), each guide's
                 `clear_m` corridor (the road and road-outs 8 m, tracks 3.5 m; stamped
                 conservatively, so no trunk stands inside one), building footprints +
                 config.FOREST_BUILDING_MARGIN_M, prop / light / sign keep-outs, and the
@@ -79,13 +80,11 @@ class OpenRaster:
         self.x0, self.y1 = x0 - kx0 * c, y1 + ky0 * c
         self.W = kx0 + int(round((x1 - x0) / c)) + kx1
         self.H = ky0 + int(round((y1 - y0) / c)) + ky1
-        # map surfaces: a cell (two sub-cells square) is open if any sub-cell is
-        sub = (np.repeat(np.repeat(terrain.tile_map >= 0, config.SUB, 0), config.SUB, 1)
-               & (terrain.surf_face != WOODS))
-        k = int(round(c / (T / config.SUB)))
-        agg = sub.reshape(sub.shape[0] // k, k, sub.shape[1] // k, k).any(axis=(1, 3))
-        self.surf_open = np.zeros((self.H, self.W), bool)
-        self.surf_open[ky0:ky0 + agg.shape[0], kx0:kx0 + agg.shape[1]] = agg
+        # the smooth surfaces: a cell is open if open ground may reach into it
+        I, J = np.meshgrid(np.arange(self.W), np.arange(self.H))
+        cx, cy = self._centres(I, J)
+        reach = config.FOREST_OPEN_MARGIN_M + c * 0.7072
+        self.surf_open = terrain.surfaces.open_field(cx, cy) > -reach
         self.keep = np.zeros((self.H, self.W), bool)   # guides, buildings, props, clearing
         for g, clear in guides:
             self._stamp(np.asarray(densify(g, 1.0)), clear + 0.9)
@@ -94,8 +93,6 @@ class OpenRaster:
             self._clearing(clearing)
         self.open = self.surf_open | self.keep
         self.edge = chamfer(self.open, config.FOREST_EDGE_CAP_M / c) * c
-        # distance from open ground to the woods (the tufts' "open side of a treeline")
-        self.to_woods = chamfer(~self.surf_open, 4.0 / c) * c
 
     # -- rasterising -----------------------------------------------------------
     def _centres(self, i, j):
@@ -225,9 +222,10 @@ class Coarse:
 
 class Planting:
     """Column arrays, one row per instance: x, y, kind (kit index), scale (n, 3), rot,
-    sink, crown / crown2 / bark (linear RGBA), plus `group` (a label for the counts)."""
+    sink, crown / crown2 / bark (linear RGBA), seed (0..1, the shaders' per-tree
+    variation), plus `group` (a label for the counts)."""
 
-    COLS = ("x", "y", "kind", "scale", "rot", "sink", "crown", "crown2", "bark", "group")
+    COLS = ("x", "y", "kind", "scale", "rot", "sink", "crown", "crown2", "bark", "seed", "group")
 
     def __init__(self):
         self.parts = []
@@ -306,12 +304,12 @@ class Forest:
         coh = self._noise(x, y, 55.0, 5)
         u = np.clip(0.55 * coh + 0.45 * self.rng.random(n) - 0.05 + 0.1 * self.rng.random(n), 0, 1)
         lists = [config.FOREST_CROWN.get(f, config.FOREST_CROWN["maple"]) for f in fam]
-        if dark is not None:
+        if dark is not None:        # dark: a per-tree bool (the band, feathered)
             lists = [config.DARK_BAND_CROWN if dk and f in ("pine", "hemlock") else li
                      for li, f, dk in zip(lists, fam, dark)]
         crown = self._pick(lists, u)
         crown2 = np.array([config.FOREST_SHADE.get(c, c) for c in crown], object)
-        rust = (fam == "maple") & (self.rng.random(n) < config.FOREST_RUST_P)
+        rust = np.isin(fam, ("maple", "oak")) & (self.rng.random(n) < config.FOREST_RUST_P)
         crown[rust], crown2[rust] = config.RUST_CROWN
         if dark is not None:
             deep = dark & np.isin(fam, ("pine", "hemlock"))
@@ -319,11 +317,12 @@ class Forest:
         bark = self._pick([config.FOREST_BARK[f] for f in fam], self.rng.random(n))
         return _rgba(crown), _rgba(crown2), _rgba(bark)
 
-    def _kinds(self, fam):
+    def _kinds(self, fam, lo=False):
+        """Kit indices: a random variant of each family (its `_lo` twin when lo)."""
         out = np.zeros(len(fam), np.int32)
         for f in set(fam):
             sel = fam == f
-            start, nv = FAMILY[f]
+            start, nv = FAMILY[f + "_lo" if lo and f + "_lo" in FAMILY else f]
             out[sel] = start + self.rng.integers(0, nv, sel.sum())
         return out
 
@@ -336,14 +335,15 @@ class Forest:
         tall = s * (0.92 + 0.2 * self.rng.random(n))
         return np.stack([wide, s * (1 + 0.08 * (self.rng.random(n) * 2 - 1)), tall], 1).astype(np.float32)
 
-    def _add(self, group, x, y, fam, mult, sink_key, dark=None):
+    def _add(self, group, x, y, fam, mult, sink_key, dark=None, lo=False):
         crown, crown2, bark = self._colours(fam, x, y, dark)
         scale = self._scale(fam, mult)
         sink = config.FOREST_SINK_M[sink_key] * (scale[:, 2] if sink_key in ("tree", "boulder")
                                                  else np.ones(len(x)))
-        self.table.add(group=group, x=x, y=y, kind=self._kinds(fam), scale=scale,
+        self.table.add(group=group, x=x, y=y, kind=self._kinds(fam, lo), scale=scale,
                        rot=(self.rng.random(len(x)) * 2 * math.pi).astype(np.float32),
-                       sink=sink.astype(np.float32), crown=crown, crown2=crown2, bark=bark)
+                       sink=sink.astype(np.float32), crown=crown, crown2=crown2, bark=bark,
+                       seed=self.rng.random(len(x)).astype(np.float32))
 
     # -- species -----------------------------------------------------------------
     def _species(self, x, y, band, ring):
@@ -377,7 +377,9 @@ class Forest:
                 & (y > self.drive[:, 1].min() - r) & (y < self.drive[:, 1].max() + r))
         if near.any():
             d[near] = nearest_on(x[near], y[near], self.drive)[0]
-        d = d + (self._noise(x, y, 60.0, 9) - 0.5) * 2 * config.BAND_WOBBLE_M
+        wa, wb = config.BAND_WOBBLE_WL_M
+        wob = 0.65 * (self._noise(x, y, wa, 9) - 0.5) + 0.35 * (self._noise(x, y, wb, 10) - 0.5)
+        d = d + wob * 2 * config.BAND_WOBBLE_M
         return 1 - smoothstep(*config.BAND_M, d)
 
     # -- plantings ---------------------------------------------------------------
@@ -432,7 +434,9 @@ class Forest:
             fam = self._species(x, y, band, ring)
             lo, hi = config.RING_SCALE
             m = np.where(ring, lo + (hi - lo) * self.rng.random(len(x)), m)
-            self._add(f"trees_{tier}", x, y, fam, m, "tree", dark=band > 0.5)
+            # dark conifers are a probability that feathers with the band (no outline)
+            dark = self.rng.random(len(x)) < band ** 1.5
+            self._add(f"trees_{tier}", x, y, fam, m, "tree", dark=dark, lo=tier == "B")
 
     def _clump_colours(self, x, y):
         """A far clump stands for a patch of forest: two tones from the local stand."""
@@ -494,13 +498,8 @@ class Forest:
 
     # -- tufts -------------------------------------------------------------------
     def _surface_at(self, x, y):
-        t = self.terrain
-        fi = np.floor((x / T - t.nx0) * config.SUB).astype(int)
-        fj = np.floor((-y / T - t.ny0) * config.SUB).astype(int)
-        inside = (fi >= 0) & (fi < t.surf_face.shape[1]) & (fj >= 0) & (fj < t.surf_face.shape[0])
-        s = np.full(len(x), WOODS)
-        s[inside] = t.surf_face[fj[inside], fi[inside]]
-        return s
+        """The surface showing at each point (the smooth fields)."""
+        return self.terrain.surfaces.visible(x, y)
 
     def _tuft_ok(self, x, y):
         """On grass / pasture / forest floor, clear of buildings, props and the roads' own
@@ -549,13 +548,11 @@ class Forest:
             xs.append(x[keep])
             ys.append(y[keep])
         # the open side of every treeline
-        R = self.raster
-        rect = (R.x0, R.y1 - R.H * R.c, R.x0 + R.W * R.c, R.y1)
-        x, y = self._jitter(rect, config.TUFT_EDGE_CELL_M)
-        j, i, inside = R.cells(x, y)
-        dw = np.where(inside, R.to_woods[j, i], 99.0)
-        p = config.TUFT_EDGE_KEEP * (1 - smoothstep(0.5, config.TUFT_EDGE_M, dw))
-        keep = inside & R.surf_open[j, i] & (self.rng.random(len(x)) < p)
+        sf = self.terrain.surfaces
+        x, y = self._jitter(sf.rect(), config.TUFT_EDGE_CELL_M)
+        dw = sf.open_field(x, y)            # metres out of the woods onto open ground
+        p = config.TUFT_EDGE_KEEP * (1 - smoothstep(0.3, config.TUFT_EDGE_M, dw))
+        keep = (dw > 0.05) & (self.rng.random(len(x)) < p)
         xs.append(x[keep])
         ys.append(y[keep])
         # the drive-in's field edges
@@ -566,25 +563,31 @@ class Forest:
         ok = self._tuft_ok(x, y) & self._building_free(x, y)
         x, y = x[ok], y[ok]
         self._add("tufts", x, y, np.full(len(x), "tuft", object), 1.0, "tuft")
+        # fallen leaves spilling from the treelines onto the town's open ground
+        x, y = self._jitter(sf.rect(), config.LEAF_EDGE_CELL_M)
+        dw = sf.open_field(x, y)
+        p = config.LEAF_EDGE_KEEP * (1 - smoothstep(0.0, config.LEAF_EDGE_M, dw))
+        keep = (dw > 0.05) & (self.rng.random(len(x)) < p)
+        x, y = x[keep], y[keep]
+        ok = self._tuft_ok(x, y) & self._building_free(x, y)
+        road = np.asarray(densify(self.routes.centreline(), 2.0))
+        near = ((x > road[:, 0].min() - 6) & (x < road[:, 0].max() + 6)
+                & (y > road[:, 1].min() - 6) & (y < road[:, 1].max() + 6))
+        dr = np.full(len(x), np.inf)
+        dr[near] = nearest_on(x[near], y[near], road)[0]
+        ok &= dr > config.LEAF_ROAD_CLEAR_M        # none on the kerb or shoulder
+        self._add("leaves", x[ok], y[ok], np.full(ok.sum(), "leaves", object), 1.0, "leaves")
 
     def _field_tufts(self, m, xs, ys):
-        t = self.terrain
-        S = config.SUB
-        j0, i0 = (m.oy - t.ny0) * S, (m.ox - t.nx0) * S
-        sub = t.surf_face[j0:j0 + m.height * S, i0:i0 + m.width * S]
-        grass = sub == config.SURFACES.index("Grass")
-        dist = chamfer(~grass, config.TUFT_FIELD_M / (T / S)) * (T / S)
+        sf = self.terrain.surfaces
         x0, y1 = m.ox * T, -m.oy * T
         x, y = self._jitter((x0, y1 - m.height * T, x0 + m.width * T, y1), config.TUFT_FIELD_CELL_M)
-        fi = np.clip(((x - x0) / (T / S)).astype(int), 0, grass.shape[1] - 1)
-        fj = np.clip(((y1 - y) / (T / S)).astype(int), 0, grass.shape[0] - 1)
-        d = dist[fj, fi]
+        grass = sf.visible(x, y) == config.SURFACES.index("Grass")
         # the field's edges: grass next to the lot / drive (not the woods ring)
-        lot = chamfer(np.isin(sub, [config.SURFACES.index(k) for k in ("Asphalt", "Dirt")]),
-                      config.TUFT_FIELD_M / (T / S)) * (T / S)
-        near_lot = lot[fj, fi] < config.TUFT_FIELD_M
+        d = np.minimum(np.maximum(sf.field("Dirt", x, y), sf.field("Asphalt", x, y)), 0.0) * -1.0
+        near_lot = d < config.TUFT_FIELD_M
         p = config.TUFT_FIELD_KEEP * (1 - smoothstep(0.3, config.TUFT_FIELD_M, d)) * near_lot + 0.03
-        keep = grass[fj, fi] & (self.rng.random(len(x)) < p)
+        keep = grass & (self.rng.random(len(x)) < p)
         xs.append(x[keep])
         ys.append(y[keep])
 
@@ -593,9 +596,10 @@ def check(forest):
     """The keep-outs, verified on the finished table (exact geometry, not the raster):
     returns a list of violation strings (empty = clean). Trunks (every group but the
     farm sample and tufts) must stand on Woods (in a map) or wild ground, at least
-    clear_m from every guide, clear of building footprints + margin and the clearing."""
+    clear_m from every guide, clear of building footprints + margin and the clearing, and
+    at least config.FOREST_OPEN_MARGIN_M inside the forest floor of the smooth fields."""
     tb, bad = forest.table, []
-    trunk = ~np.isin(tb.group, ["farm_sample", "tufts"])
+    trunk = ~np.isin(tb.group, ["farm_sample", "tufts", "leaves"])
     x, y = tb.x[trunk], tb.y[trunk]
     for g, clear in forest.guides:
         gp = np.asarray(densify(g, 2.0))
@@ -604,9 +608,10 @@ def check(forest):
         d = nearest_on(x[near], y[near], np.asarray(g, float))[0]
         if (d < clear).any():
             bad.append(f"{(d < clear).sum()} trunks within {clear} m of a guide (min {d.min():.2f})")
-    s = forest._surface_at(x, y)
-    if (s != WOODS).any():
-        bad.append(f"{(s != WOODS).sum()} trunks on open map surfaces")
+    s = forest.terrain.surfaces.open_field(x, y)
+    if (s > -config.FOREST_OPEN_MARGIN_M).any():
+        bad.append(f"{(s > -config.FOREST_OPEN_MARGIN_M).sum()} trunks on or within "
+                   f"{config.FOREST_OPEN_MARGIN_M} m of open ground")
     for m in forest.world.maps.values():
         ox, oy = m.ox * T, -m.oy * T
         mg = config.FOREST_BUILDING_MARGIN_M

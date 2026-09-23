@@ -11,7 +11,7 @@ import bpy
 import config
 
 _DATA_KINDS = ("objects", "meshes", "materials", "cameras", "lights", "curves", "worlds",
-               "node_groups", "collections")
+               "node_groups", "images", "metaballs", "collections")
 
 
 def tag(idb):

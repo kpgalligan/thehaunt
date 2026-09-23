@@ -37,7 +37,8 @@ tools/flyover/build.py`) for the reproducible build.
   `/Applications/Blender.app/Contents/MacOS/Blender --background --python
   tools/flyover/build.py -- --world /tmp/world.json [--out <blend>] [--only-map <id>]
   [--render-dir <dir> --px-per-tile 6] [--views] [--diorama]`. `--views` adds the EEVEE
-  stills from the named cameras (+ an EEVEE top-down); `--diorama` builds the Phase 2
+  stills from the named cameras (+ an EEVEE top-down; `--view-names a,b`, `--view-res
+  3840x2160`, `--samples 32`, `--no-layout` skips the Workbench stills); `--diorama` builds the Phase 2
   flat per-tile diorama instead of terrain + roads (the layout/fidelity reference).
   Out defaults to `tools/flyover/out/town.blend`
   (git-ignored); an existing out file is reopened and rebuilt in place.
@@ -51,22 +52,31 @@ tools/flyover/build.py`) for the reproducible build.
   offset table without Blender; `routes.py` likewise. `terrain.py` / `forest.py` need numpy: run
   them with Blender's bundled `Contents/Resources/<ver>/python/bin/python3.*`.
 - Modules: `routes` (road rows, kerb cuts, road-out curves, dirt tracks traced from
-  kerb cuts; pure Python) -> `terrain` (relief, sub-cell surfaces, ruts/ramps/pit,
-  adaptive lattice + far ring, `z_at` sampler; numpy) -> `ground` (meshes), `road`
-  (swept paved road), `tracks` (forest continuations as draped ribbons), `markings`
-  (lot paint decals), `materials` (procedural EEVEE surfaces), `guides`, `templight`
-  (TEMPORARY sun + sky; Phase 8 replaces it), `cameras` (Cam_TopDown + named views),
-  `forest` (the planting table: density field, species, colours; numpy; `plant()`
-  asserts the keep-outs on exact geometry), `trees` (the kit: one low-poly prototype
-  per variant + the two instancer-attribute materials), `scatter` (one point cloud +
-  one Geometry Nodes modifier: raycast onto the ground meshes, instance the kit).
+  kerb cuts, corners filleted; pure Python) -> `terrain` (relief, ruts/ramps/pit,
+  adaptive lattice + far ring, `z_at` sampler; numpy) + `surfaces` (the smooth surface
+  fields: per-kind signed distances from the tiles + track bands, blurred, natural
+  noise, argmax partition packed as layer fields in three float images; numpy) ->
+  `ground` (smooth-shaded meshes), `road` (swept paved road), `markings` (lot paint
+  decals), `materials` (one ground look painting the fields, EEVEE), `guides`,
+  `templight` (TEMPORARY sun + sky; Phase 8 replaces it), `cameras` (Cam_TopDown +
+  named views), `forest` (the planting table: density field, species, colours, LOD;
+  numpy; `plant()` asserts the keep-outs on exact geometry), `trees` (the kit: a body
+  + a leaf-card prototype per variant, metaball crowns, three materials), `scatter`
+  (one point cloud, two Geometry Nodes objects: bodies, and shadowless leaf cards).
+- Look conventions (Phase 4b, reuse for stylized-real buildings): real sizes, smooth
+  shading, palette colours with noise shifts between palette NEIGHBOURS plus a bump
+  height, detail down to centimetres; nothing tile-stepped. Surfaces never meet on a
+  tile edge: ask `Terrain.surfaces` (visible / field / own / open_field), not tiles.
+  Alpha only where it cannot cast shadow (transparent shadows cost ~18x).
 - Layout: everything lives under the `Flyover` collection (Flyover_Ground,
   Placeholders_Buildings, Placeholders_Props, Flyover_Cameras, Flyover_Guides,
-  Flyover_TempLight, Flyover_ForestKit (excluded from the view layer),
-  Flyover_Forest); every datablock the build makes carries the `flyover` ID
+  Flyover_TempLight, Flyover_ForestKit + Flyover_ForestCards (excluded from the view
+  layer), Flyover_Forest); every datablock the build makes carries the `flyover` ID
   property, and a rebuild removes exactly those. Ground meshes: one per map plus
   Ground_Terrain (outside the maps, forest floor), face material_index =
-  `config.SURFACES` order; Road_Paved, Track_*, Marking_* sit on them. Placeholders
+  `config.SURFACES` order (the tile's surface, for the Workbench layout stills; every
+  slot wraps the one ground look, which paints the smooth fields, FO_Surfaces_0..2);
+  Road_Paved, Marking_* sit on them. Placeholders
   carry `map_id` / `dump_id` / `kind` custom props and are grounded via `Terrain.z_at`.
 - Routes as data (Phase 4 forest keep-outs, Phase 9 camera): Flyover_Guides holds POLY
   curves Guide_Road (whole centreline), Guide_RoadOut_W/E, Guide_Track_<name>
@@ -76,14 +86,16 @@ tools/flyover/build.py`) for the reproducible build.
   6 puts the roofline on, ringed by tall hemlock / pine).
   Named views: Cam_WestRoad, Cam_Fork, Cam_Plaza, Cam_DriveIn, Cam_EastOut,
   Cam_Overview, Cam_MansionDrive, Cam_FarmTreeline (positions derived from
-  routes/dump); `--views` also writes Cam_Overview_480 (the game's native resolution).
-- Forest (config "Phase 4"): trunks never stand on open map surfaces, within a guide's
+  routes/dump).
+- Forest (config "Phase 4"): trunks never stand on (or within FOREST_OPEN_MARGIN_M of)
+  open ground in the smooth fields, within a guide's
   `clear_m`, within FOREST_BUILDING_MARGIN_M (3 m) of a footprint, 1 m of a prop, 1.5 m
-  of a post, or in the clearing; crowns (radius up to ~5 m) DO overhang those margins,
+  of a post, or in the clearing; crowns (radius up to ~8 m) DO overhang those margins,
   so Phase 5-6 buildings that back onto a treeline (the motel) meet canopy at the
   roof. Colours live on the instances (FOREST_CROWN / FOREST_BARK palette weights);
   the Workbench layout stills hide the forest. Tiers: full detail within 380 m of the
-  bounds / road-outs, larger trees to 1.2 km, canopy clumps beyond.
+  bounds / road-outs, the `_lo` kit to 1.2 km, canopy clumps beyond. Autumn colours are
+  palette blends (config.TINTS); red only as the rare muted copper/rust tree.
 
 ## Decisions (Kevin, 2026-09-23)
 
@@ -95,6 +107,9 @@ tools/flyover/build.py`) for the reproducible build.
   lots and surface boundaries, never tile stair-steps. Output is an HD or 4K video with
   an animated camera; there is no game-resolution/pixel pass. The final render finish
   is still chosen at Phase 8.
+- Look: STYLIZED-REAL — real-world proportions, smooth shapes, soft full foliage (not
+  faceted low-poly), lighting and atmosphere doing the work, colours palette-led so it
+  stays the game's town. EEVEE.
 - The mansion: a GLIMPSE of its rooftop through the trees beyond the East Fork's chained
   drive — gothic, in ruins, overgrown (its canon description). Roofline only; the
   building itself stays out of frame.
@@ -117,6 +132,11 @@ Each phase ends in a standalone, render-verified state. Tick them off here as th
 - [x] 4. Forest: 4-6 low-poly New England species (maple, birch, white pine, hemlock)
   in autumn palette, Geometry Nodes instancing; deep band behind the mansion drive;
   a fixed-seed sample of the farm's per-save trees, stumps and rocks.
+- [x] 4b. Naturalise (Kevin review of 3-4): smooth curved edges on every road, track,
+  path, lot and surface boundary (no tile stair-steps); the tree kit rebuilt
+  stylized-real (full soft crowns, holds up at 4K); brighter, more varied autumn
+  golds/ambers/ochres (still no saturated red mass); the mansion band stays dark but
+  its edge feathers into the forest.
 - [ ] 5. Hero buildings (real art exists): town hall, general store, motel, farmhouse,
   barn (derelict). Five-band grammar; side-by-side renders against the handoff PNGs.
 - [ ] 6. Placeholder buildings (flat colours only in-game — Kevin reviews): gas station,

@@ -15,22 +15,21 @@ along the whole centreline: 0 in town; outside, the relief sampled under the roa
 smoothed and grade-limited, so the road rides the valley floor.
 
 Lattice: the NEAR rect (world bounds + config.NEAR_PAD_TILES, even tiles) at
-config.SUB x SUB vertices per tile. Surfaces live on sub-cells (tile surface, dirt
-track continuations rasterised in, and a ragged noise dither on the edges between
-config.SOFT_SURFACES). A tile is FINE (SUB x SUB quads) where anything varies in or
+config.SUB x SUB vertices per tile. What SHOWS on the ground is surfaces.Surfaces (smooth
+fields painted by one shader); a face's material_index is only its tile's surface (the
+Workbench layout check). A tile is FINE (SUB x SUB quads) where anything varies in or
 next to it (surfaces, ruts, ramps, the pit, the road-out corridor), COARSE (one quad)
 elsewhere; T-junctions are closed by pinning edge vertices to the coarse edge's line.
+Every ground face is smooth-shaded.
 The FAR ring (config.FAR_CELL_M quads) runs out to config.FAR_MARGIN_M past the
 bounds; the near rect's outer vertices are pinned to its 5 m spacing.
 
-Features (heights added to the relief, per vertex): 2-tile dirt tracks get a W
-profile (edge lip, two ruts, a crown — `rut` / `crown` attributes for the shader);
-wider dirt is a slightly sunken yard, 1-tile dirt and Path a shallow dip; pit_cover
-rects dish down; ramp_rows become drive-in ramps (gentle run-up north of each crest,
-short drop south). `edge` (0 at a surface change .. 1 at 2.5 m) feeds weeds and kerbs;
-`litter` (1 on the forest floor / under the farm's trees, fading over config.LITTER_M)
-feeds fallen leaves on open ground; `verge` (1 within config.VERGE_M of a road-out)
-grasses the forest floor along the road.
+Features (heights added to the relief, per vertex, from the surface fields): dirt is
+a slightly sunken yard with a soft lip, and along a track's filleted centreline two
+ruts (the W profile; the shader draws them from the same `td` field); Path is a
+shallow dip; pit_cover rects dish down; ramp_rows become drive-in ramps (gentle run-up
+north of each crest, short drop south). The one mesh attribute is `verge` (1 within
+config.VERGE_M of a road-out: the forest floor grasses over along the road).
 """
 
 import math
@@ -154,22 +153,6 @@ def _shift(a, dj, di, fill):
     return out
 
 
-def dist_to_false(mask, radius):
-    """Per cell: distance (cells) to the nearest False cell, capped at radius."""
-    d = np.where(mask, float(radius), 0.0)
-    for dj, di, r in _offsets(radius):
-        d = np.where(mask & ~_shift(mask, dj, di, True), np.minimum(d, r), d)
-    return d
-
-
-def max_filter(a, radius, where):
-    out = a.copy()
-    for dj, di, _r in _offsets(radius):
-        s = _shift(a, dj, di, 0.0)
-        out = np.maximum(out, np.where(_shift(where, dj, di, False), s, 0.0))
-    return np.where(where, out, 0.0)
-
-
 def chamfer(open_mask, cap_cells):
     """Per cell: approximate Euclidean distance (cells) to the nearest True cell of
     open_mask (8-neighbour chamfer relaxation), capped at cap_cells."""
@@ -286,11 +269,11 @@ class Terrain:
         self._road_profile()
         self._tiles()
         self._raster()
-        self._dither()
+        import surfaces     # (imports this module's helpers)
+        self.surfaces = surfaces.Surfaces(world, routes, self.tile_surf, self.nx0, self.ny0)
         self._features()
         self._fine()
         self._heights()
-        self._edge_attr()
         self._far()
 
     # -- coordinates -------------------------------------------------------
@@ -349,59 +332,19 @@ class Terrain:
 
     def _raster(self):
         self.surf = np.repeat(np.repeat(self.tile_surf, S, 0), S, 1)
-        # dirt track continuations into the forest are draped ribbons (tracks.py),
-        # not raster: they wander off the tile grid
-
-    def _dither(self):
-        """Ragged edges between soft surfaces: the outer one or two sub-cell rings of a
-        tile take the neighbouring tile's surface where a coherent noise says so."""
-        soft = np.zeros(len(config.SURFACES), bool)
-        for k in config.SOFT_SURFACES:
-            soft[SURF[k]] = True
-        face = self.surf.copy()
-        Xc, Yc = self._sub_centres()
-        own_tile = np.repeat(np.repeat(self.tile_surf, S, 0), S, 1)
-        in_map = np.repeat(np.repeat(self.tile_map >= 0, S, 0), S, 1)
-        ly = np.tile(np.arange(S), self.NTy)[:, None] * np.ones((1, self.NTx * S), int)
-        lx = np.tile(np.arange(S), self.NTx)[None, :] * np.ones((self.NTy * S, 1), int)
-        for k, (dj, di, depth) in enumerate(((-1, 0, ly), (1, 0, S - 1 - ly),
-                                             (0, -1, lx), (0, 1, S - 1 - lx))):
-            nb_tile = _shift(self.tile_surf, dj, di, -1)
-            nb = np.repeat(np.repeat(nb_tile, S, 0), S, 1)
-            n = vnoise(Xc / 1.8, Yc / 1.8, 101 + k)
-            ok = ((nb >= 0) & (nb != own_tile) & (self.surf == own_tile) & in_map
-                  & soft[np.clip(own_tile, 0, None)] & soft[np.clip(nb, 0, None)])
-            take = ok & (depth == 0) & (n > 0.62)
-            face = np.where(take, nb, face)
-        self.surf_face = face
+        self.surf_face = self.surf      # material_index: the tile's surface
 
     # -- features --------------------------------------------------------------
-    def _vertex_mask(self, surface):
-        """Vertex is inside `surface` when all four adjacent sub-cells are."""
-        m = np.pad(self.surf == SURF[surface], 1, constant_values=False)
-        return m[:-1, :-1] & m[1:, :-1] & m[:-1, 1:] & m[1:, 1:]
-
     def _features(self):
         X, Y = self.lattice_xy()
-        F = np.zeros((self.NJ, self.NI))
-        # dirt: corridors (ruts + crown), yards, 1-tile paths
-        vd = self._vertex_mask("Dirt")
-        d = dist_to_false(vd, 5) * STEP
-        hw = max_filter(d, 4, vd)
-        corr = 1 - smoothstep(2.9, 3.4, hw)
-        foot = 1 - smoothstep(1.6, 2.2, hw)
-        lip = np.clip(d / 0.6, 0, 1)
-        rut = np.exp(-((d - 1.75) / 0.35) ** 2)
-        z_corr = -config.DIRT_SINK_M * lip - config.RUT_DEPTH_M * rut
-        z_yard = -config.DIRT_SINK_M * lip
-        z_foot = -config.PATH_SINK_M * lip
-        F += np.where(vd, foot * z_foot + (1 - foot) * (corr * z_corr + (1 - corr) * z_yard), 0)
-        w = corr * (1 - foot) * vd
-        self.rut = w * np.exp(-((d - 1.75) / 0.45) ** 2)
-        self.crown = w * smoothstep(2.0, 2.45, d)
-        # footpaths
-        vp = self._vertex_mask("Path")
-        F += np.where(vp, -config.PATH_SINK_M * np.clip(dist_to_false(vp, 2) * STEP / 0.6, 0, 1), 0)
+        sf = self.surfaces
+        own_d = sf.own("Dirt", X, Y)
+        td, fade = sf.field("td", X, Y), sf.field("fade", X, Y)
+        lip = np.clip(own_d / 0.6, 0, 1)
+        off, w = config.TRACK_RUT_M
+        rut = np.exp(-((td - off) / w) ** 2) * (1 - fade) * (td < config.TRACK_HALF_M)
+        F = -(config.DIRT_SINK_M + config.RUT_DEPTH_M * rut) * lip
+        F -= config.PATH_SINK_M * np.clip(sf.own("Path", X, Y) / 0.6, 0, 1)
         # the pit, ramps
         self.ramp_crests = []     # (x0, x1, y) metres
         for m in self.world.maps.values():
@@ -507,30 +450,6 @@ class Terrain:
             H[j + 1:j + S, i] = np.interp(np.arange(1, S), [0, S], [H[j, i], H[j + S, i]])
         self.H = H
         self.inmap = inmap
-
-    def _edge_attr(self):
-        """Per vertex: distance to a different (clean) surface, 0..1 over 2.5 m."""
-        best = np.full(self.surf.shape, 4.0)
-        for dj, di, r in _offsets(4):
-            nb = _shift(self.surf, dj, di, -1)
-            best = np.where((nb >= 0) & (nb != self.surf), np.minimum(best, r), best)
-        best = best * STEP
-        p = np.pad(best, 1, mode="edge")
-        v = (p[:-1, :-1] + p[1:, :-1] + p[:-1, 1:] + p[1:, 1:]) / 4
-        self.edge = np.clip(v / 2.5, 0, 1)
-        # leaf litter: 1 on the forest floor and under the farm's sample trees, fading
-        # out over config.LITTER_M across open ground
-        seed = self.surf == SURF["Woods"]
-        for m in self.world.maps.values():
-            for p_ in m.data["props"]:
-                if p_["kind"] == "tree":
-                    j = (m.oy + p_["y"] - self.ny0) * S
-                    i = (m.ox + p_["x"] - self.nx0) * S
-                    seed[j:j + S, i:i + S] = True
-        d = chamfer(seed, config.LITTER_M / STEP) * STEP
-        p = np.pad(d, 1, mode="edge")
-        v = (p[:-1, :-1] + p[1:, :-1] + p[:-1, 1:] + p[1:, 1:]) / 4
-        self.litter = 1 - smoothstep(0.0, config.LITTER_M, v)
 
     def _far(self):
         c = config.FAR_CELL_M
@@ -653,9 +572,7 @@ class Terrain:
         X = (self.nx0 + i / S) * T
         Y = -(self.ny0 + j / S) * T
         verts = np.stack([X, Y, self.H[j, i]], 1)
-        attrs = dict(rut=self.rut[j, i], crown=self.crown[j, i], edge=self.edge[j, i],
-                     litter=self.litter[j, i])
-        return verts, inv.reshape(-1, 4), attrs
+        return verts, inv.reshape(-1, 4), {}
 
     def map_mesh(self, k):
         """(verts world metres, quads, material idx, attrs) for map k (road rows left
@@ -684,9 +601,6 @@ class Terrain:
         verts = np.concatenate([verts, fverts])
         quads = np.concatenate([quads, fq + base])
         mats = np.concatenate([mats, np.full(len(fq), SURF[config.WILD_SURFACE], np.int16)])
-        n_far = len(fverts)
-        for key, fill in (("rut", 0.0), ("crown", 0.0), ("edge", 1.0), ("litter", 1.0)):
-            attrs[key] = np.concatenate([attrs[key], np.full(n_far, fill)])
         attrs["verge"] = self._verge(verts)
         return verts, quads, mats, attrs
 

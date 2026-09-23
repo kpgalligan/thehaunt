@@ -12,7 +12,9 @@ Coordinates follow config (metres, +X east, +Y north). A polyline is a list of (
   tracks       2-tile Dirt corridors traced from a 2-wide kerb cut, through map seams
                and turns; named by the chain they pass (config.TRACK_NAMES) or the map
                they reach; a track that dead-ends at a map's frame is continued into
-               the forest (config.TRACK_EXTEND_M), wandering gently
+               the forest (config.TRACK_EXTEND_M), wandering gently. The traced
+               corners are filleted (config.TRACK_FILLET_M): a track bends, it never
+               turns a tile corner.
 """
 
 import math
@@ -34,6 +36,7 @@ class Track:
     pts: list                 # centreline (x, y) metres, from the road outwards
     extension_from: int = -1  # index in pts where the forest continuation starts (-1 none)
     chain: str = None
+    tiles: list = field(default_factory=list)   # the traced corridor's global tiles (x, y)
 
 
 @dataclass
@@ -246,8 +249,8 @@ def _tracks(world, road_rows, cuts):
         if name is None:
             name = next((config.TRACK_INTO_MAP[m] for m in maps_on if m in config.TRACK_INTO_MAP),
                         f"Track_{mid}_{side}")
-        pts = [(cx * T, -cy * T) for cx, cy in corner_pts]
-        track = Track(name, pts, chain=chain)
+        pts = fillet([(cx * T, -cy * T) for cx, cy in corner_pts], config.TRACK_FILLET_M)
+        track = Track(name, pts, chain=chain, tiles=list(tiles))
         ext = config.TRACK_EXTEND_M.get(name)
         if ext:
             # the traced end stops at the map's woods frame; the track goes on
@@ -258,6 +261,42 @@ def _tracks(world, road_rows, cuts):
             track.pts = pts + more[1:]
         tracks[name] = track
     return tracks
+
+
+def fillet(pts, radius, step=0.6):
+    """The polyline with every interior corner replaced by a circular arc of `radius`
+    (smaller where the legs are short), tangent to both legs; arc points every ~step m."""
+    if len(pts) < 3:
+        return list(pts)
+    out = [pts[0]]
+    for k in range(1, len(pts) - 1):
+        (ax, ay), (bx, by), (cx, cy) = pts[k - 1], pts[k], pts[k + 1]
+        u = (ax - bx, ay - by)
+        v = (cx - bx, cy - by)
+        lu, lv = math.hypot(*u), math.hypot(*v)
+        if lu == 0 or lv == 0:
+            continue
+        u, v = (u[0] / lu, u[1] / lu), (v[0] / lv, v[1] / lv)
+        cos_a = max(-1.0, min(1.0, u[0] * v[0] + u[1] * v[1]))
+        half = math.acos(cos_a) / 2          # half the interior angle
+        if half > math.radians(89.5):        # (nearly) straight: keep the point
+            out.append((bx, by))
+            continue
+        r = min(radius, 0.45 * min(lu, lv) * math.tan(half))
+        t = r / math.tan(half)               # tangent length from the corner
+        p0 = (bx + u[0] * t, by + u[1] * t)
+        p1 = (bx + v[0] * t, by + v[1] * t)
+        bis = (u[0] + v[0], u[1] + v[1])
+        lb = math.hypot(*bis)
+        centre = (bx + bis[0] / lb * r / math.sin(half), by + bis[1] / lb * r / math.sin(half))
+        a0 = math.atan2(p0[1] - centre[1], p0[0] - centre[0])
+        a1 = math.atan2(p1[1] - centre[1], p1[0] - centre[0])
+        da = (a1 - a0 + math.pi) % (2 * math.pi) - math.pi
+        n = max(2, int(math.ceil(abs(da) * r / step)))
+        out += [(centre[0] + r * math.cos(a0 + da * i / n), centre[1] + r * math.sin(a0 + da * i / n))
+                for i in range(n + 1)]
+    out.append(pts[-1])
+    return out
 
 
 # ---------------------------------------------------------------------------
