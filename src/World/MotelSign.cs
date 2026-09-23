@@ -29,6 +29,13 @@ public partial class MotelSign : Sprite2D
     internal const float BlinkCycle = 4.0f;
     internal const float BlinkOff = 0.55f;
 
+    // The cabinet's lettering, read-only for the world dump: the MOTEL panel and the
+    // vacancy tubes (NO on circuit A, the V on C, ACANCY on B). The nameplate between
+    // them is blank on purpose.
+    internal const string PanelText = "MOTEL";
+    internal const string VacancyNo = "NO";
+    internal const string VacancyText = "VACANCY";
+
     // Cabinet geometry (local px), straight from the handoff: 74-wide cabinet,
     // 22px pylon, 4px ink foot.
     private const int W = 74, H = 88;
@@ -138,7 +145,7 @@ public partial class MotelSign : Sprite2D
 
         // MOTEL panel, letters at 2x.
         img.FillRect(new Rect2I(4, 8, 66, 16), BarnRed);
-        PixelFont.DrawCentered(img, W / 2, 11, "MOTEL", Cream, 2);
+        PixelFont.DrawCentered(img, W / 2, 11, PanelText, Cream, 2);
 
         // The nameplate: blank on purpose, one ruled line where the name goes.
         img.FillRect(new Rect2I(4, 26, 66, 14), Ink900);
@@ -146,10 +153,10 @@ public partial class MotelSign : Sprite2D
 
         // Vacancy panel: NO on circuit A, V on circuit C, ACANCY on circuit B.
         img.FillRect(new Rect2I(4, PanelY, 66, 20), Ink900);
-        PixelFont.DrawCentered(img, W / 2, PanelY + 3, "NO", noOn ? NeonRed : unlitTube);
-        int vacancyX = W / 2 - PixelFont.Measure("VACANCY") / 2;
-        PixelFont.Draw(img, vacancyX, PanelY + 11, "V", night && vOn ? NeonRed : unlitTube);
-        PixelFont.Draw(img, vacancyX + 4, PanelY + 11, "ACANCY", night ? NeonRed : unlitTube);
+        PixelFont.DrawCentered(img, W / 2, PanelY + 3, VacancyNo, noOn ? NeonRed : unlitTube);
+        int vacancyX = W / 2 - PixelFont.Measure(VacancyText) / 2;
+        PixelFont.Draw(img, vacancyX, PanelY + 11, VacancyText[..1], night && vOn ? NeonRed : unlitTube);
+        PixelFont.Draw(img, vacancyX + 4, PanelY + 11, VacancyText[1..], night ? NeonRed : unlitTube);
 
         // Bulb rail under the panel.
         for (int x = 4; x <= 68; x += 6)

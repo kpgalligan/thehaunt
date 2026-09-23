@@ -41,10 +41,14 @@ public partial class TownMap : ExteriorMap
     private const int PlazaLeft = 22, PlazaRight = 26, PlazaTop = 18, PlazaBottom = 21;
     private static readonly Vector2I PlazaCentre = new(24, 20);
 
+    /// <summary>The one wrong-shaped paving stone (see <see cref="CobbleField"/>) —
+    /// read-only, for the world dump.</summary>
+    internal static Vector2I WornCobble => PlazaCentre;
+
     private const int RoadTop = 14, RoadBottom = 15;
     private const int ApronRow = 12;
 
-    private const string TownHallPath = "res://assets/sprites/town/building_townhall.png";
+    internal const string TownHallPath = "res://assets/sprites/town/building_townhall.png";
     private static readonly Rect2 TownHallSource = new(0, 0, 128, 128);
 
     // Props, as (source rect, base tile, width in tiles). Every one of these blocks.

@@ -17,6 +17,9 @@ public partial class GuestCar : Node2D
     private const int ImageWidth = 48;
     private const int ImageHeight = 20;
 
+    /// <summary>Footprint width in tiles (the stall it parks in).</summary>
+    internal const int TilesWide = ImageWidth / MapRoot.TileSize;
+
     /// <summary>Body paint; trim and glass are derived shades.</summary>
     public Color Paint { get; init; } = new("5c6a76");
 

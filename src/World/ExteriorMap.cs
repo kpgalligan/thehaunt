@@ -15,7 +15,7 @@ namespace TheHaunt.World;
 /// painted goes through <see cref="TerrainTiles.ForAct"/> — the act swap is a flag
 /// check, never a re-lay.
 /// </summary>
-public abstract partial class ExteriorMap : MapRoot
+public abstract partial class ExteriorMap : MapRoot, ISurfaceGrid
 {
     /// <summary>
     /// Asphalt, Concrete and Road paint from the generated roadside source, so a map
@@ -60,6 +60,19 @@ public abstract partial class ExteriorMap : MapRoot
         for (int y = y0; y <= y1; y++)
             for (int x = x0; x <= x1; x++)
                 _surface[x, y] = surface;
+    }
+
+    public int GridWidth => MapWidth;
+    public int GridHeight => MapHeight;
+    public string SurfaceName(int x, int y) => _surface[x, y].ToString();
+
+    /// <summary>The kerb cuts <see cref="BuildRoadDressing"/> drew — the road's top row
+    /// and the north/south column ranges where a driveway breaks the kerb. Read-only,
+    /// for the world dump; null on a map with no paved road.</summary>
+    internal (int RoadTop, (int First, int Last)[] North, (int First, int Last)[] South)? KerbCuts
+    {
+        get;
+        private set;
     }
 
     protected Surface At(int x, int y) =>
@@ -135,6 +148,7 @@ public abstract partial class ExteriorMap : MapRoot
     protected Sprite2D BuildRoadDressing(int roadTop,
         (int First, int Last)[] northCuts, (int First, int Last)[] southCuts)
     {
+        KerbCuts = (roadTop, northCuts, southCuts);
         int w = MapWidth * TileSize;
         const int h = 34;  // 1px of verge highlight, two road rows, 1px of far shadow
         var img = Image.CreateEmpty(w, h, false, Image.Format.Rgba8);

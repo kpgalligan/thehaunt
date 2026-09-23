@@ -50,6 +50,14 @@ public partial class WestEntryMap : ExteriorMap
     private static readonly int[] RoomDoorX = { 8, 13, 17, 21 };
     private static readonly Vector2I SignFoot = new(4, 13);
 
+    /// <summary>The motor court's footprint — office and room strip as blocked
+    /// rectangles (face rows through the door row), the office door column and the
+    /// four room door columns on <see cref="DoorRow"/>. Read-only, for the world dump.</summary>
+    internal static (Rect2I Office, Rect2I Strip, int DoorRow, int OfficeDoorX, IReadOnlyList<int> RoomDoorX) MotorCourt =>
+        (new Rect2I(OfficeLeft, FaceTop, OfficeRight - OfficeLeft + 1, DoorRow - FaceTop + 1),
+         new Rect2I(StripLeft, FaceTop, StripRight - StripLeft + 1, DoorRow - FaceTop + 1),
+         DoorRow, OfficeDoorX, RoomDoorX);
+
     // Footprints south of the road: (left, top, right, bottom); faces drawn 2 rows taller.
     private const int GasLeft = 24, GasTop = 18, GasRight = 29, GasBottom = 20;
     private const int GarageLeft = 32, GarageTop = 18, GarageRight = 37, GarageBottom = 20;
@@ -402,6 +410,21 @@ public partial class WestEntryMap : ExteriorMap
     private static readonly Color StallStripe = new("b8b5a5");
     private static readonly Color Crack = new("3e4241");
 
+    /// <summary>The asphalt lot (tiles) and its eight faded stalls: nine stripes, 2x40,
+    /// every 36px, 8px in from the lot's west edge (handoff geometry, one row
+    /// shallower), as lot-local pixel rects. Read-only, for the world dump.</summary>
+    internal static (Rect2I Lot, IReadOnlyList<Rect2I> StripesPx) LotStalls
+    {
+        get
+        {
+            var lot = new Rect2I(LotLeft, LotTop, LotRight - LotLeft + 1, LotBottom - LotTop + 1);
+            var stripes = new List<Rect2I>();
+            for (int x = 8; x + 2 <= lot.Size.X * TileSize; x += 36)
+                stripes.Add(new Rect2I(x, 10, 2, 40));
+            return (lot, stripes);
+        }
+    }
+
     private Sprite2D BuildLotMarkings()
     {
         int w = (LotRight - LotLeft + 1) * TileSize;   // 320
@@ -409,10 +432,8 @@ public partial class WestEntryMap : ExteriorMap
         var img = Image.CreateEmpty(w, h, false, Image.Format.Rgba8);
         img.Fill(new Color(0, 0, 0, 0));
 
-        // Eight faded stalls: nine stripes, 2x40, every 36px, 8px in from the lot's
-        // west edge (handoff geometry, one row shallower).
-        for (int x = 8; x + 2 <= w; x += 36)
-            img.FillRect(new Rect2I(x, 10, 2, 40), StallStripe);
+        foreach (Rect2I stripe in LotStalls.StripesPx)
+            img.FillRect(stripe, StallStripe);
 
         // Scattered short cracks across the south half.
         for (int i = 0; i < 40; i++)

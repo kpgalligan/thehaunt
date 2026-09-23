@@ -277,13 +277,20 @@ public partial class Main : Node2D
             // never commit it.
             if (args[i] == "--dump-content")
                 CallDeferred(nameof(DumpContentAndQuit), args[i + 1]);
+
+            // Dev-only: write every exterior map's geography as JSON (WorldDump —
+            // surfaces, footprints, props, lights, sign text, exits) for the intro
+            // flyover's Blender generator (tools/flyover), then quit. GENERATED:
+            // never commit a dump.
+            if (args[i] == "--dump-world")
+                CallDeferred(nameof(DumpWorldAndQuit), args[i + 1]);
         }
 
-        // A trailing --dump-content has no path: fail loudly. Ignoring it would boot
-        // a headless run that never quits.
-        if (args.Length > 0 && args[^1] == "--dump-content")
+        // A trailing dump flag has no path: fail loudly. Ignoring it would boot a
+        // headless run that never quits.
+        if (args.Length > 0 && args[^1] is "--dump-content" or "--dump-world")
         {
-            GD.PushError("--dump-content needs an output path, e.g. --dump-content /tmp/content.md");
+            GD.PushError($"{args[^1]} needs an output path, e.g. {args[^1]} /tmp/out");
             GetTree().Quit(1);
         }
 
@@ -311,6 +318,30 @@ public partial class Main : Node2D
             GD.PushError($"--dump-content failed: {e}");
             GetTree().Quit(1);
             return;
+        }
+        GetTree().Quit();
+    }
+
+    // Deferred so the boot has settled. Builds each exterior under a scratch host,
+    // reads it, frees it — no model writes — and quits (1 on any failure).
+    private void DumpWorldAndQuit(string path)
+    {
+        var host = new Node { Name = "WorldDumpHost" };
+        AddChild(host);
+        try
+        {
+            File.WriteAllText(path, WorldDump.Render(host));
+            GD.Print($"World dump written to {path}");
+        }
+        catch (Exception e)
+        {
+            GD.PushError($"--dump-world failed: {e}");
+            GetTree().Quit(1);
+            return;
+        }
+        finally
+        {
+            host.Free();
         }
         GetTree().Quit();
     }

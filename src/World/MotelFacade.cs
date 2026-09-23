@@ -21,6 +21,11 @@ public partial class MotelFacade : Sprite2D
 {
     private const int W = 400, H = 108;   // the last 2 rows are the ink base band below the kick plates
 
+    // Read-only for the world dump: the drawn face's size, its lettering and door paint.
+    internal const int DrawnWidth = W, DrawnHeight = H;
+    internal const string OfficeText = "OFFICE";
+    internal const string IceText = "ICE";
+
     private static readonly Color Ink700 = new("2b241d");
     private static readonly Color Ink900 = new("171310");
     private static readonly Color Cream = new("ede3cb");
@@ -34,6 +39,10 @@ public partial class MotelFacade : Sprite2D
     private static readonly Color OfficeGlassNight = new("2a2a20");
     private static readonly Color Reflection = new("5c8fa3");
     private static readonly Color Lamp = new("f2b95c");
+
+    /// <summary>The office door's paint, and rooms 1-4's (alternating red and aqua).</summary>
+    internal static readonly Color OfficeDoorPaint = BarnRed;
+    internal static readonly Color[] RoomDoorPaint = { BarnRed, NeonAqua, BarnRed, NeonAqua };
 
     private Texture2D? _day;
     private Texture2D? _night;
@@ -146,7 +155,7 @@ public partial class MotelFacade : Sprite2D
         img.FillRect(new Rect2I(4, 14, 10, 2), Ink700);
 
         img.FillRect(new Rect2I(20, 20, 52, 12), Ink900);         // OFFICE box
-        PixelFont.DrawCentered(img, 46, 21, "OFFICE", night ? Lamp : NeonAqua, 2);
+        PixelFont.DrawCentered(img, 46, 21, OfficeText, night ? Lamp : NeonAqua, 2);
 
         // Plate glass: the lobby light is on all night — Walt lives behind that desk.
         img.FillRect(new Rect2I(20, 38, 48, 42), Ink700);
@@ -161,7 +170,7 @@ public partial class MotelFacade : Sprite2D
         img.FillRect(new Rect2I(20, 80, 48, 2), Cream);           // sill
 
         img.FillRect(new Rect2I(74, 62, 16, 40), Ink700);         // door
-        img.FillRect(new Rect2I(75, 63, 14, 38), BarnRed);
+        img.FillRect(new Rect2I(75, 63, 14, 38), OfficeDoorPaint);
         img.FillRect(new Rect2I(86, 80, 2, 3), Ink900);
 
         img.FillRect(new Rect2I(0, 74, 10, 28), Ink700);          // soda machine
@@ -179,7 +188,7 @@ public partial class MotelFacade : Sprite2D
         img.FillRect(new Rect2I(110, 36, 288, 2), Ink700);        // shadow line
         img.FillRect(new Rect2I(110, 38, 288, 4), NeonAqua);      // googie stripe
 
-        Color[] doors = { BarnRed, NeonAqua, BarnRed, NeonAqua };
+        Color[] doors = RoomDoorPaint;
         for (int i = 0; i < 4; i++)
         {
             int ux = 110 + i * 68;
@@ -206,7 +215,7 @@ public partial class MotelFacade : Sprite2D
         img.FillRect(new Rect2I(371, 59, 22, 42), StoneShade);
         img.FillRect(new Rect2I(374, 62, 7, 16), NeonAqua);
         img.FillRect(new Rect2I(384, 62, 7, 16), BarnRed);
-        PixelFont.DrawCentered(img, 382, 84, "ICE", Cream);
+        PixelFont.DrawCentered(img, 382, 84, IceText, Cream);
 
         img.FillRect(new Rect2I(110, 102, 288, 4), StoneDark);    // kick plate
     }

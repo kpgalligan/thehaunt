@@ -40,6 +40,9 @@ code rules are in `src/CLAUDE.md`; the art contract (six binding handoffs) is in
   sampled talk tables, places + copy, quests, letters, flags, every dialogue line):
   `godot-mono --headless --path . -- --dump-content /tmp/content.md`
   (output is GENERATED: read it, throw it away, never commit it)
+- World dump (every exterior map's geography as JSON, for the intro flyover's Blender
+  generator — schema on `src/World/WorldDump.cs`): `godot-mono --headless --path . --
+  --dump-world /tmp/world.json` (GENERATED: never commit it)
 - Edit a map graphically: `godot-mono --path . --editor` — full workflow in
   `src/EditorTools/CLAUDE.md` (Save in the Haunt Mapper dock; Ctrl+S saves the SCENE,
   not the map)
@@ -68,7 +71,8 @@ Each directory's CLAUDE.md carries its contracts — read it before working ther
 - `docs/designs/` — the six binding art handoff bundles
 - `tools/` — asset-derivation one-shots (`regen_scooter_rider.py`,
   `gen_item_icons.py` — the inventory icon atlas, `run_gen_cast.mjs` — local
-  runner for the cast handoff's gen_cast.js wardrobe generator)
+  runner for the cast handoff's gen_cast.js wardrobe generator); `tools/flyover/` —
+  the Blender generator for the intro flyover (phased plan + decisions in its CLAUDE.md)
 
 ## Project-wide conventions
 

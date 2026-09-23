@@ -27,7 +27,7 @@ public partial class PlaceholderBuilding : Sprite2D
     /// answer, so the face has to show them.</summary>
     public bool Boarded { get; init; }
 
-    private const int RoofRows = 2;
+    internal const int RoofRows = 2;
 
     public override void _Ready()
     {

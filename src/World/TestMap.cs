@@ -31,7 +31,7 @@ namespace TheHaunt.World;
 /// blockers, the soil autotile and the scatter hash. A recipe is a build function's
 /// INPUT; this is still a build function.
 /// </summary>
-public partial class TestMap : MapRoot
+public partial class TestMap : MapRoot, ISurfaceGrid
 {
     private const int Width = 40;
     private const int Height = 30;
@@ -361,6 +361,35 @@ public partial class TestMap : MapRoot
 
     private Surface At(int x, int y) =>
         x < 0 || y < 0 || x >= Width || y >= Height ? Surface.Woods : _surface[x, y];
+
+    public int GridWidth => Width;
+    public int GridHeight => Height;
+
+    // The wagon road paints from the town sheet's dirt set (PaintRoad): it is the
+    // strip's unsealed "Dirt", not its paved Road — the farm never paves.
+    public string SurfaceName(int x, int y) =>
+        _surface[x, y] == Surface.Road ? "Dirt" : _surface[x, y].ToString();
+
+    // ------------------------------------------------------------------
+    // Read-only views for the world dump (WorldDump) — the solved-in-code geometry
+    // a 3D rebuild needs that no node or recipe carries.
+    // ------------------------------------------------------------------
+
+    /// <summary>The recipe this build placed from (file, override or code seed).</summary>
+    internal MapRecipe Recipe => _recipe;
+
+    /// <summary>The pen's rail rectangle, corners inclusive.</summary>
+    internal static Rect2I Pen => new(PenLeft, PenTop, PenRight - PenLeft + 1, PenBottom - PenTop + 1);
+
+    /// <summary>The pen's one open cell, drawn and painted open.</summary>
+    internal static Vector2I PenGate => new(PenGateX, PenBottom);
+
+    /// <summary>The storm blockade's cells and farm-sheet tiles (present until
+    /// intro.road_cleared).</summary>
+    internal static IReadOnlyList<(Vector2I Cell, Vector2I Tile)> StormDebris => RoadBlock;
+
+    /// <summary>Whether a field-obstacle tree on this trunk cell draws bare.</summary>
+    internal static bool IsBareTree(Vector2I trunk) => Hash(trunk.X, trunk.Y) % 8 == 0;
 
     // ------------------------------------------------------------------
     // Ground
@@ -771,7 +800,7 @@ public partial class TestMap : MapRoot
         // One bare tree in ~8 — the handoff's "use sparingly" — picked by the cell
         // hash. Identity-from-coordinate is banned for DRAGGABLE placements; a
         // save-state record never moves, so its pick is stable for the record's life.
-        bool bare = Hash(trunk.X, trunk.Y) % 8 == 0;
+        bool bare = IsBareTree(trunk);
         var prop = new Prop
         {
             TexturePath = FarmBuildings.TexturePath,

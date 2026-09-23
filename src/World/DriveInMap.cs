@@ -181,6 +181,13 @@ public partial class DriveInMap : ExteriorMap
     private static readonly Color WeedDark = new("2f5228");
     private static readonly Color Weed = new("457539");
 
+    private static readonly int[] RampRowsPx = { 40, 104, 168 };
+
+    /// <summary>The asphalt field (tiles) and its three ramp rows, as field-local pixel
+    /// rows. Read-only, for the world dump.</summary>
+    internal static (Rect2I Field, IReadOnlyList<int> RampRowsPx) FieldRamps =>
+        (new Rect2I(LotLeft, LotTop, LotRight - LotLeft + 1, LotBottom - LotTop + 1), RampRowsPx);
+
     private Sprite2D BuildFieldMarkings()
     {
         int w = (LotRight - LotLeft + 1) * TileSize;   // 352
@@ -189,7 +196,7 @@ public partial class DriveInMap : ExteriorMap
         img.Fill(new Color(0, 0, 0, 0));
 
         // Three ramp rows, the paint nearly gone: broken dashes, not lines.
-        foreach (int y in new[] { 40, 104, 168 })
+        foreach (int y in RampRowsPx)
         {
             for (int x = 4; x < w - 12; x += 22)
                 img.FillRect(new Rect2I(x + Hash(x, y) % 6, y, 9, 1), RampLine);

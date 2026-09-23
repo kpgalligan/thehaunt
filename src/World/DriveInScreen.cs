@@ -14,8 +14,8 @@ public partial class DriveInScreen : Sprite2D
     /// <summary>Footprint width in tiles; the face fills it.</summary>
     public int TilesWide { get; init; } = 14;
 
-    private const int FaceHeight = 56;
-    private const int LegHeight = 16;
+    internal const int FaceHeight = 56;
+    internal const int LegHeight = 16;
 
     private static readonly Color Casing = new("2b241d");
     private static readonly Color Screen = new("ede3cb");

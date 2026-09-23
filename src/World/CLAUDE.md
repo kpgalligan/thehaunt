@@ -56,6 +56,9 @@ What lives here:
   + `MapRecipeFile` + `MapRecipeException`, and `MapRecipeSeeds` (the one-shot exporter
   that seeds a map's first recipe from its C# literals). The recipe FILES and their
   contract live in `data/maps/` — see `data/maps/CLAUDE.md`.
+- `WorldDump` (+ `WorldDumpEntry`, `ISurfaceGrid`): the `--dump-world` exporter for
+  the intro flyover (tools/flyover) — builds each exterior headless and reads it back;
+  schema on the class. The `internal` read-only views on the map classes exist for it.
 
 ## Travel
 
