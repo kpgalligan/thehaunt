@@ -17,3 +17,7 @@ obj/
 .idea/
 .vscode/
 *.user
+
+# Flyover build output (tools/flyover)
+tools/flyover/out/
+__pycache__/

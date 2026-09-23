@@ -1,0 +1,323 @@
+"""Flyover constants: scale, palette, surface colours, collection names.
+
+Coordinates (every module follows this):
+  Blender +X = east, +Y = north, Z up, metres. The dump's tiles run x east, y south.
+  A tile (x, y) of a map at global tile offset (ox, oy) has its NORTH-WEST CORNER at
+      X = (ox + x) * TILE_M,   Y = -(oy + y) * TILE_M
+  and covers X..X+TILE_M, Y-TILE_M..Y. Its centre is corner + (TILE_M/2, -TILE_M/2).
+  Map pixels (the dump's "px" pairs) scale the same way: px / TILE_PX tiles, so
+  pixel (0, 0) is the map's north-west corner. Ground sits at Z = 0.
+"""
+
+TILE_M = 2.5          # 1 tile = 2.5 m, the one scale constant
+TILE_PX = 16          # the dump's tilePx (validated on load)
+DUMP_VERSION = 1
+
+# The 30-colour palette (docs/designs/design_handoff_town_art/README.md). The Act I
+# dread accents (plum, bile-green, bone) are deliberately absent: never use them here.
+PALETTE = {
+    "ink-900": "#171310", "ink-700": "#2b241d", "ink-500": "#453a2e",
+    "cream": "#ede3cb", "stone-pale": "#b8b5a5",
+    "green-dark": "#2f5228", "green-mid": "#457539", "green-base": "#4a7c3a",
+    "green-light": "#5f9445", "green-pale": "#86ad5c",
+    "earth-dark": "#4a3526", "wood-warm": "#6b4a2f", "earth-mid": "#7a5b3c",
+    "earth-base": "#8a6a45", "earth-light": "#a5855c",
+    "stone-dark": "#3e4241", "stone-shade": "#575a58", "stone-base": "#7a7a7a",
+    "stone-light": "#9a9a8a", "barn-red": "#a4432f",
+    "sky-day": "#8fb8cf", "water-mid": "#47788c", "water-deep": "#2e5566",
+    "skin-base": "#e8c8a0", "skin-shade": "#c49a72",
+    "lantern": "#f2b95c", "hair-stock": "#5a4a3a",
+}
+
+# Surface kind -> palette colour. The ORDER is the material-slot order on every
+# ground mesh, so a face's material_index is SURFACES.index(kind) everywhere.
+SURFACE_COLOURS = {
+    "Grass": "green-base",
+    "Woods": "green-dark",
+    "Pasture": "green-light",
+    "Dirt": "earth-mid",
+    "Path": "earth-light",
+    "Gravel": "stone-light",
+    "Cobble": "stone-base",
+    "Road": "stone-shade",
+    "Asphalt": "stone-dark",
+    "Concrete": "stone-pale",
+}
+SURFACES = list(SURFACE_COLOURS)
+
+# Stitching: a frame-ring tile whose edge abuts another map becomes this surface.
+SEAM_SURFACE = "Grass"
+RING_SURFACE = "Woods"
+
+# The flat diorama's ground plane (--diorama only; the terrain replaces it).
+FOREST_FLOOR = "green-dark"
+GROUND_MARGIN_M = 400.0     # how far the plane runs past the stitched world's bounds
+GROUND_PLANE_Z = -0.05      # just under the tiles, no z-fighting
+
+# ---------------------------------------------------------------------------
+# Phase 3: terrain, roads, tracks, markings
+# ---------------------------------------------------------------------------
+
+# Everything outside the maps is forest floor (Phase 4 plants it): this surface.
+WILD_SURFACE = "Woods"
+# Surfaces whose shared tile edges are softened (ragged sub-cell dither); built
+# surfaces (asphalt, concrete, cobble, road) keep hard edges.
+SOFT_SURFACES = ("Grass", "Woods", "Pasture", "Dirt", "Path", "Gravel")
+# Prop kinds the ground itself models (no placeholder box).
+GROUND_PROP_KINDS = ("kerb_cut", "worn_cobble", "stall_stripes", "ramp_rows")
+
+SUB = 4                     # sub-cells per tile edge on detailed ground (0.625 m)
+NEAR_PAD_TILES = 24         # detailed lattice runs this far past the world bounds (even)
+FAR_MARGIN_M = 720.0        # terrain runs at least this far past the world bounds
+FAR_CELL_M = 5.0            # far terrain cell (2 tiles)
+OUTER_M = 3600.0            # ... then cells grow out to this far past the bounds
+OUTER_GROWTH = 1.18
+OUTER_MAX_CELL_M = 160.0
+
+# Relief: flat town floor in a valley, forested hills rising away from it, highest to
+# the north. From any view the ground climbs to a ridge: never a flat horizon.
+FLAT_PAD_M = 6.0            # flat collar around every map
+RISE_M = 320.0              # distance over which the hills come up to full height
+WALL_EASE_M = 70.0          # the valley wall eases off the flat collar over this
+HILL_BASE_M = 36.0          # full hill height south/east/west of the valley
+HILL_NORTH_M = 92.0         # extra height to the north (the wilderness)
+NORTH_RAMP_M = (-60.0, 460.0)   # north weighting ramps over this Y range past the world's north edge
+RIM_SLOPE = 0.05            # keeps rising past RISE_M so the terrain's edge is always a ridge
+HILL_WAVES_M = ((520.0, 0.5), (230.0, 0.45), (90.0, 0.22), (34.0, 0.06))   # value-noise fBm (wavelength, amp)
+HILL_NOISE_MIX = 0.55       # how much of the hill height the fBm shapes (the rest is the rise)
+RIDGE_M = 190.0             # peaks and saddles on the far hills: the skyline is never flat
+RIDGE_FROM_M = (200.0, 950.0)   # ... growing in over this distance from the maps
+RIDGE_WAVES_M = ((950.0, 0.55), (430.0, 0.33), (170.0, 0.12))
+VALLEY_MIN = 0.3            # hill scale right at a road-out (the valley it runs in)
+VALLEY_M = (15.0, 210.0)    # valley widens back to full hills over this distance
+TRACK_VALLEY_MIN = 0.4      # ... and along a forest track (the mansion drive's hollow)
+TRACK_VALLEY_M = (10.0, 150.0)
+TERRAIN_SEED = 7
+
+# The paved road (profile offsets from the centreline, metres; z relative to verge).
+ROAD_HALF_M = 2.5           # the two road rows
+KERB_W_M = 0.2
+KERB_H_M = 0.15
+GUTTER_W_M = 0.3
+CROWN_M = 0.04
+CUT_LIP_M = 0.02            # a dropped kerb's lip over the gutter
+CUT_TAPER_M = 0.5           # transition kerb length at each end of a cut
+SKIRT_URBAN_M = 0.5         # vertical skirt under the kerb (hidden by the verge)
+SHOULDER_W_M = 1.0          # rural gravel shoulder
+SKIRT_RURAL_M = (2.2, 1.4)  # rural embankment skirt: (out, down)
+URBAN_FADE_M = (15.0, 60.0) # kerbs fade to a rural edge over this distance out of town
+CORRIDOR_FLAT_M = 6.0       # terrain is levelled to the road this far from its centre
+CORRIDOR_BLEND_M = 18.0     # ... and blends back to the hills over this distance
+CORRIDOR_CLEAR_M = 8.0      # Phase 4: keep trees this far from the road centreline
+DASH_M = (2.5, 2.5)         # centre line dash on / off (one tile each, as in the game)
+
+# The road out of town at both ends: (start s, length, turn degrees, + = left).
+ROAD_OUT_LENGTH_M = 660.0
+ROAD_OUT_STEP_M = 2.5
+ROAD_OUT_BENDS = ((40.0, 190.0, 48.0), (330.0, 200.0, -26.0))
+ROAD_OUT_MAX_GRADE = 0.06
+ROAD_OUT_SMOOTH_M = 90.0    # moving-average window on the road-out's height
+ROAD_OUT_SINK_M = 30.0      # the far end sinks into the ground over this length
+
+# Dirt tracks: 2-tile corridors traced from kerb cuts. Named by the chain they pass
+# (dump prop ids); a track that dead-ends at a map's frame continues into the forest.
+TRACK_MIN_TILES = 4
+TRACK_NAMES = {"MansionChain": "MansionDrive", "SouthChain": "ForkSouthStub",
+               "TheaterChain": "DriveInDrive"}
+TRACK_INTO_MAP = {"test_farm": "FarmRoad"}      # a track reaching this map is named so
+TRACK_EXTEND_M = {"MansionDrive": 95.0, "ForkSouthStub": 22.0}
+TRACK_WANDER_DEG = 14.0
+MANSION_CLEARING_M = (30.0, 25.0)   # (across, along the drive): Phase 6's roofline site
+MANSION_CLEARING_ENTER_M = 4.0      # the drive's end sits this far inside the clearing
+CLEARING_BLEND_M = 14.0             # the clearing's level shelf blends back over this
+TRACK_CLEAR_M = 3.5         # Phase 4: keep trees this far from a track centreline
+RUT_DEPTH_M = 0.055
+DIRT_SINK_M = 0.045
+PATH_SINK_M = 0.02
+PIT_SINK_M = 0.12
+WOODS_SHADE_M = (900.0, 500.0)  # the forest floor darkens to canopy shade from here, over
+VERGE_M = (6.0, 10.0)       # the road-outs' grassed verge fades out over this distance
+LITTER_M = 6.0              # fallen leaves reach this far out of the woods onto open ground
+
+# Drive-in ramps (rows from the dump's ramp_rows): crest height, run-up, drop.
+RAMP_H_M = 0.55
+RAMP_RISE_M = 7.5           # north of the crest (cars face the screen, south)
+RAMP_DROP_M = 1.8
+MARK_LIFT_M = 0.02          # paint decals sit this far above the ground
+RAMP_DASH_M = (1.4, 3.4)    # faint ramp-line dash length, pitch
+
+# ---------------------------------------------------------------------------
+# Phase 4: the forest (forest.py plants, trees.py builds the kit, scatter.py instances)
+# ---------------------------------------------------------------------------
+
+COL_FOREST = "Flyover_Forest"
+COL_FOREST_KIT = "Flyover_ForestKit"   # the prototypes (excluded from the view layer)
+FOREST_SEED = 11
+# The kit, in instance-index order: (family, variants). trees.py builds one prototype
+# per variant ("FK_<nn>_<family>_<A..>", origin at the trunk base, metres at scale 1).
+FOREST_KIT = (("maple", 3), ("birch", 2), ("oak", 2), ("pine", 2), ("hemlock", 2),
+              ("bare", 2), ("clump", 3), ("stump", 1), ("boulder", 2), ("tuft", 2))
+TREE_FAMILIES = ("maple", "birch", "oak", "pine", "hemlock", "bare")
+
+# Palette colours per family, (name, weight), BRIGHT -> DARK (a spatially coherent pick
+# walks this list, so neighbouring trees share a hue). New England autumn from the
+# palette's golds, ambers, ochres and earth browns against conifer greens; lantern
+# sparingly; barn red only as a rare muted rust maple (FOREST_RUST_P): the art bible
+# keeps restored barn red the only saturated red mass in the game.
+FOREST_CROWN = {
+    "maple":   (("lantern", 0.22), ("earth-light", 0.4), ("earth-base", 0.26), ("earth-mid", 0.12)),
+    "birch":   (("lantern", 0.58), ("earth-light", 0.27), ("green-pale", 0.15)),
+    "oak":     (("earth-light", 0.12), ("earth-base", 0.34), ("earth-mid", 0.32), ("wood-warm", 0.14),
+                ("green-mid", 0.08)),
+    "pine":    (("green-mid", 0.5), ("green-dark", 0.5)),
+    "hemlock": (("green-mid", 0.12), ("green-dark", 0.88)),
+    "bare":    (("earth-dark", 1.0),),
+    "stump":   (("earth-light", 1.0),),          # the cut face
+    "boulder": (("stone-base", 0.45), ("stone-shade", 0.4), ("stone-dark", 0.15)),
+    "tuft":    (("earth-light", 0.25), ("green-base", 0.15), ("green-mid", 0.4), ("green-dark", 0.2)),
+}
+FOREST_BARK = {
+    "maple": (("wood-warm", 0.6), ("earth-dark", 0.4)), "birch": (("cream", 0.55), ("stone-pale", 0.45)),
+    "oak": (("earth-dark", 0.6), ("wood-warm", 0.4)), "pine": (("earth-mid", 0.5), ("wood-warm", 0.5)),
+    "hemlock": (("earth-dark", 0.7), ("wood-warm", 0.3)), "bare": (("wood-warm", 0.5), ("earth-dark", 0.5)),
+    "stump": (("wood-warm", 1.0),), "boulder": (("stone-base", 1.0),), "tuft": (("green-mid", 1.0),),
+    "clump": (("earth-dark", 1.0),),
+}
+# crown2 (the kit's `alt` faces: a crown's under-lobes, a boulder's moss, a tuft's tips)
+FOREST_SHADE = {
+    "lantern": "earth-light", "earth-light": "earth-base", "earth-base": "earth-mid",
+    "earth-mid": "wood-warm", "wood-warm": "earth-dark", "earth-dark": "ink-500",
+    "green-pale": "green-base", "green-base": "green-mid", "green-mid": "green-dark",
+    "green-dark": "green-dark", "barn-red": "earth-mid", "stone-light": "green-mid",
+    "stone-base": "green-dark", "stone-shade": "green-dark", "stone-dark": "green-dark",
+}
+FOREST_RUST_P = 0.004       # a rare muted rust maple: barn red on its under-lobes only
+RUST_CROWN = ("earth-mid", "barn-red")      # (crown, crown2)
+DARK_BAND_CROWN = (("green-dark", 1.0),)    # conifers in the mansion band ...
+DARK_BAND_SHADE = "green-dark"              # ... all the way down
+
+# Tiers: (cell m, keep, scale). Full-detail trees within TIER_A of the world bounds or
+# the road-outs, bigger sparser trees to TIER_B (both "full" canopy), then canopy
+# clumps out to the terrain's edge. Tiers cross-fade over +-blend metres.
+FOREST_TIER_A = (4.3, 0.8, 1.0)
+FOREST_TIER_B = (7.6, 0.85, 1.3)
+FOREST_TIER_C = (24.0, 0.9, 1.0)
+FOREST_TIER_A_M, FOREST_TIER_A_BLEND = 380.0, 80.0
+FOREST_TIER_B_M, FOREST_TIER_B_BLEND = 1200.0, 150.0
+FOREST_FIELD_CELL_M = 20.0  # the coarse grid tier distance and elevation are sampled on
+FOREST_EDGE_INSET_M = 40.0  # clumps stop this far inside the terrain's edge
+
+# The open raster and the treeline.
+FOREST_CELL_M = 1.25        # open raster cell (two ground sub-cells)
+FOREST_EDGE_CAP_M = 30.0    # edge distance is exact up to here
+FOREST_BUILDING_MARGIN_M = 3.0
+FOREST_PROP_MARGIN_M = 1.0
+FOREST_POST_RADIUS_M = 1.5  # street lights and sign posts
+FOREST_SETBACK_M = (0.2, 1.8)       # trunks stand back min + noise * range from open ground
+FOREST_EDGE_GROW_M = 14.0   # trees reach full size this far into the woods ...
+FOREST_EDGE_MIN = 0.62      # ... from this fraction at the treeline
+UNDER_BAND_M = 7.0          # understorey band depth past the setback
+UNDER_CELL_M = 2.0
+UNDER_KEEP = 0.55
+UNDER_SCALE = (0.28, 0.5)
+
+# Species mix (stands via low-frequency noise).
+CONIFER_BASE = 0.26
+CONIFER_UPHILL = (40.0, 160.0, 0.16)    # more conifers from this elevation to that, +p
+CONIFER_PATCH = 0.5         # +-p/2 from the stand noise
+SPECIES_SCALE = {"maple": (0.8, 1.15), "birch": (0.8, 1.1), "oak": (0.8, 1.15),
+                 "pine": (0.8, 1.2), "hemlock": (0.75, 1.15), "bare": (0.75, 1.1),
+                 "clump": (0.8, 1.25), "stump": (0.85, 1.15), "boulder": (0.55, 1.2),
+                 "tuft": (0.6, 1.3)}
+FOREST_SINK_M = {"tree": 0.35, "clump": 2.5, "stump": 0.08, "boulder": 0.12, "tuft": 0.03}
+
+# The mansion: a deep, dark band along the drive past its chain, tall trees ringing the
+# clearing (Guide_MansionClearing) so later only the roofline shows through.
+BAND_M = (40.0, 80.0)       # full band within, fading out by (edge wobbled by noise)
+BAND_WOBBLE_M = 22.0
+BAND_CONIFER = 0.88
+BAND_HEMLOCK = 0.85
+BAND_BARE = 0.22            # dead snags among the band's hardwoods
+BAND_SCALE = 1.2
+RING_M = 14.0               # the tall ring's depth around the clearing
+RING_SETBACK_M = 3.5        # ring trunks stand back so their crowns meet the clearing's edge
+RING_SCALE = (1.45, 1.7)
+RING_PINE = 0.35
+
+# The farm's per-save sample (dump "sample": true), placed exactly.
+FARM_TREE_SCALE = (0.72, 0.82)
+FARM_BARE_SCALE = 0.9
+FOREST_PROP_KINDS = ("tree", "stump", "rock")   # sample props the forest places (no marker)
+
+# Ground dressing.
+BOULDER_CELL_M = 14.0
+BOULDER_KEEP = 0.22
+TUFT_ROAD_V_M = (4.2, 3.2)  # road-out verge tufts: min offset from the centreline + range
+TUFT_ROAD_STEP_M = 1.2
+TUFT_ROAD_KEEP = 0.55
+TUFT_TOWN_V_M = (2.95, 1.4) # in-town verge tufts, past the kerb
+TUFT_TOWN_KEEP = 0.14
+TUFT_EDGE_CELL_M = 1.3      # the open side of a treeline
+TUFT_EDGE_M = 2.5
+TUFT_EDGE_KEEP = 0.45
+TUFT_FIELD_MAP = "drive_in" # "weeds thickest at the edges" of the drive-in's field
+TUFT_FIELD_CELL_M = 1.0
+TUFT_FIELD_M = 2.5
+TUFT_FIELD_KEEP = 0.55
+
+# Named perspective stills (Phase 3 checks; Phase 9 builds the real path).
+VIEW_LENS_MM = 35.0
+CLIP_END_M = 9000.0
+
+# Collections added in Phase 3.
+COL_GUIDES = "Flyover_Guides"
+COL_TEMP_LIGHT = "Flyover_TempLight"
+
+# Placeholders (Phases 5-7 replace them).
+BUILDING_HEIGHT_M = 3.0
+ART_BUILDING_COLOUR = "cream"   # art buildings carry no wall colour in the dump
+PROP_COLOURS = {                # palette names, or None = take the dump's colour
+    "car": None, "tree": "green-pale", "stump": "wood-warm", "rock": "stone-base",
+    "kerb_cut": "stone-pale", "worn_cobble": "stone-light", "debris": "earth-dark",
+    "chain": "ink-500", "pit_cover": "wood-warm", "fence": "earth-light",
+    "screen": "cream", "speaker": "ink-700", "well": "stone-light",
+    "bench": "wood-warm", "planter": "earth-base", "notice_board": "earth-base",
+    "mailbox": "stone-dark", "shipping_bin": "wood-warm", "scatter": "earth-dark",
+}
+PROP_DEFAULT_COLOUR = "earth-base"
+PROP_HEIGHTS_M = {              # marker heights; flat ground details are slabs
+    "kerb_cut": 0.04, "worn_cobble": 0.04, "pit_cover": 0.15, "car": 1.4,
+    "tree": 6.0, "screen": 8.0, "fence": 1.1, "chain": 0.8, "speaker": 1.2,
+}
+PROP_DEFAULT_HEIGHT_M = 0.8
+STREET_LIGHT_HEIGHT_M = 7.0
+LIGHT_LIT_COLOUR = "lantern"
+LIGHT_DEAD_COLOUR = "ink-700"
+SIGN_COLOUR = "cream"
+SIGN_HEIGHT_M = 1.8
+
+# Collections. Everything the build makes lives under ROOT; a rebuild deletes ROOT's
+# tree and every datablock tagged with TAG_PROP, and nothing else.
+ROOT = "Flyover"
+COL_GROUND = "Flyover_Ground"
+COL_BUILDINGS = "Placeholders_Buildings"
+COL_PROPS = "Placeholders_Props"
+COL_CAMERAS = "Flyover_Cameras"
+TAG_PROP = "flyover"
+
+CAMERA_TOPDOWN = "Cam_TopDown"
+CAMERA_HEIGHT_M = 500.0
+FRAME_PADDING = 1.04    # ortho framing slack
+
+
+def hex_rgba(hex_colour, alpha=1.0):
+    """'#rrggbb' -> linear-light RGBA (Blender material colours are linear)."""
+    h = hex_colour.lstrip("#")
+    srgb = [int(h[i:i + 2], 16) / 255.0 for i in (0, 2, 4)]
+    lin = [c / 12.92 if c <= 0.04045 else ((c + 0.055) / 1.055) ** 2.4 for c in srgb]
+    return (*lin, alpha)
+
+
+def colour(name_or_hex):
+    """A palette name or a raw '#rrggbb' from the dump -> hex."""
+    return name_or_hex if name_or_hex.startswith("#") else PALETTE[name_or_hex]
