@@ -86,11 +86,27 @@ tools/flyover/build.py`) for the reproducible build.
   curves Guide_Road (whole centreline), Guide_RoadOut_W/E, Guide_Track_<name>
   (FarmRoad, MansionDrive, ForkSouthStub, DriveInDrive) with a `clear_m` keep-out
   half width, the empty Guide_MansionDriveEnd, and Guide_MansionClearing (cube empty,
-  props width_m / depth_m / heading_deg / ground_z: the levelled 30 x 25 m shelf Phase
-  6 puts the roofline on, ringed by tall hemlock / pine).
+  props width_m / depth_m / heading_deg / ground_z: the levelled 34 x 40 m shelf the
+  mansion stands on, ringed by tall hemlock / pine).
   Named views: Cam_WestRoad, Cam_Fork, Cam_Plaza, Cam_DriveIn, Cam_EastOut,
-  Cam_Overview, Cam_MansionDrive, Cam_FarmTreeline (positions derived from
+  Cam_Overview, Cam_MansionDrive, Cam_FarmTreeline, Cam_Billies, Cam_EastEntry,
+  Cam_MansionGlimpse (up the drive, short of the clearing) (positions derived from
   routes/dump).
+- Buildings (Phases 5-6): `archkit` (parametric parts as polygon soups: walls with
+  openings, roofs incl. `spire`, `overhead_door`, `boarded`, `wall_band`, `tower_walls`,
+  `pointed_hood`; prototypes as linked children) painted by `archmats` (keys
+  "kind:colour"; wall kinds incl. block / stucco / plywood / boards_old, roofs incl.
+  shingle / roll_roofing / corrugated / slate_ruin, ivy); `buildings_hero` (the five with
+  art; `Walls`, `realised_info` = hull + tris) and `buildings_town` (the nine placeholder
+  buildings, config.TOWN_DESIGNS / TOWN_FACING; the dump's wall colour is the main wall
+  colour; door / band / neon / bracket x from the dump; `DESIGN_NOTES` = the lit calls;
+  bodies carry `mount_<kind>` world xyz for Phase 7). `mansion` builds the ruin at
+  `routes.mansion_site` (back of the clearing, facing down the drive; the clearing is
+  config.MANSION_CLEARING_M, deep enough for a forecourt). Every hull joins
+  forest.clear_crowns. Light families: windows (flyover_window_glow), neon
+  (flyover_neon_glow), and the SIGN LAMP (flyover_sign_glow, LF_SignLamp_*: a LIT wall
+  band's letters, cream by day / lantern lit, + the trough lamp under it); each x object
+  `glow`. Dark bands are paint.
 - Treeline (config "Phase 4c"): only the plain frame of a clearing moves. Forced open
   (a smooth max, so tongue tips round off): non-grass tiles (the road rows to the road's
   tree clearance), footprints + 6 m swept to the doors and the road, props, posts, a
@@ -107,7 +123,10 @@ tools/flyover/build.py`) for the reproducible build.
   of a post, or in the clearing (the treeline's field trees stand on the grass, checked
   against its margins instead); crowns (radius up to ~8 m) DO overhang those margins,
   so Phase 5-6 buildings that back onto a treeline (the motel) meet canopy at the
-  roof. Colours live on the instances (FOREST_CROWN / FOREST_BARK palette weights);
+  roof. Deterministic: variant picks walk the families SORTED (a set's order follows the
+  string hash seed, which varied the table and the crown drops run to run). The mansion clearing's own `overgrowth` group (young trees + hemlock / maple
+  scrub, config.OVERGROWTH_*) stands clear of the house (checked) so from the drive only
+  its upper storey and roofs show. Colours live on the instances (FOREST_CROWN / FOREST_BARK palette weights);
   the Workbench layout stills hide the forest. Tiers: full detail within 380 m of the
   bounds / road-outs, the `_lo` kit to 1.2 km, canopy clumps beyond. Autumn colours are
   palette blends (config.TINTS); red only as the rare muted copper/rust tree.
@@ -167,6 +186,47 @@ tools/flyover/build.py`) for the reproducible build.
 - The farm's per-save sample tree 1 tile west of the farmhouse is dropped (its crown
   would pass through the roof).
 - Motel aqua #5fb9b0 (motel handoff) is config.ART_COLOURS, used on the motel only.
+- (6) OPEN neon: NeonWordSign.cs's #e05a3f lit / #6d4038 dead tube (ART_COLOURS neon-red /
+  neon-dead), hung in the window on a dark backing board. At NEON_EMIT 8 under Standard
+  it clips to near-white: Phase 8 exposure.
+- (6) Lit bands (dump lit: GAS, POLICE, SALON) are a 4th family, the sign lamp
+  (flyover_sign_glow, default 0 like neon); GARAGE, HARDWARE, SNACKS stay dark paint.
+- (6) Gas station: 1950s flat-roof block box, cream enamel frieze carrying GAS, office
+  plate glass + glass door lit, stock room / restroom doors dark, oil tank + flue behind.
+  NO pumps, NO canopy (Kevin): forecourt empty. OPEN QUESTION: pumps / canopy?
+- (6) Garage: block shop, stepped parapet with dark GARAGE, big bay on the kerb cut +
+  a second bay, office window + man door, shed roof behind the parapet, stove chimney.
+  All dark (for sale).
+- (6) Fireworks stand: board-and-batten on block piers, corrugated shed roof, serving
+  hatch SHUT (flap down, padlocked: seasonal, autumn), side door. No light.
+- (6) Billie's: low roadhouse, worn clapboard, low shingle side-gable, five small high
+  windows lit, solid dark door under a little hood, window AC unit, kitchen lean-to
+  (lit window), block chimney. BAR bracket = a wall plate only (mount_bracket).
+- (6) Police: painted-render civic box, stone water table / sills / heads, parapet,
+  centred double door up granite steps under a concrete hood, lit POLICE band above,
+  3 of 4 front windows lit, barred cell windows behind, guyed radio mast (12 m top).
+- (6) Hardware: older storefront, square false front + bracketed cornice hiding a low
+  gable, recessed centred entry, two display windows on bulkheads, transoms, dark
+  HARDWARE band; all dark; double loading door behind.
+- (6) Salon: small side-gable clapboard cottage-shop, picture window with OPEN, glass
+  door, lit SALON band. Lit, but Sam's hours end at 5 PM (dump onMinutes): if the film's
+  dusk is later, Phase 8 sets its windows / neon glow 0.
+- (6) Abe's shack: separate grey boards (tinted by the wall colour) on block piers, sagging
+  rusty corrugated shed roof with a tar-paper patch and rocks, plank door, one window at a
+  faint lamp (glow 0.35), leaning stovepipe, woodpile.
+- (6) Concession: boarded 1950s snack bar facing SOUTH (field + screen: its gravel apron
+  is south, the cars were south, the drive comes in behind), flat roof run forward as a
+  canopy on two posts, dark SNACKS on the fascia, serving windows / doors boarded, and a
+  PROJECTION BOOTH on the roof with two ports at the screen (invented, plausible).
+- (6) Mansion: dark stone 3-storey block, steep mossy slate side-gable, front cross-gable,
+  octagonal corner turret with spire, gable dormer, gable-end chimney stacks (the west
+  one broken) + a central stack; roof fallen in at the west end across the ridge (bare /
+  snapped rafters), a hole low on the front slope, slates lost on the spire; ivy; all
+  windows dark and empty. Placed at the BACK of a clearing enlarged to 34 x 40 m, with a
+  planted overgrown forecourt (young trees + scrub) so the drive glimpse shows only the
+  upper storey + roofs. Ring-tree heights left as they were (not needed).
+- (6) Facing: south-of-road buildings face the road, so their 2D-front board / FOR SALE
+  signs (south of the footprint) now stand BEHIND them: Phase 7 moves them roadside.
 
 ## Phases
 
@@ -191,7 +251,7 @@ Each phase ends in a standalone, render-verified state. Tick them off here as th
 - [x] 4c. Irregular treeline around the town clearing (see Decisions).
 - [x] 5. Hero buildings (real art exists): town hall, general store, motel, farmhouse,
   barn (derelict). Five-band grammar; side-by-side renders against the handoff PNGs.
-- [ ] 6. Placeholder buildings (flat colours only in-game — Kevin reviews): gas station,
+- [x] 6. Placeholder buildings (flat colours only in-game — Kevin reviews): gas station,
   garage, fireworks stand, Billie's, police, hardware, salon, Abe's shack, concession
   stand. Plus the mansion roofline. No pumps/canopy unless Kevin says so.
 - [ ] 7. Props + signage: cobra-head street lights (incl. the dead one), pole/bracket/

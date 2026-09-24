@@ -33,7 +33,8 @@ def _px(placed, px):
 
 _GROUND = None   # set by build(): the terrain sampler, or None for the flat diorama
 _FOREST = False  # set by build(): the forest places the sample trees / stumps / rocks
-_HERO = set()    # set by build(): ids of the buildings buildings_hero.py builds (no box, no glow marker)
+_HERO = set()    # set by build(): ids of the buildings buildings_hero / buildings_town design (no box,
+                 # no glow marker, no marker for the wall band / neon they wear)
 
 
 def _box(name, col, mat, x, y, w_m, d_m, h_m, z=0.0, **props):
@@ -64,8 +65,8 @@ def _post(name, col, mat, cx, cy, h_m, diameter=POLE_DIAMETER_M, **props):
 def build_buildings(placed, col, mats):
     t = config.TILE_M
     for b in placed.data["buildings"]:
-        if _HERO and b.get("art") in config.HERO_ART:
-            continue        # buildings_hero.py designs it
+        if b["id"] in _HERO:
+            continue        # buildings_hero.py / buildings_town.py designs it
         colour = b["wall"] or config.ART_BUILDING_COLOUR
         mat = mats.colour("Wall", colour)
         x, y = _corner(placed, b["x"], b["y"])
@@ -129,6 +130,8 @@ def build_signs(placed, col, mats):
     mat = mats.colour("Sign", config.SIGN_COLOUR)
     for i, s in enumerate(placed.data["signs"]):
         cx, cy = _px(placed, s["px"])
+        if s["kind"] in ("wallband", "neon") and s.get("building") in _HERO:
+            continue        # the designed building wears it
         on_building = s["kind"] in ("wallband", "bracket", "neon")
         z = BUILDING_SIGN_Z_M if on_building else config.SIGN_HEIGHT_M - SIGN_H_M
         _box_centred(f"Sign_{placed.id}_{s['kind']}_{s.get('id') or i}", col, mat, cx, cy,
@@ -138,12 +141,14 @@ def build_signs(placed, col, mats):
 
 
 def build(world, col_buildings, col_props, mats, only=None, ground=None, forest=False, hero=False):
-    """hero: the art buildings are built by buildings_hero.py (skip their boxes and the
-    glow markers of their windows)."""
+    """hero: the art buildings (buildings_hero.py) and the placeholder buildings
+    (buildings_town.py, config.TOWN_DESIGNS) are designed: skip their boxes, the glow
+    markers of their windows / signs, and their wall-band + neon markers. Only the
+    Phase 7 signs (pole, bracket, board, FOR SALE) keep markers."""
     global _GROUND, _FOREST, _HERO
     _GROUND, _FOREST = ground, forest
     _HERO = {b["id"] for m in world.maps.values() for b in m.data["buildings"]
-             if b.get("art") in config.HERO_ART} if hero else set()
+             if b.get("art") in config.HERO_ART or b["id"] in config.TOWN_DESIGNS} if hero else set()
     for placed in world.maps.values():
         if only is not None and placed.id != only:
             continue

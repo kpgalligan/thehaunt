@@ -12,7 +12,8 @@ and splash near the ground, moss on the derelict barn. Colours shift between pal
 NEIGHBOURS (a darker / lighter blend of the same colour), never off-palette hues.
 
 Light families (config): LF_Window_Glass (amber interior glow = object `glow` x the
-scene's `flyover_window_glow`), LF_Neon_* (object `glow` x `flyover_neon_glow`).
+scene's `flyover_window_glow`), LF_Neon_* (object `glow` x `flyover_neon_glow`),
+LF_SignLamp_* (lit wall bands: object `glow` x `flyover_sign_glow`).
 """
 
 import bpy
@@ -29,6 +30,10 @@ def _hex(c):
 
 def _shade(c, k=0.22, toward="ink-700"):
     return config._mix_hex(_hex(c), _hex(toward), k)
+
+
+def _mix(a, b, k):
+    return config._mix_hex(_hex(a), _hex(b), k)
 
 
 def _light(c, k=0.18, toward="cream"):
@@ -132,7 +137,7 @@ def clapboard(mat, colour):
     _bsdf(g, c, 0.62, h, (0.55, 0.012))
 
 
-def boards(mat, colour, weathered=False):
+def boards(mat, colour, weathered=False, tint=False):
     """Board-and-batten: 25 cm boards, a batten every joint; weathered = unpainted
     grey-brown barn wood (per-board tone, grain, knots, moss at the foot)."""
     g = G(mat)
@@ -142,7 +147,10 @@ def boards(mat, colour, weathered=False):
     k = g.math("FLOOR", g.math("DIVIDE", u, Wb))
     fu = g.math("FRACT", g.math("DIVIDE", u, Wb))
     rnd = g.white(g.combine(k, 7.0, 0.0))
-    if weathered:
+    if weathered and tint:            # old boards that still carry a stain / paint colour
+        c = g.ramp(rnd, [(0.0, _shade(colour, 0.35)), (0.45, colour), (0.8, _light(colour, 0.12, "earth-light")),
+                         (1.0, "stone-shade")])
+    elif weathered:
         c = g.ramp(rnd, [(0.0, "stone-shade"), (0.3, "earth-dark"), (0.6, "wood-warm"), (0.85, "earth-mid"),
                          (1.0, "ink-500")])
     else:
@@ -152,7 +160,7 @@ def boards(mat, colour, weathered=False):
     c = g.mix(g.math("MULTIPLY", g.step(grain, 0.58, 0.08), 0.45 if weathered else 0.15), c, rgba(tone))
     silver = g.noise(_vmul(g, uv, (6.0, 0.4, 1.0)), 1.0, 2.0)
     if weathered:
-        c = g.mix(g.math("MULTIPLY", g.step(silver, 0.58, 0.1), 0.2), c, rgba("stone-light"))
+        c = g.mix(g.math("MULTIPLY", g.step(silver, 0.58, 0.1), 0.08 if tint else 0.2), c, rgba("stone-light"))
         knot = g.step(g.noise(_vmul(g, uv, (4.0, 2.0, 1.0)), 6.0, 1.0), 0.78, 0.02)
         c = g.mix(knot, c, rgba("ink-700"))
     batten = g.math("MAXIMUM", g.step(fu, 0.93, 0.01), g.math("SUBTRACT", 1.0, g.step(fu, 0.07, 0.01)))
@@ -368,6 +376,175 @@ def gravel_roof(mat, colour="stone-shade"):
     _bsdf(g, c, 0.95, h, (0.5, 0.01))
 
 
+def block(mat, colour):
+    """Painted concrete block (40 x 20 cm, running bond): the paint over the block's
+    open texture, struck joints, chalking, rust-free streaks, grime at the foot."""
+    g = G(mat)
+    uv = _uv(g)
+    b = g.node("ShaderNodeTexBrick", offset=0.5, offset_frequency=2, squash=1.0, squash_frequency=2)
+    g.link(uv, b.inputs["Vector"])
+    b.inputs["Scale"].default_value = 1.0
+    b.inputs["Mortar Size"].default_value = 0.008
+    b.inputs["Mortar Smooth"].default_value = 0.4
+    b.inputs["Brick Width"].default_value = 0.4
+    b.inputs["Row Height"].default_value = 0.2
+    b.inputs["Color1"].default_value = (0, 0, 0, 1)
+    b.inputs["Color2"].default_value = (1, 1, 1, 1)
+    tone = g.sep(b.outputs["Color"])[0]
+    c = g.mix(g.math("MULTIPLY", tone, 0.35), rgba(colour), rgba(_shade(colour, 0.1)))
+    ob = _obj(g)
+    pore = g.noise(ob, 45.0, 2.0, 0.6)
+    c = g.mix(g.math("MULTIPLY", g.step(pore, 0.64, 0.04), 0.3), c, rgba(_shade(colour, 0.3)))
+    c = g.mix(g.math("MULTIPLY", g.step(g.noise(ob, 1.1, 3.0), 0.62, 0.08), 0.25), c,
+              rgba(_light(colour, 0.2, "stone-pale")))                    # chalked, sun-faded
+    mortar = b.outputs["Fac"]
+    c = g.mix(g.math("MULTIPLY", mortar, 0.45), c, rgba(_shade(colour, 0.3, "stone-shade")))
+    c = _streaks(g, c, colour, 0.25)
+    c = _grime(g, c, colour, 0.9, 0.5, "stone-dark")
+    h = g.math("SUBTRACT", g.math("MULTIPLY", pore, 0.2), mortar)
+    _bsdf(g, c, 0.8, h, (0.45, 0.01))
+
+
+def stucco(mat, colour):
+    """Painted cement render (smooth-troweled): soft patches, hairline cracks, streaks."""
+    g = G(mat)
+    ob = _obj(g)
+    c = _mottle(g, ob, rgba(colour), rgba(_shade(colour, 0.1)), 0.9)
+    c = g.mix(g.math("MULTIPLY", g.step(g.noise(ob, 0.6, 3.0), 0.6, 0.1), 0.3), c,
+              rgba(_light(colour, 0.2, "stone-pale")))
+    crack = g.math("SUBTRACT", 1.0, g.step(g.voronoi(ob, 1.4, "DISTANCE_TO_EDGE").outputs["Distance"], 0.012, 0.004))
+    crack = g.math("MULTIPLY", crack, g.step(g.noise(ob, 0.8, 2.0), 0.6, 0.05))
+    c = g.mix(g.math("MULTIPLY", crack, 0.6), c, rgba(_shade(colour, 0.5, "stone-dark")))
+    c = _streaks(g, c, colour, 0.3)
+    c = _grime(g, c, colour, 1.0, 0.5, "stone-dark")
+    h = g.math("SUBTRACT", g.math("MULTIPLY", g.noise(ob, 30.0, 3.0), 0.2), crack)
+    _bsdf(g, c, 0.85, h, (0.35, 0.008))
+
+
+def plywood(mat, colour, weathered=True):
+    """Plywood sheets (1.22 x 2.44 m) nailed up: faint face grain, sheet seams, nail
+    lines, paint (the colour) peeling to grey veneer, water stain rising from the foot."""
+    g = G(mat)
+    uv = _uv(g)
+    u, v, _ = g.sep(uv)
+    fu = g.math("FRACT", g.math("DIVIDE", u, 1.22))
+    fv = g.math("FRACT", g.math("DIVIDE", v, 2.44))
+    seam = g.math("MAXIMUM", g.math("MAXIMUM", g.step(fu, 0.994, 0.002), g.math("SUBTRACT", 1.0, g.step(fu, 0.006, 0.002))),
+                  g.math("MAXIMUM", g.step(fv, 0.997, 0.001), g.math("SUBTRACT", 1.0, g.step(fv, 0.003, 0.001))))
+    sheet = g.white(g.combine(g.math("FLOOR", g.math("DIVIDE", u, 1.22)), g.math("FLOOR", g.math("DIVIDE", v, 2.44)), 0.0))
+    c = g.mix(g.math("MULTIPLY", sheet, 0.4), rgba(colour), rgba(_shade(colour, 0.18)))
+    grain = g.noise(_vmul(g, uv, (0.8, 18.0, 1.0)), 2.0, 3.0, 0.6)
+    c = g.mix(g.math("MULTIPLY", g.step(grain, 0.58, 0.07), 0.25), c, rgba(_shade(colour, 0.3, "earth-dark")))
+    ob = _obj(g)
+    if weathered:
+        peel = g.step(g.noise(ob, 1.8, 4.0, 0.65), 0.62, 0.02)
+        c = g.mix(g.math("MULTIPLY", peel, 0.85), c, g.mix(grain, rgba("stone-light"), rgba("stone-shade")))
+        c = _streaks(g, c, colour, 0.35)
+    c = g.mix(g.math("MULTIPLY", seam, 0.8), c, rgba("ink-700"))
+    c = _grime(g, c, colour, 0.8, 0.55, "earth-dark")
+    h = g.math("SUBTRACT", g.math("MULTIPLY", grain, 0.15), seam)
+    _bsdf(g, c, 0.85, h, (0.35, 0.006))
+
+
+def corrugated(mat, colour, rusty=True):
+    """Corrugated steel roofing (7.6 cm pitch along u): galvanised grey, rust blooming
+    along the laps and low edge in palette browns (earth-mid / wood-warm)."""
+    g = G(mat)
+    uv = _uv(g)
+    u, v, _ = g.sep(uv)
+    wave = g.math("SINE", g.math("MULTIPLY", u, 2 * 3.14159 / 0.076))
+    ob = _obj(g)
+    c = _mottle(g, ob, rgba(colour), rgba(_shade(colour, 0.15)), 1.5)
+    sheet = g.white(g.combine(g.math("FLOOR", g.math("DIVIDE", u, 0.8)), 3.0, 0.0))
+    c = g.mix(g.math("MULTIPLY", sheet, 0.35), c, rgba(_light(colour, 0.15, "stone-light")))
+    if rusty:
+        r = g.noise(ob, 1.6, 4.0, 0.6)
+        lap = g.math("SUBTRACT", 1.0, g.step(g.math("FRACT", g.math("DIVIDE", v, 2.4)), 0.12, 0.1))
+        rust = g.math("MINIMUM", g.math("ADD", g.step(r, 0.58, 0.06), g.math("MULTIPLY", lap, 0.5)), 1.0)
+        rc = g.mix(g.noise(ob, 12.0), rgba("earth-mid"), rgba("wood-warm"))
+        c = g.mix(g.math("MULTIPLY", rust, 0.8), c, rc)
+    c = _streaks(g, c, colour, 0.3)
+    _bsdf(g, c, 0.55, wave, (0.9, 0.02), metallic=0.35, spec=0.4)
+
+
+def shingle(mat, colour="stone-dark"):
+    """Asphalt three-tab shingles (33 x 14 cm exposure): granule speckle, tab slots,
+    butt shadows, a few curled / lost tabs, algae streaks on the worn ones."""
+    g = G(mat)
+    uv = _uv(g)
+    c, f, gap, tone = _courses(g, uv, 0.33, 0.14, [(0.0, _shade(colour, 0.25)), (0.5, colour),
+                                                   (1.0, _light(colour, 0.12, "stone-shade"))], "ink-900")
+    c = g.mix(g.math("MULTIPLY", g.math("SUBTRACT", 1.0, g.step(f, 0.1, 0.04)), 0.6), c, rgba("ink-900"))
+    ob = _obj(g)
+    gran = g.noise(ob, 70.0, 1.0)
+    c = g.mix(g.math("MULTIPLY", g.step(gran, 0.6, 0.05), 0.35), c, rgba("stone-base"))
+    lost = g.step(g.white(g.combine(g.math("FLOOR", g.math("DIVIDE", g.sep(uv)[0], 0.33)),
+                                    g.math("FLOOR", g.math("DIVIDE", g.sep(uv)[1], 0.14)), 1.0)), 0.985)
+    c = g.mix(g.math("MULTIPLY", lost, 0.9), c, rgba("ink-700"))
+    streak = g.step(g.noise(_vmul(g, uv, (3.0, 0.3, 1.0)), 1.0, 2.0), 0.62, 0.06)
+    c = g.mix(g.math("MULTIPLY", streak, 0.35), c, rgba("ink-700"))
+    h = g.math("SUBTRACT", g.math("SUBTRACT", 1.0, f), g.math("ADD", gap, lost))
+    _bsdf(g, c, 0.9, h, (0.5, 0.01))
+
+
+def roll_roofing(mat, colour="ink-500"):
+    """Tar paper / roll roofing: 0.9 m strips down the slope with lapped seams, patches,
+    tears showing the boards, moss."""
+    g = G(mat)
+    uv = _uv(g)
+    u, v, _ = g.sep(uv)
+    f = g.math("FRACT", g.math("DIVIDE", v, 0.86))
+    ob = _obj(g)
+    c = _mottle(g, ob, rgba(colour), rgba(_shade(colour, 0.3)), 1.2)
+    c = g.mix(g.math("MULTIPLY", g.step(g.noise(ob, 0.9, 2.0), 0.6, 0.05), 0.5), c, rgba("stone-shade"))
+    lap = g.math("SUBTRACT", 1.0, g.step(f, 0.05, 0.02))
+    c = g.mix(g.math("MULTIPLY", lap, 0.7), c, rgba("ink-900"))
+    tear = g.step(g.noise(ob, 2.4, 3.0, 0.7), 0.7, 0.02)
+    c = g.mix(tear, c, g.mix(g.noise(ob, 20.0), rgba("wood-warm"), rgba("earth-dark")))
+    moss = g.step(g.noise(ob, 1.7, 3.0), 0.62, 0.08)
+    c = g.mix(g.math("MULTIPLY", moss, 0.5), c, g.mix(g.noise(ob, 7.0), rgba("green-dark"), rgba("green-mid")))
+    h = g.math("ADD", g.math("MULTIPLY", g.noise(ob, 6.0, 3.0), 0.3), g.math("SUBTRACT", lap, tear))
+    _bsdf(g, c, 0.9, h, (0.5, 0.01))
+
+
+def slate_ruin(mat, colour="stone-dark"):
+    """The mansion's slate: darker, heavy moss and lichen in the courses, a slate or two
+    slipped (lighter lost patches showing the dark lath behind)."""
+    g = G(mat)
+    uv = _uv(g)
+    c, f, gap, tone = _courses(g, uv, 0.3, 0.16, [(0.0, _mix("ink-900", colour, 0.5)), (0.45, colour),
+                                                  (0.8, _mix(colour, "stone-shade", 0.35)),
+                                                  (1.0, _mix(colour, "water-deep", 0.3))], "ink-900")
+    c = g.mix(g.math("MULTIPLY", g.math("SUBTRACT", 1.0, g.step(f, 0.12, 0.05)), 0.6), c, rgba("ink-900"))
+    ob = _obj(g)
+    lost = g.step(g.white(g.combine(g.math("FLOOR", g.math("DIVIDE", g.sep(uv)[0], 0.3)),
+                                    g.math("FLOOR", g.math("DIVIDE", g.sep(uv)[1], 0.16)), 2.0)), 0.95)
+    c = g.mix(lost, c, rgba("ink-900"))
+    lichen = g.step(g.noise(ob, 4.0, 2.0), 0.7, 0.03)
+    c = g.mix(g.math("MULTIPLY", lichen, 0.25), c, rgba("stone-light"))
+    moss = g.math("MULTIPLY", g.step(g.noise(ob, 0.35, 3.0, 0.6), 0.56, 0.1), g.math("ADD", gap, 0.4))
+    c = g.mix(g.math("MINIMUM", g.math("MULTIPLY", moss, 0.7), 0.6), c,
+              g.mix(g.noise(ob, 5.0), rgba("green-dark"), rgba(_mix("green-dark", "green-mid", 0.4))))
+    h = g.math("SUBTRACT", g.math("SUBTRACT", 1.0, f), g.math("ADD", gap, lost))
+    _bsdf(g, c, 0.7, h, (0.6, 0.012))
+
+
+def ivy(mat, colour="green-dark"):
+    """Ivy / creeper mats on the mansion (leaves: palette greens, turning in patches to the
+    muted autumn rust / copper tints)."""
+    g = G(mat)
+    ob = _obj(g)
+    v = g.voronoi(_vmul(g, ob, (1.0, 1.0, 1.0)), 14.0, rand=1.0)
+    leaf = g.sep(v.outputs["Color"])[0]
+    c = g.ramp(leaf, [(0.0, "ink-700"), (0.35, colour), (0.75, _mix(colour, "green-mid", 0.5)), (1.0, "green-mid")])
+    turn = g.step(g.noise(ob, 0.3, 2.0), 0.64, 0.08)
+    c = g.mix(g.math("MULTIPLY", turn, 0.55), c, g.ramp(leaf, [(0.2, _mix(config.TINTS["rust"], "ink-700", 0.3)),
+                                                                (0.8, config.TINTS["rust"])]))
+    e = v.outputs["Distance"]
+    c = g.mix(g.math("MULTIPLY", g.step(e, 0.42, 0.05), 0.7), c, rgba("ink-900"))
+    _bsdf(g, c, 0.75, g.math("SUBTRACT", 1.0, e), (0.8, 0.04))
+
+
 def interior_dark(mat, colour="ink-900"):
     g = G(mat)
     ob = _obj(g)
@@ -418,6 +595,18 @@ def neon(mat, colour, emit_colour=None):
     _bsdf(g, rgba(colour), 0.35, spec=0.5, emit=e, emit_strength=g.math("MULTIPLY", lit, config.NEON_EMIT))
 
 
+def sign_lamp(mat, colour, emit_colour=None):
+    """LF_SignLamp_*: a lit wall band (WallBandSign: letters cream by day, lantern after
+    dusk, lit from below). Its letters and the lamp lenses of the trough under the band
+    glow with object `glow` x the scene's flyover_sign_glow, a family of its own (not
+    window amber, not neon)."""
+    g = G(mat)
+    lit = g.math("MULTIPLY", _obj_attr(g, "glow"), _prop(g, config.SIGN_GLOW_PROP))
+    e = rgba(emit_colour or colour)
+    base = g.mix(g.math("MINIMUM", lit, 1.0), rgba(colour), e)
+    _bsdf(g, base, 0.5, spec=0.3, emit=e, emit_strength=g.math("MULTIPLY", lit, config.SIGN_EMIT))
+
+
 # ---------------------------------------------------------------------------
 # Key -> material
 # ---------------------------------------------------------------------------
@@ -425,6 +614,7 @@ def neon(mat, colour, emit_colour=None):
 KINDS = {
     "clapboard": (clapboard, "cream"), "boards": (boards, "wood-warm"),
     "boards_weathered": (lambda m, c: boards(m, c, True), "wood-warm"),
+    "boards_old": (lambda m, c: boards(m, c, True, True), "wood-warm"),
     "ashlar": (ashlar, "stone-light"), "rubble": (rubble, "stone-base"),
     "rubble_moss": (lambda m, c: rubble(m, c, True), "stone-base"),
     "enamel": (enamel, "cream"), "paint": (paint, "cream"), "trim": (trim, "cream"),
@@ -432,7 +622,12 @@ KINDS = {
     "deck": (deck, "earth-base"), "slate": (slate, "stone-shade"), "shake": (shake, "wood-warm"),
     "shake_rot": (lambda m, c: shake(m, c, True), "wood-warm"), "gravel_roof": (gravel_roof, "stone-shade"),
     "interior_dark": (interior_dark, "ink-900"), "glass": (window_glass, "water-deep"),
-    "neon": (neon, "aqua"),
+    "neon": (neon, "aqua"), "signlamp": (sign_lamp, "cream"),
+    "block": (block, "stone-light"), "stucco": (stucco, "stone-light"), "plywood": (plywood, "earth-base"),
+    "plywood_fresh": (lambda m, c: plywood(m, c, False), "earth-base"),
+    "corrugated": (corrugated, "stone-base"), "corrugated_clean": (lambda m, c: corrugated(m, c, False), "stone-base"),
+    "shingle": (shingle, "stone-dark"), "roll_roofing": (roll_roofing, "ink-500"),
+    "slate_ruin": (slate_ruin, "stone-dark"), "ivy": (ivy, "green-dark"),
 }
 LIGHT_NAMES = {"glass": "LF_Window_Glass"}
 
@@ -448,12 +643,14 @@ class Resolver:
         fn, default = KINDS[kind]
         colour = colour or default
         extra = None
-        if kind == "neon" and "/" in colour:        # "neon:aqua/lantern": body / glow colours
+        if kind in ("neon", "signlamp") and "/" in colour:     # "neon:aqua/lantern": body / glow colours
             colour, extra = colour.split("/")
         if kind in LIGHT_NAMES:
             name = LIGHT_NAMES[kind]
         elif kind == "neon":
-            name = f"LF_Neon_{colour}" + (f"_{extra}" if extra else "")
+            name = f"LF_Neon_{colour.lstrip('#')}" + (f"_{extra.lstrip('#')}" if extra else "")
+        elif kind == "signlamp":
+            name = f"LF_SignLamp_{colour.lstrip('#')}" + (f"_{extra.lstrip('#')}" if extra else "")
         else:
             name = f"Arch_{kind.title().replace('_', '')}_{colour.lstrip('#')}"
         try:
@@ -463,6 +660,8 @@ class Resolver:
         mat = _new(name, colour)
         if kind == "neon":
             neon(mat, colour, extra)
+        elif kind == "signlamp":
+            sign_lamp(mat, colour, extra)
         else:
             fn(mat, colour)
         return self.mats.put(name, mat)

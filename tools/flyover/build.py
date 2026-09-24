@@ -29,7 +29,8 @@ if PKG_DIR not in sys.path:
 DEFAULT_OUT = os.path.join(PKG_DIR, "out", "town.blend")
 _MODULES = ("config", "world", "routes", "treeline", "terrain", "surfaces", "forest", "scene", "materials",
             "diorama", "ground", "road", "markings", "guides", "templight", "placeholders", "trees",
-            "scatter", "cameras", "render", "archkit", "pixelfont", "archmats", "buildings_hero")
+            "scatter", "cameras", "render", "archkit", "pixelfont", "archmats", "buildings_hero",
+            "buildings_town", "mansion")
 
 
 def _modules():
@@ -85,9 +86,12 @@ def build(world_path, only_map=None, diorama=False):
         t1 = time.time()
         hero = scene.collection(config.COL_HERO, root)
         world.buildings = m["buildings_hero"].build(world, terr, hero, mats, only_map)
+        world.buildings += m["buildings_town"].build(world, terr, hero, mats, only_map)
+        if only_map in (None, "east_fork"):
+            world.buildings += m["mansion"].build(world, terr, hero, mats)
         for b in world.buildings:
             print(f"flyover: {b['name']} {b['tris']} tris, {b['objects']} objects, {b['height']:.1f} m tall")
-        print(f"flyover: hero buildings in {time.time() - t1:.1f}s")
+        print(f"flyover: buildings in {time.time() - t1:.1f}s")
         if only_map is None:
             t1 = time.time()
             world.forest = m["forest"].plant(world, terr)
@@ -112,7 +116,7 @@ def build(world_path, only_map=None, diorama=False):
 
 
 VIEWS = ("Cam_WestRoad", "Cam_Fork", "Cam_Plaza", "Cam_DriveIn", "Cam_EastOut", "Cam_Overview",
-         "Cam_MansionDrive", "Cam_FarmTreeline")
+         "Cam_MansionDrive", "Cam_FarmTreeline", "Cam_Billies", "Cam_EastEntry", "Cam_MansionGlimpse")
 
 
 def render_stills(world, out_dir, px_per_tile=6, only_map=None):

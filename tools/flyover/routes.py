@@ -70,6 +70,27 @@ class Routes:
         off = d / 2 - config.MANSION_CLEARING_ENTER_M
         return bx + math.cos(th) * off, by + math.sin(th) * off, th, w, d
 
+    def mansion_site(self):
+        """Where the mansion stands in its clearing: (x, y, rot, rect). Local frame: +y
+        runs away from the drive (the heading), the front wall at y 0, x across; world =
+        T(x, y) @ Rz(rot) @ local. rect = the whole mass in local metres (block, front
+        bay, turret) (x0, y0, x1, y1). The block sits config.MANSION_BACK_M from the
+        clearing's far edge, centred across, so an overgrown forecourt lies between the
+        drive's end and the front."""
+        c = self.mansion_clearing()
+        if c is None:
+            return None
+        cx, cy, th, _w, d = c
+        W, D = config.MANSION_BLOCK_M
+        x0, y0, x1, y1 = config.MANSION_MASS_M
+        rect = (x0, y0, W + x1, D + y1)
+        front = d / 2 - config.MANSION_BACK_M - rect[3]          # clearing-local, along th
+        across = -(rect[0] + rect[2]) / 2
+        rot = th - math.pi / 2
+        ux, uy = math.cos(th), math.sin(th)
+        rx, ry = math.cos(rot), math.sin(rot)
+        return cx + ux * front + rx * across, cy + uy * front + ry * across, rot, rect
+
 
 # ---------------------------------------------------------------------------
 # Surfaces on the global tile grid

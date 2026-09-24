@@ -101,6 +101,21 @@ def _prop_rect(world, kind):
     return None
 
 
+def _building_rect(world, bid):
+    t = config.TILE_M
+    for m in world.maps.values():
+        for b in m.data["buildings"]:
+            if b["id"] == bid:
+                return ((m.ox + b["x"]) * t, -(m.oy + b["y"] + b["h"]) * t,
+                        (m.ox + b["x"] + b["w"]) * t, -(m.oy + b["y"]) * t)
+    return None
+
+
+def _arc_len(pts):
+    import math
+    return sum(math.hypot(b[0] - a[0], b[1] - a[1]) for a, b in zip(pts, pts[1:]))
+
+
 def build_views(world, terrain, col):
     r = terrain.routes
     z = terrain.z_at
@@ -149,6 +164,25 @@ def build_views(world, terrain, col):
         ax, ay, _ = _at_arc(farm.pts, 60.0)
         views.append(_look("Cam_FarmTreeline", col, (fx + 1.2, r.road_y - 3.0, 2.6),
                            (ax, ay, 3.0)))
+    # Billie's: from across the road to the south-west, raised, the bar and the pit side.
+    bar = _building_rect(world, "Bar")
+    if bar is not None:
+        x0, y0, x1, y1 = bar
+        views.append(_look("Cam_Billies", col, (x0 - 10.0, r.road_y - 16.0, 9.0),
+                           ((x0 + x1) / 2 + 3.0, (y0 + y1) / 2 - 7.0, 1.5)))
+    # East entry: over the road's west end of the frame, looking east along it: the
+    # police station and hardware store left, the salon right.
+    pol, sal = _building_rect(world, "PoliceStation"), _building_rect(world, "Salon")
+    if pol is not None and sal is not None:
+        views.append(_look("Cam_EastEntry", col, (pol[0] - 22.0, r.road_y - 6.0, 10.0),
+                           ((pol[2] + sal[0]) / 2 + 4.0, r.road_y, 1.0)))
+    # Mansion glimpse: up the chained drive, short of the clearing's ring, looking up at
+    # the roofline through the tall trees.
+    clearing = r.mansion_clearing()
+    if drive is not None and clearing is not None:
+        cx, cy = clearing[0], clearing[1]
+        gx, gy, _ = _at_arc(drive.pts, max(0.0, _arc_len(drive.pts) - 30.0))
+        views.append(_look("Cam_MansionGlimpse", col, (gx, gy, z(gx, gy) + 1.7), (cx, cy, z(cx, cy) + 13.0)))
     # Overview: high oblique over the whole town from the south (terrain + edges check).
     gx0, gy0, gx1, gy1 = world.bounds
     t = config.TILE_M

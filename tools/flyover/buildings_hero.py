@@ -550,7 +550,8 @@ BOARD_W = 0.26
 BOARD_T = 0.028
 
 
-def board_wall(part, rng, L, z0, top, openings, holes, missing=0.06, broken=0.05, battens=True):
+def board_wall(part, rng, L, z0, top, openings, holes, missing=0.06, broken=0.05, battens=True,
+               mat="boards_weathered"):
     """A wall of separate vertical boards in wall-local coords (u 0..L, outside -Y):
     top(u) -> z; openings / holes (u0, u1, z0, z1) cut the boards; `missing` boards are
     gone, `broken` ones end short. Battens cover the joints (some lost)."""
@@ -583,7 +584,7 @@ def board_wall(part, rng, L, z0, top, openings, holes, missing=0.06, broken=0.05
             else:
                 za = zb_ = s1
             part.prism([(ua + 0.004, s0), (ub - 0.004, s0), (ub - 0.004, zb_), (ua + 0.004, za)], -BOARD_T, 0.0,
-                       "boards_weathered")
+                       mat)
         if battens and rng.random() > 0.25 and k > 1:
             bs = [(z0 + 0.1, min(zt_a, top(ua + 0.03)) - 0.05)]
             for o in list(openings) + list(holes):
@@ -842,6 +843,23 @@ def height_field(objs, rect, cell):
     return x0, y0, cell, H
 
 
+def realised_info(name, body, kids, z_ground):
+    """After realise: the building's crown-clearance height field (hull), triangle count,
+    height above its ground (also stamped on the body as `tris` / `height_m`)."""
+    import bpy
+    bpy.context.view_layer.update()
+    objs = [body] + kids
+    pts = np.array([ob.matrix_world @ v.co for ob in objs for v in ob.data.vertices])
+    pad = 1.0
+    rect = (pts[:, 0].min() - pad, pts[:, 1].min() - pad, pts[:, 0].max() + pad, pts[:, 1].max() + pad)
+    hull = height_field(objs, rect, config.HULL_CELL_M)
+    tris = sum(len(p.vertices) - 2 for ob in objs for p in ob.data.polygons)
+    body["tris"] = tris
+    body["height_m"] = float(pts[:, 2].max() - z_ground)
+    return dict(name=name, tris=tris, objects=len(objs), hull=hull, height=float(pts[:, 2].max() - z_ground),
+                extent=rect)
+
+
 def build(world, terrain, col, mats, only=None):
     """Design, realise and ground the hero buildings. Returns [dict(name, tris, hull,
     ...)] (hull = height field for the forest's crown clearance)."""
@@ -863,15 +881,5 @@ def build(world, terrain, col, mats, only=None):
         name = f"Bldg_{placed.id}_{bld['id']}"
         body, kids = ak.realise(asm, col, T(0, 0, hi) @ Mxy, resolve, name, map_id=placed.id, dump_id=bld["id"],
                                 art=bld["art"], place=bld["place"], state=bld["state"], kind="building")
-        bpy.context.view_layer.update()
-        objs = [body] + kids
-        pts = np.array([ob.matrix_world @ v.co for ob in objs for v in ob.data.vertices])
-        pad = 1.0
-        rect = (pts[:, 0].min() - pad, pts[:, 1].min() - pad, pts[:, 0].max() + pad, pts[:, 1].max() + pad)
-        hull = height_field(objs, rect, config.HULL_CELL_M)
-        tris = sum(len(p.vertices) - 2 for ob in objs for p in ob.data.polygons)
-        body["tris"] = tris
-        body["height_m"] = float(pts[:, 2].max() - hi)
-        out.append(dict(name=name, tris=tris, objects=len(objs), hull=hull, height=float(pts[:, 2].max() - hi),
-                        extent=rect))
+        out.append(realised_info(name, body, kids, hi))
     return out

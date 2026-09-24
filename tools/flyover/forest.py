@@ -177,6 +177,17 @@ class OpenRaster:
         return e, inside & self.open[j, i]
 
 
+def mansion_gap(site, X, Y):
+    """Distance from the mansion's mass rect (routes.mansion_site); negative inside."""
+    ox, oy, rot, (x0, y0, x1, y1) = site
+    dx, dy = X - ox, Y - oy
+    u = dx * math.cos(rot) + dy * math.sin(rot)
+    v = -dx * math.sin(rot) + dy * math.cos(rot)
+    ou, ov = np.maximum(x0 - u, u - x1), np.maximum(y0 - v, v - y1)
+    out = np.hypot(np.maximum(ou, 0), np.maximum(ov, 0))
+    return np.where((ou <= 0) & (ov <= 0), np.maximum(ou, ov), out)
+
+
 def clearing_local(clearing, X, Y):
     """(u along the drive's heading, v across) from the clearing's centre."""
     cx, cy, th, _w, _d = clearing
@@ -281,6 +292,7 @@ class Forest:
         self._farm_sample()
         self._boulders()
         self._tufts()
+        self._overgrowth()
         self.table.finish()
 
     # -- helpers ---------------------------------------------------------------
@@ -328,7 +340,7 @@ class Forest:
     def _kinds(self, fam, lo=False):
         """Kit indices: a random variant of each family (its `_lo` twin when lo)."""
         out = np.zeros(len(fam), np.int32)
-        for f in set(fam):
+        for f in sorted(set(fam)):      # sorted: set order follows the string hash seed
             sel = fam == f
             start, nv = FAMILY[f + "_lo" if lo and f + "_lo" in FAMILY else f]
             out[sel] = start + self.rng.integers(0, nv, sel.sum())
@@ -482,6 +494,41 @@ class Forest:
             np.searchsorted([0.45, 0.7, 0.85, 1.0], self.rng.random(len(x)), side="right").clip(0, 3)]
         lo, hi = config.UNDER_SCALE
         self._add("understorey", x, y, fam, lo + (hi - lo) * self.rng.random(len(x)), "tree")
+
+    def _overgrowth(self):
+        """The mansion's clearing gone back to woods: young birch, maple, hemlock and pine
+        (and a dead one or two) round the house, thickest in the old forecourt, clear of
+        its walls (config.OVERGROWTH_WALL_M; clear_crowns then keeps crowns off the roofs)
+        and of the drive's end. Planted last, so the rest of the forest is unchanged."""
+        site = self.routes.mansion_site()
+        if site is None or self.clearing is None:
+            return
+        cx, cy, th, w, d = self.clearing
+        R = math.hypot(w, d) / 2
+        x, y = self._jitter((cx - R, cy - R, cx + R, cy + R), config.OVERGROWTH_CELL_M)
+        inside = clearing_depth(self.clearing, x, y) < -1.0
+        ok = inside & (self.rng.random(len(x)) < config.OVERGROWTH_KEEP)
+        ok &= mansion_gap(site, x, y) > config.OVERGROWTH_WALL_M
+        if self.drive is not None:
+            ex, ey = self.drive[-1]
+            ok &= np.hypot(x - ex, y - ey) > config.OVERGROWTH_DRIVE_M
+            ok &= nearest_on(x, y, self.drive)[0] > config.TRACK_CLEAR_M + 0.5
+        x, y = x[ok], y[ok]
+        fam = np.array(["birch", "maple", "hemlock", "pine", "bare"], object)[
+            np.searchsorted([0.32, 0.6, 0.82, 0.95, 1.0], self.rng.random(len(x)), side="right").clip(0, 4)]
+        lo, hi = config.OVERGROWTH_SCALE
+        self._add("overgrowth", x, y, fam, lo + (hi - lo) * self.rng.random(len(x)), "tree")
+        # the scrub under them: young hemlock and maple, full to the ground
+        x, y = self._jitter((cx - R, cy - R, cx + R, cy + R), config.OVERGROWTH_CELL_M * 0.8)
+        ok = (clearing_depth(self.clearing, x, y) < -0.5) & (self.rng.random(len(x)) < config.OVERGROWTH_KEEP)
+        ok &= mansion_gap(site, x, y) > config.OVERGROWTH_WALL_M
+        if self.drive is not None:
+            ok &= np.hypot(x - ex, y - ey) > config.OVERGROWTH_DRIVE_M
+            ok &= nearest_on(x, y, self.drive)[0] > config.TRACK_CLEAR_M + 0.5
+        x, y = x[ok], y[ok]
+        fam = np.where(self.rng.random(len(x)) < 0.6, "hemlock", "maple").astype(object)
+        lo, hi = config.OVERGROWTH_SCRUB_SCALE
+        self._add("overgrowth", x, y, fam, lo + (hi - lo) * self.rng.random(len(x)), "tree")
 
     def _farm_sample(self):
         for m in self.world.maps.values():
@@ -646,9 +693,14 @@ def check(forest):
             if inb.any():
                 bad.append(f"{inb.sum()} trunks within {mg} m of {m.id}/{b['id']}")
     if forest.clearing is not None:
-        inside = clearing_depth(forest.clearing, x, y) < 0
+        over = tb.group[trunk] == "overgrowth"          # the clearing's own young trees ...
+        inside = (clearing_depth(forest.clearing, x, y) < 0) & ~over
         if inside.any():
             bad.append(f"{inside.sum()} trunks in the mansion clearing")
+        site = forest.routes.mansion_site()          # ... stand clear of the house
+        near = over & (mansion_gap(site, x, y) < config.OVERGROWTH_WALL_M)
+        if near.any():
+            bad.append(f"{near.sum()} overgrowth trunks within {config.OVERGROWTH_WALL_M} m of the mansion")
     return bad
 
 

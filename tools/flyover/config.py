@@ -124,7 +124,8 @@ TRACK_NAMES = {"MansionChain": "MansionDrive", "SouthChain": "ForkSouthStub",
 TRACK_INTO_MAP = {"test_farm": "FarmRoad"}      # a track reaching this map is named so
 TRACK_EXTEND_M = {"MansionDrive": 95.0, "ForkSouthStub": 22.0}
 TRACK_WANDER_DEG = 14.0
-MANSION_CLEARING_M = (30.0, 25.0)   # (across, along the drive): Phase 6's roofline site
+MANSION_CLEARING_M = (34.0, 40.0)   # (across, along the drive): the roofline site (Phase 6: deep
+                                    # enough for the house + an overgrown forecourt)
 MANSION_CLEARING_ENTER_M = 4.0      # the drive's end sits this far inside the clearing
 CLEARING_BLEND_M = 14.0             # the clearing's level shelf blends back over this
 TRACK_CLEAR_M = 3.5         # Phase 4: keep trees this far from a track centreline
@@ -399,6 +400,44 @@ WINDOW_EMIT = 1.2           # emission strength at glow 1
 NEON_GLOW_PROP = "flyover_neon_glow"
 NEON_GLOW = 0.0             # off until Phase 7/8 light the signs
 NEON_EMIT = 8.0
+# A LIT wall band (WallBandSign: cream letters by day, lantern after dusk, lit from
+# below) is its own family, the sign lamp: its letters + the trough lamp under the band.
+SIGN_GLOW_PROP = "flyover_sign_glow"
+SIGN_GLOW = 0.0             # off until Phase 8 (like the neon)
+SIGN_EMIT = 3.0
+
+# ---------------------------------------------------------------------------
+# Phase 6: the placeholder buildings, designed (buildings_town.py) + the mansion
+# roofline (mansion.py)
+# ---------------------------------------------------------------------------
+
+# dump building id -> design (placeholders with no art: flat wall colour in-game)
+TOWN_DESIGNS = {"GasStation": "gas_station", "Garage": "garage", "FireworksStand": "fireworks_stand",
+                "Bar": "billies", "PoliceStation": "police", "HardwareStore": "hardware", "Salon": "salon",
+                "Shack": "shack", "Concession": "concession"}
+# Which side each faces in 3D (Kevin: south-of-road buildings face the ROAD, north);
+# the rest face south (the road, or the drive-in's field and screen).
+TOWN_FACING = {"GasStation": "N", "Garage": "N", "Salon": "N", "Shack": "N"}
+# The window mount's neon word (NeonWordSign.cs): lit tube colour (the dump's glow
+# colour for it) and the dead tube by day.
+ART_COLOURS["neon-red"] = "#e05a3f"
+ART_COLOURS["neon-dead"] = "#6d4038"
+# The mansion (a glimpse of its roofline, Guide_MansionClearing): main block across x
+# along, eave, ridge; the turret's top.
+MANSION_BLOCK_M = (19.0, 13.0)
+MANSION_EAVE_M = 11.0
+MANSION_MASS_M = (-0.6, -3.7, 2.9, 0.7)    # the mass past the block: (west, front, east, back) m
+MANSION_BACK_M = 4.0        # the block's back wall from the clearing's far edge
+# The overgrowth (forest.py): young trees filling the clearing round the house, so from
+# the drive only the upper storey and the roofs show over them.
+OVERGROWTH_CELL_M = 2.7
+OVERGROWTH_KEEP = 0.8
+OVERGROWTH_SCALE = (0.38, 0.62)
+OVERGROWTH_SCRUB_SCALE = (0.16, 0.3)
+OVERGROWTH_WALL_M = 2.2     # trunks this far from the mass (crowns then clear it: clear_crowns)
+OVERGROWTH_DRIVE_M = 6.0    # the drive's end keeps this much open
+MANSION_SEED = 13
+
 # Trees: a crown may overhang a roof but never pass through a building (buildings_hero
 # ray-casts each building into a height field; forest.clear_crowns drops the trees
 # whose kit geometry would reach into it, with this clearance).

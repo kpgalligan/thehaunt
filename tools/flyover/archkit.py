@@ -638,6 +638,135 @@ def door(w, h, depth, leaves=1, paint="paint:wood-warm", frame="trim_dark", casi
     return p
 
 
+def overhead_door(w, h, depth, paint, frame="trim_dark", sections=4, lites=True, glass="interior_dark"):
+    """A sectional overhead (garage / service bay) door filling a w x h opening: raised
+    horizontal sections with a groove between, a row of small lites in the second
+    section from the top, a steel jamb angle, a bottom seal."""
+    p = Part()
+    hw = w / 2
+    fy = depth - 0.12
+    p.box(-hw, fy, 0, -hw + 0.08, depth, h, frame, skip=("back",))
+    p.box(hw - 0.08, fy, 0, hw, depth, h, frame, skip=("back",))
+    p.box(-hw, fy, h - 0.1, hw, depth, h, frame, skip=("back",))
+    sh = (h - 0.1) / sections
+    x0, x1 = -hw + 0.08, hw - 0.08
+    for k in range(sections):
+        z0 = k * sh
+        p.box(x0, fy + 0.02, z0 + 0.012, x1, fy + 0.06, z0 + sh - 0.012, paint, skip=("back",))
+        if lites and k == sections - 2:
+            n = max(2, int(round((x1 - x0) / 0.62)))
+            lw = (x1 - x0) / n
+            for i in range(n):
+                a = x0 + i * lw + 0.09
+                p.quad((a, fy + 0.018, z0 + sh * 0.28), (a + lw - 0.18, fy + 0.018, z0 + sh * 0.28),
+                       (a + lw - 0.18, fy + 0.018, z0 + sh * 0.78), (a, fy + 0.018, z0 + sh * 0.78), glass)
+        else:     # two raised panels per section run
+            n = max(2, int(round((x1 - x0) / 1.2)))
+            pw = (x1 - x0) / n
+            for i in range(n):
+                a = x0 + i * pw + 0.1
+                p.box(a, fy + 0.005, z0 + sh * 0.2, a + pw - 0.2, fy + 0.02, z0 + sh * 0.8, paint, skip=("back",))
+    p.box(x0, fy - 0.01, 0.0, x1, fy + 0.03, 0.05, "metal:ink-700", skip=("back",))
+    p.box(-0.12, fy - 0.03, sh * 0.4, 0.12, fy + 0.02, sh * 0.48, "metal:stone-dark", skip=("back",))   # the handle
+    return p
+
+
+def boarded(w, h, rng, mat="plywood:earth-light", planks=None, nails="metal:stone-dark"):
+    """Boards over an opening w x h (centred on x 0, bottom z 0), nailed to the wall face
+    (outside -Y): one plywood sheet cut a little oversize, or `planks` = n rough planks
+    across it; a batten or two tacked diagonally."""
+    p = Part()
+    o = 0.08
+    if planks:
+        z = -o
+        while z < h + o - 1e-3:
+            ph = min(h + 2 * o - (z + o), rng.uniform(0.18, 0.26))
+            tilt = rng.uniform(-0.03, 0.03)
+            p.beam((-w / 2 - o - rng.uniform(0, 0.1), -0.03, z + ph / 2), (w / 2 + o + rng.uniform(0, 0.1), -0.03,
+                   z + ph / 2 + tilt), ph - 0.015, 0.025, mat, up=(0, -1, 0))
+            z += ph
+    else:
+        p.box(-w / 2 - o, -0.02, -o, w / 2 + o, 0.0, h + o, mat, skip=("back",))
+    p.beam((-w / 2 + 0.05, -0.05, 0.1), (w / 2 - 0.05, -0.05, h - 0.1), 0.14, 0.025, mat, up=(0, -1, 0))
+    return p
+
+
+def wall_band(text, px, lit, depth=0.16, pad=0.28):
+    """A wall band sign (WallBandSign.cs): an ink-900 band, flush 3x5 letters (cream by
+    day; a LIT band's letters go lantern after dusk on the sign-lamp family), a steel
+    trough lamp along its foot shining up at a lit band. Centred on x 0, the band's
+    face at y = -depth (on a wall at y 0), its bottom at z 0. Returns (band Part,
+    letters Part, lamp Part or None, (width, height))."""
+    import pixelfont
+    tw = pixelfont.measure(text, px)
+    w, h = tw + 2 * pad, pixelfont.GLYPH_H * px + 2 * pad * 0.8
+    band = Part().box(-w / 2, -depth, 0.0, w / 2, 0.0, h, "paint:ink-900", skip=("back",))
+    band.box(-w / 2 - 0.03, -depth - 0.02, h - 0.05, w / 2 + 0.03, 0.0, h + 0.02, "metal:stone-dark", skip=("back",))
+    key = "signlamp:cream/lantern" if lit else "paint:cream"
+    letters = pixelfont.text(Part(), text, 0.0, h - pad * 0.8, px, 0.018, key, y=-depth)
+    lamp = None
+    if lit:
+        lamp = Part()
+        lw = w * 0.86
+        for x in np.linspace(-lw / 2 + 0.2, lw / 2 - 0.2, 3):
+            band.beam((x, -depth, -0.02), (x, -depth - 0.34, -0.12), 0.03, 0.03, "metal:ink-900")
+        lamp.box(-lw / 2, -depth - 0.44, -0.2, lw / 2, -depth - 0.26, -0.1, "metal:ink-700", skip=("top",))
+        lamp.quad((-lw / 2, -depth - 0.44, -0.1), (lw / 2, -depth - 0.44, -0.1), (lw / 2, -depth - 0.26, -0.1),
+                  (-lw / 2, -depth - 0.26, -0.1), "signlamp:stone-pale/lantern")
+    return band, letters, lamp, (w, h)
+
+
+def tower_walls(part, cx, cy, r, n, z0, z1, mat, rot=0.0):
+    """An n-sided tower (turret) shell around (cx, cy), circumradius r, z0..z1, faces
+    out. Returns the corner list [(x, y)]."""
+    pts = [(cx + r * math.cos(rot + 2 * math.pi * k / n), cy + r * math.sin(rot + 2 * math.pi * k / n))
+           for k in range(n)]
+    for k in range(n):
+        a, b = pts[k], pts[(k + 1) % n]
+        part.quad((*a, z0), (*b, z0), (*b, z1), (*a, z1), mat)
+    return pts
+
+
+def spire(part, cx, cy, r, n, z_eave, height, top, under, edge, overhang=0.35, thick=0.12, rot=0.0,
+          flare=0.0, holes=()):
+    """A polygonal cone roof (a turret's candle-snuffer) over an n-gon of circumradius r:
+    eave at z_eave, apex `height` above it; `flare` kicks the lowest 30% outward (a bell
+    cast). holes = face indices left open (a ruin's lost slates: the dark under-lath)."""
+    R = r + overhang
+    apex = (cx, cy, z_eave + height)
+    ring = [(cx + R * math.cos(rot + 2 * math.pi * k / n), cy + R * math.sin(rot + 2 * math.pi * k / n))
+            for k in range(n)]
+    ze = z_eave - overhang * height / r * (1.0 - flare)
+    for k in range(n):
+        a, b = ring[k], ring[(k + 1) % n]
+        if k in holes:
+            m = [(a[0] + (apex[0] - a[0]) * 0.45, a[1] + (apex[1] - a[1]) * 0.45),
+                 (b[0] + (apex[0] - b[0]) * 0.45, b[1] + (apex[1] - b[1]) * 0.45)]
+            zm = ze + (apex[2] - ze) * 0.45
+            part.poly([(*m[0], zm + thick), (*m[1], zm + thick), (apex[0], apex[1], apex[2] + thick)], top)
+            part.poly([(*a, ze + thick), (*b, ze + thick), (*m[1], ze + (zm - ze) * 0.2 + thick),
+                       (*m[0], ze + (zm - ze) * 0.2 + thick)], top)
+            part.poly([(*m[0], zm), (*m[1], zm), (*b, ze), (*a, ze)], "interior_dark")
+            continue
+        part.poly([(*a, ze + thick), (*b, ze + thick), (apex[0], apex[1], apex[2] + thick)], top)
+        part.poly([(apex[0], apex[1], apex[2]), (*b, ze), (*a, ze)], under)
+        part.quad((*a, ze), (*b, ze), (*b, ze + thick), (*a, ze + thick), edge)
+    return apex[2] + thick
+
+
+def pointed_hood(part, cx, z_spring, w, rise, mat, y=0.0, t=0.1, proud=0.08, stops=0.25):
+    """A gothic hood mould over an opening: two straight-ish segments meeting in a point
+    over the opening (w wide, springing at z_spring, `rise` to the point), with short
+    label stops dropping at the ends. On the wall plane y (outside -Y)."""
+    hw = w / 2 + t
+    a, apex, b = (cx - hw, y - proud / 2, z_spring), (cx, y - proud / 2, z_spring + rise), (cx + hw, y - proud / 2, z_spring)
+    part.beam(a, apex, t, proud, mat, up=(0, -1, 0))
+    part.beam(apex, b, t, proud, mat, up=(0, -1, 0))
+    for x in (cx - hw, cx + hw):
+        part.box(x - t / 2, y - proud, z_spring - stops, x + t / 2, y, z_spring + 0.02, mat, skip=("back",))
+    return part
+
+
 def louvre_vent(w, h, mat, frame, slats=6):
     """A louvred attic vent mounted on the wall face (no opening)."""
     p = Part()
