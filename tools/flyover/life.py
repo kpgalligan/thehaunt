@@ -245,7 +245,8 @@ def wind(table, fl, kit, kit_hi, grounds, fcol):
     import scene
     pts = bpy.data.objects["Forest_Points"]
     ground = Ground(grounds)
-    sway = sway_mask(table, ground, fl.pos, kit_hi)
+    sway = sway_mask(table, ground, fl.pos, kit_hi)     # the film's (primary) flight only:
+    # adding another flight's near trees would move trees the film shows (its frames reproduce)
     rows = np.where(sway > 0.5)[0]
     base = ground.bases(table, rows)
     hit = ~np.isnan(base[:, 0])
@@ -317,7 +318,7 @@ def _in_hull(hulls, P, pad=0.3):
     return inside
 
 
-def plant_leaves(table, terrain, fl, kit_hi, kit_rho, hulls):
+def plant_leaves(table, terrain, fl, kit_hi, kit_rho, hulls, others=()):
     """The leaves: dropped from broadleaf crowns the lens passes within LEAF_TREE_M of
     (in front of it) during LEAF_WINDOWS, off the crown's edge facing the flight; lens /
     building checks on every frame."""
@@ -390,6 +391,10 @@ def plant_leaves(table, terrain, fl, kit_hi, kit_rho, hulls):
         bad |= vis & (d < config.LEAF_CLEAR_M)
         if f % 3 == 1:
             bad |= vis & _in_hull(hulls, X)
+    for o in others:                        # the other flights' lenses too (whole length)
+        for f in range(1, o.n + 1):
+            X, fade = L.positions((f - 1) / fps)
+            bad |= (fade > 0.0) & (np.linalg.norm(X - o.pos[f - 1], axis=1) < config.LEAF_CLEAR_M)
     L.keep(~bad)
     L.stats = dict(trees=len(chosen), planted=planted, dropped=int(bad.sum()), kept=len(L.drop))
     return L
@@ -646,7 +651,7 @@ def _puff_mesh():
     return me
 
 
-def smoke(world, fl, col):
+def smoke(world, fl, col, others=()):
     """A plume from every SMOKE_DESIGNS building's flue. Returns [(name, stats)]."""
     import bpy
 
@@ -668,10 +673,11 @@ def smoke(world, fl, col):
         pl = Plume(flue, rng)
         # the lens never enters a puff (radius + SMOKE_CLEAR_M), every frame
         near = np.inf
-        for f in range(1, fl.n + 1):
-            c, r, op = pl.at((f - 1) / fl.fps)
-            d = np.linalg.norm(c - fl.pos[f - 1], axis=1) - r
-            near = min(near, float(d[op > 0.02].min()))
+        for o in (fl, *others):
+            for f in range(1, o.n + 1):
+                c, r, op = pl.at((f - 1) / o.fps)
+                d = np.linalg.norm(c - o.pos[f - 1], axis=1) - r
+                near = min(near, float(d[op > 0.02].min()))
         if near < config.SMOKE_CLEAR_M:
             raise AssertionError(f"{ob.name}: the smoke comes within {near:.1f} m of the lens")
         n = len(pl.ph)
@@ -691,25 +697,28 @@ def smoke(world, fl, col):
 # The phase
 # ---------------------------------------------------------------------------
 
-def build(world, terrain, fl, kit, kit_vertices, grounds, root, fcol):
-    """Everything above, after the flight is baked. Returns a stats dict."""
+def build(world, terrain, fl, kit, kit_vertices, grounds, root, fcol, others=()):
+    """Everything above, after the flights are planned (fl the primary: the leaves'
+    windows and the swaying trees: the film's frames reproduce; `others` the other
+    flights: every leaf and puff keeps clear of their lenses too, and the V is keyed over
+    the longest). Returns a stats dict."""
     import time
 
     import scene
     t0 = time.time()
     secs = {}
     col = scene.collection(config.COL_LIFE, root)
-    _v, (frames, _vals) = blink(fl.n, fl.fps)
+    _v, (frames, _vals) = blink(max([fl.n] + [o.n for o in others]) + 60 * fl.fps, fl.fps)
     kit_hi = {k: float(v[:, 2].max()) for k, v in kit_vertices.items()}
     kit_rho = {k: float(np.hypot(v[:, 0], v[:, 1]).max()) for k, v in kit_vertices.items()}
     t1 = time.time()
     swaying = wind(world.forest.table, fl, kit, kit_hi, grounds, fcol)
     secs["wind"], t1 = round(time.time() - t1, 1), time.time()
     hulls = [b["hull"] for b in world.buildings] + [p["hull"] for p in world.props if "hull" in p]
-    L = plant_leaves(world.forest.table, terrain, fl, kit_hi, kit_rho, hulls)
+    L = plant_leaves(world.forest.table, terrain, fl, kit_hi, kit_rho, hulls, others)
     leaves(L, fl.fps, col)
     secs["leaves"], t1 = round(time.time() - t1, 1), time.time()
-    plumes = smoke(world, fl, col)
+    plumes = smoke(world, fl, col, others)
     secs["smoke"] = round(time.time() - t1, 1)
     secs["all"] = round(time.time() - t0, 1)
     st = dict(v_keys=len(frames), swaying=swaying, leaves=L.stats, smoke=plumes, secs=secs)

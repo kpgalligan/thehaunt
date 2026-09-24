@@ -55,16 +55,32 @@ tools/flyover/build.py`) for the reproducible build.
   so edits apply without restarting Blender.
   `build.render_stills(world, dir)` writes the top-down checks (Workbench, flat,
   Standard view transform — exact palette colours) and restores render settings.
-  The flight (Phase 9) is part of every full build (not `--only-map` / `--diorama`):
-  `render.flight_stills(dir)` renders each beat's hero frame, `render.flight_frames(dir,
-  res=, samples=, step=)` the frames (`f_####.png`); both through an output preset,
-  settings restored.
+  The flights (Phase 9) are part of every full build (not `--only-map` / `--diorama`):
+  `render.flight_stills(dir, flight=)` renders each beat's hero frame,
+  `render.flight_frames(dir, res=, samples=, step=, flight=)` the frames (`f_####.png`);
+  both through an output preset in the flight's own scene, settings restored.
+- Flights live (the camera loop, no world rebuild; the build writes
+  `<blend>.flight_cache.pkl`, ~160 MB, next to the .blend): in Blender open the Text
+  Editor's `flyover_flights.py`, Run Script -> 3D View sidebar (N) -> Flyover tab: "View
+  <flight>" (its scene, camera, range, markers; viewport through the camera, Solid, leaf
+  cards + light cones hidden, frame-drop playback), "Rebake this flight" (re-reads
+  `flights/<name>.py`, plans + checks + bakes that camera in ~1 s; the flown table and any
+  clearance problems land in the Text `flyover_rebake_report`), "Playblast (viewport)"
+  (out/playblast_<flight>_live.mp4). MCP / console equivalents: `import flight;
+  flight.rebake("farm_to_pit")`, `flight.switch("farm_to_pit")`.
+- Playblast (timing / framing, not the look): `Blender --background --python
+  tools/flyover/film.py -- --world <dump> --flight farm_to_pit --playblast
+  tools/flyover/out/playblast_farm_to_pit.mp4 [--step 2] [--res 960x540]` (Workbench,
+  Solid, no compositor / motion blur, leaf cards / cones / life hidden, frame / time /
+  beat / lens burned in, H.264 at the flight's real speed): ~0.2 s/frame at 960x540,
+  ~11 min for farm_to_pit (`--step 2`: half).
 - The film (Phase 11): `film.py` renders the flight's frames, `encode.py` (plain python3 +
   ffmpeg) encodes them. Review cut (1080p, into the git-ignored out/):
   `Blender --background --python tools/flyover/film.py -- --world <dump> --preset
   preview_1080 --frames-dir tools/flyover/out/frames_1080`, then `python3
   tools/flyover/encode.py tools/flyover/out/frames_1080 tools/flyover/out/flyover_1080`.
-  4K final (after Kevin signs off the review cut): the same with `--preset final_2160
+  `--flight <name>` (default town_pass) renders another flight in its own scene into its
+  own frames dir (film.json records the flight). 4K final (after Kevin signs off the review cut): the same with `--preset final_2160
   --frames-dir tools/flyover/out/frames_2160` (72 GB of 16-bit frames: check the disk,
   or `--depth 8`), encoded to `tools/flyover/out/flyover_2160` (+ `--prores` for the
   master); only the `.ogv` is copied to `assets/video/` (the .mp4 / .mov stay out).
@@ -140,10 +156,30 @@ tools/flyover/build.py`) for the reproducible build.
   Cam_Overview, Cam_MansionDrive, Cam_FarmTreeline, Cam_Billies, Cam_EastEntry,
   Cam_MansionGlimpse (up the drive, short of the clearing) (positions derived from
   routes/dump).
-- Flight (Phase 9): `flight` = the STORYBOARD at the top of flight.py (the one place to
-  tune: BEATS, CAM_KEYS, AIM_KEYS, DUSK_KEYS; config.FLIGHT_* the smoothing / clearance /
-  bank / turn limits). Keys name anchors on the guides and the dump (`out_w`/`out_e` arc,
-  `road` at a dump id's x, `at` a dump id, `track`, `mansion`), never world coordinates.
+- Flights (Phase 9): a REGISTRY of named sequences, `flights/` (`__init__.py`: NAMES,
+  PRIMARY = town_pass, the module contract, `ft()` / `canopy()` heights); one data module
+  each (`flights/town_pass.py`: the film, unchanged; `flights/farm_to_pit.py`): BEATS,
+  CAM_KEYS, AIM_KEYS, DUSK_KEYS, HOLD_S + per-sequence overrides of config.FLIGHT_* (lens,
+  CLEAR_M margins, path / aim smoothing, BANK / BANK_KEYS, MAX_TURN_DEG_S, PIN_ENDS,
+  EXACT_SOLIDS). `flight.py` is the shared machinery. Keys name anchors on the guides and
+  the dump (`out_w`/`out_e` arc, `road` at a dump id's x, `at` a dump id, `track`,
+  `mansion`, `framed` = square to a built building where its real footprint spans a
+  fraction of the frame), never world coordinates; the first key's time is when the
+  camera sets off (a held opening). EXACT_SOLIDS tests solids by their meshes (BVH), so
+  the lens may pass under a street light's arm (the lights' glow cones are not solids).
+  SCENES (why: each sequence needs its own camera, frame range, markers and flyover_dusk
+  keys, and Blender's scene selector then switches them with no script): the primary
+  lives in the host scene (renamed `town_pass`); every other flight in its own scene, a
+  `Scene.copy()` of the host sharing the Flyover collections (look.sync_scene: world,
+  colour management, family levels, passes, and its OWN copy of the grade, since the
+  compositor's Render Layers node names the scene it renders). Every driver reads the
+  ACTIVE scene (look.scene_var: a Context Property variable, verified in 5.2 incl.
+  headless and per-scene renders) and the materials read the rendered scene's
+  properties, so each scene's dusk action lights its own film. Render a flight by making
+  its scene the window's scene (`flight.set_window_scene`; `render.render(scene=)` of a
+  non-active scene evaluated its animation at the wrong frame, measured). Life follows the primary (wind trees, leaf
+  windows: town_pass's frames reproduce, 68-69 dB vs the review cut); leaves / smoke are
+  checked against every flight's lens; the V is keyed over the longest.
   `plan()` (numpy): path spline through the camera keys, blurred (no hairpins); timing
   from the keys' segment speeds, blurred (speed only eases), resting HOLD_S at the end;
   the view turns between aim targets by angle (a held target stays locked as the camera
@@ -151,12 +187,13 @@ tools/flyover/build.py`) for the reproducible build.
   frame's lens (a 0.5 m radius + FLIGHT_CLEAR_M: trees 3 m, solids 1.5 m, ground 2.5 m)
   against each tree instance's kit geometry (per-ring min / max height, any turn),
   building / tall-prop hulls, every prop / light mesh box and the terrain, and the view's
-  turn rate (<= 40 deg/s). `bake()`: Cam_Flight (scene camera; one LINEAR key per frame,
-  quaternions), Guide_CamPath / Guide_CamAim (POLY curves of the per-frame camera / aim
-  points), timeline markers per beat (scene["flyover_markers"]; a rebuild replaces its
-  own), frame range 1..2131 at 30 fps, and the tagged scene action keying flyover_dusk
-  (`flight.dusk_fcurve()`; render.eevee_stills mutes it so the named views stay at the
-  canonical 18:00). Actions are tagged and wiped like every datablock.
+  turn rate (per sequence). `bake()`: Cam_Flight_<name> (its scene's camera; one LINEAR
+  key per frame, quaternions), Guide_CamPath_<name> / Guide_CamAim_<name> (POLY curves of
+  the per-frame camera / aim points), timeline markers per beat (scene["flyover_markers"];
+  a rebake replaces its own), frame range 1..n at 30 fps, and the tagged scene action
+  Flyover_Dusk_<name> keying flyover_dusk (`flight.dusk_fcurve()`; render.eevee_stills
+  mutes the host's so the named views stay at the canonical 18:00). Actions, flight
+  scenes and the panel text are tagged and wiped like every datablock.
 - Life (Phase 10): `life`, built after the flight, every motion keyed to the scene frame
   (t = (frame - 1) / fps; Geometry Nodes read Scene Time), so any frame renders alone.
   The V: its object `glow` keyed CONSTANT (config.MOTEL_V_*; edges on quarter frames,
@@ -451,12 +488,29 @@ tools/flyover/build.py`) for the reproducible build.
   hearth or interior in canon: open question), the concession (boarded), the mansion
   (a ruin). The police station and town hall have no chimney.
 - (10) No birds, cars, people or other motion (none canon).
+- (flights) A second sequence, farm_to_pit, from Kevin's words (storyboard above). Calls:
+  lighting held at the canonical 18:00 (flyover_dusk 1: lights on, the pit's red glow;
+  DUSK_KEYS in the file). "Right above the tree line" = 3.5-5 m over the highest crowns
+  (the 3 m tree margin: leaves off the lens). "Roadblock in the distance" = the storm
+  slide seen down the farm lane from the bend (only ~30 m: the lane is short). "Clears
+  the treeline" = leaving the canopy over the east entry's clearing (x ~600 m), where it
+  slows. "Banking turn down" = a banked left turn (down = south); it stays at 10 ft.
+  Forced by the trees (not asked for): the rise is a crane up in place before crossing
+  the yard (two field trees stand between the house and the drive), the drive is flown
+  along its north edge, the corner at >= 15 m (a maple on the bend), and after the gas
+  station the path jogs north round the big oak behind Billie's lot. Length 109.6 s.
+  Wind follows town_pass only (the farm yard's trees are still), so the film's frames
+  reproduce. The hardest move is the sharp east turn (26 m/s^2 lateral for ~0.2 s).
 
-## The flight as built (Phase 9; 71.0 s, 2131 frames at 30 fps)
+## The flights as built
 
-Plan + check + bake ~1.6 s of a ~21 s headless build. Measured renders (M-series): the
+Plan + check of both ~2 s of a ~23-25 s headless build (idempotent: no `.001`, same
+datablock counts on a rebuild); a live rebake ~0.8 s. Measured renders (M-series): the
 animatic (960x540, 4 samples, motion blur, every 2nd frame held) 1.6 s/frame, ~28 min;
-the 1080p beat stills (preview_1080) 3-8.5 s each.
+the 1080p beat stills (preview_1080) 3-8.5 s each; the farm_to_pit Workbench playblast
+0.2 s/frame (11 min headless; ~0.14 s/frame from the viewport).
+
+### town_pass (the film; 71.0 s, 2131 frames; frames reproduce the review cut at 68-71 dB)
 
 1. Road in (0-6.3 s): 12 -> 8.5 m over the west road-out's bend at 23 m/s, canopy both
    sides, the road running out of the trees at the town; the dusk ramps 17:43 -> 18:00.
@@ -478,6 +532,34 @@ the 1080p beat stills (preview_1080) 3-8.5 s each.
 8. The valley (58-71): rising to 72 m over the forest north of the road-out while the
    view turns ~150 deg through the northern ridges (~21 deg/s), settling at 68 s on the
    whole valley looking west, back the way the film came in; 3 s still hold.
+
+### farm_to_pit (109.6 s, 3287 frames; Kevin's words quoted per beat in the file)
+
+Lens 35 mm; margins tree 3 / solid 1 (exact surfaces) / ground 1 m; view turns <= 64.5
+deg/s (the sharp / quick turns; limit 90); flyover_dusk held at 1 (18:00).
+
+1. The farmhouse (0-3.0 s): 1.78 m (5'10") due south of the house, framed so its real
+   footprint (eaves) spans 2/3 of the width (64% measured on the still), straight at it; still.
+2. Rise past the barn (3-14): a crane up in place on the house to 17 m (<= 4.7 m/s), then
+   over the yard's field trees at 20-21 m panning right onto the barn, held as it passes left.
+3. Down the drive (14-18): down to 10-12 m along the drive's north edge, 6-8 m/s, to the bend.
+4. The corner (18-21.8): round the bend rising 10 -> 22 m, facing south down the lane,
+   the storm slide centre frame (~25 m ahead, then below).
+5. East over the trees (21.8-33): the sharp turn east (~80 deg in ~1.5 s, 55 deg/s) then
+   3.5-5 m over the crowns (28-36 m up), 10 deg south of east, up to 36 m/s; the town hall
+   below right.
+6. Turn west over the road (33-40): out over the east entry's clearing, slowing to ~6 m/s,
+   down to 6.1 m (20 ft), a small hook over the road-out's mouth while the view swings
+   east -> west (64 deg/s), onto the centreline.
+7. The road west (40-72.8): 20 ft -> 10 ft (3.05 m) by the police station, then 3.05 m on
+   the centreline at ~21 m/s under the street lights' arms, the road dead centre.
+8. The west entrance (72.8-80.3): slowing to 4.5 m/s, a left banking turn (<= 14.5 deg
+   bank) 9 m inside the west edge, round through south to east.
+9. Behind the gas station (80.3-93.8): east at 3.1-3.4 m, ~5 m off the gas station's and
+   garage's backs at ~12 m/s, then north to the road's verge round the big oak behind
+   Billie's (its crown spans the whole strip south of the lot).
+10. The pit (93.8-109.6): south-east to 11 m south of the pit, turning north and tilting
+    down onto it, floating 4.7 -> 2.6 m; still from 106 s, the pit centred (red seams).
 
 ## Phases
 

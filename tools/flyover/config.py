@@ -509,9 +509,9 @@ CROWN_CLEAR_M = 0.4
 VIEW_LENS_MM = 35.0
 CLIP_END_M = 9000.0
 
-# Phase 9: the flight (flight.py holds the storyboard: beats, camera / aim keys, dusk).
+# Phase 9: the flights (flights/<name>.py hold the storyboards; flight.py the machinery).
+# The defaults every sequence may override (flights/__init__.py).
 FLIGHT_FPS = 30
-FLIGHT_CAMERA = "Cam_Flight"
 FLIGHT_LENS_MM = 35.0
 FLIGHT_NEAR_M = 0.5             # the lens's radius for every check (clip_start is 0.3)
 FLIGHT_CLEAR_M = {"tree": 3.0, "solid": 1.5, "ground": 2.5}   # clearance past the radius

@@ -90,14 +90,21 @@ def _driver(idb, path, expr, index=-1, extra=()):
     d = fc.driver
     d.type = "SCRIPTED"
     for name, data_path in (("d", f'["{config.DUSK_PROP}"]'),) + tuple(extra):
-        v = d.variables.new()
-        v.name = name
-        v.type = "SINGLE_PROP"
-        v.targets[0].id_type = "SCENE"
-        v.targets[0].id = bpy.context.scene
-        v.targets[0].data_path = data_path
+        scene_var(d, name, data_path)
     d.expression = expr
     return fc
+
+
+def scene_var(driver, name, data_path):
+    """A driver variable reading the ACTIVE scene's `data_path` (a Context Property: the
+    scene being rendered / shown), so every flight's scene drives the one shared world
+    with its own flyover_dusk and camera (flight.py)."""
+    v = driver.variables.new()
+    v.name = name
+    v.type = "CONTEXT_PROP"
+    v.targets[0].context_property = "ACTIVE_SCENE"
+    v.targets[0].data_path = data_path
+    return v
 
 
 def _key(idb, path, a, b, index=-1, fmt="{}"):
@@ -389,7 +396,45 @@ def apply_finish(name):
     vs.look = D["look"]
     vs.exposure = D["exposure"]
     vs.gamma = 1.0
+    for other in bpy.data.scenes:       # the flights' own scenes follow the host's look
+        if other is not sc and scene.is_ours(other):
+            sync_scene(sc, other)
     return name
+
+
+SYNC_PROPS = ("flyover_window_glow", "flyover_neon_glow", "flyover_sign_glow", "flyover_street_glow",
+              "flyover_pit_glow", FINISH_PROP, "flyover_output")
+
+
+def sync_scene(host, sc):
+    """A flight's scene (a copy of the host) takes the host's look: world, colour
+    management, the light families' levels, the passes the grade reads, and its OWN copy
+    of the grade (the compositor's Render Layers node names the scene it renders, so a
+    shared tree would composite the host). Its flyover_dusk stays its own."""
+    sc.world = host.world
+    for attr in ("view_transform", "look", "exposure", "gamma"):
+        setattr(sc.view_settings, attr, getattr(host.view_settings, attr))
+    sc.display_settings.display_device = host.display_settings.display_device
+    for k in SYNC_PROPS:
+        if k in host:
+            sc[k] = host[k]
+    for a, b in zip(host.view_layers, sc.view_layers):
+        b.use_pass_z, b.use_pass_position = a.use_pass_z, a.use_pass_position
+    src = host.compositing_node_group
+    if src is None:
+        return sc
+    name = f"{src.name}_{sc.name}"
+    old = bpy.data.node_groups.get(name)
+    if old is not None and scene.is_ours(old):
+        bpy.data.node_groups.remove(old)
+    ng = scene.tag(src.copy())
+    ng.name = name
+    for node in ng.nodes:
+        if node.bl_idname == "CompositorNodeRLayers":
+            node.scene = sc
+    sc.compositing_node_group = ng
+    sc.render.use_compositing = host.render.use_compositing
+    return sc
 
 
 def set_dusk(value):

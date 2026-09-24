@@ -32,7 +32,8 @@ DEFAULT_OUT = os.path.join(PKG_DIR, "out", "town.blend")
 _MODULES = ("config", "world", "routes", "treeline", "terrain", "surfaces", "forest", "scene", "materials",
             "diorama", "ground", "road", "markings", "guides", "look", "output", "placeholders", "trees",
             "scatter", "cameras", "flight", "render", "archkit", "pixelfont", "archmats", "buildings_hero",
-            "buildings_town", "mansion", "propkit", "streetlights", "signs", "props", "life")
+            "buildings_town", "mansion", "propkit", "streetlights", "signs", "props", "life", "flights",
+            "flight_panel")
 
 
 def _modules():
@@ -43,7 +44,7 @@ def _modules():
     return mods
 
 
-def build(world_path, only_map=None, diorama=False, finish=None):
+def build(world_path, only_map=None, diorama=False, finish=None, cache=True):
     """Wipe and regenerate the Flyover tree in the current file. Returns the World
     (with .terrain attached unless diorama). finish: a look.FINISHES name (default
     config.FINISH)."""
@@ -116,16 +117,23 @@ def build(world_path, only_map=None, diorama=False, finish=None):
                   f"{world.forest.table.counts()} in {time.time() - t1:.1f}s")
             solids = [bpy.data.collections.get(n) for n in (config.COL_HERO, config.COL_PROP_ART, config.COL_LIGHTS)]
             kv = m["trees"].kit_vertices(*kit)
-            world.flight, _cam = m["flight"].build(world, terr, cams, guides, kv, solids)
-            world.life = m["life"].build(world, terr, world.flight, kit, kv, grounds, root, fcol)
+            world.flights = m["flight"].build(world, terr, cams, guides, kv, solids)
+            world.flight = world.flights[m["flight"].primary()]
+            others = [f for n, f in world.flights.items() if f is not world.flight]
+            world.life = m["life"].build(world, terr, world.flight, kit, kv, grounds, root, fcol, others)
     cam = m["cameras"].build_topdown(world, cams)
     if not diorama:
         m["cameras"].build_views(world, world.terrain, cams)
     if only_map is not None:
         m["cameras"].frame_map(world, only_map, cam)
     m["output"].apply(m["output"].DEFAULT)
+    if getattr(world, "flights", None):     # the other flights' scenes: copies of the finished host
+        m["flight"].finish_scenes(world.flights, cams, bpy.data.collections[config.COL_GUIDES])
+        m["flight_panel"].install()
     if not diorama:     # the grade's CamZ failed before the scene had a camera
         print(f"flyover: {m['look'].revalidate_drivers()} drivers revalidated")
+    if cache and bpy.data.filepath and getattr(world, "flights", None):     # the live loop's cache
+        print(f"flyover: flight cache {m['flight'].save_cache()}")
     print(f"flyover: built in {time.time() - t0:.1f}s")
     return world
 
@@ -200,12 +208,14 @@ def main():
         bpy.ops.wm.open_mainfile(filepath=out)
     else:
         bpy.ops.wm.read_homefile(use_empty=True)
-    world = build(os.path.abspath(args.world), args.only_map, args.diorama, args.finish)
+    world = build(os.path.abspath(args.world), args.only_map, args.diorama, args.finish, cache=False)
     if args.dusk is not None and not args.diorama:
         sys.modules["look"].set_dusk(args.dusk)
     os.makedirs(os.path.dirname(out), exist_ok=True)
     bpy.ops.wm.save_as_mainfile(filepath=out)
     print(f"flyover: saved {out}")
+    if getattr(world, "flights", None):
+        print(f"flyover: flight cache {sys.modules['flight'].save_cache(out)}")
     if args.render_dir:
         if not args.no_layout:
             for path in render_stills(world, os.path.abspath(args.render_dir), args.px_per_tile,

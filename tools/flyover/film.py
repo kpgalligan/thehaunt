@@ -2,7 +2,7 @@
 numbered PNGs, resumably. encode.py turns the frames into the .ogv / .mp4.
 
     Blender --background --python tools/flyover/film.py -- --world <dump.json>
-        --preset preview_1080|final_2160 --frames-dir <dir>
+        --preset preview_1080|final_2160 --frames-dir <dir> [--flight town_pass|farm_to_pit]
         [--start N --end M] [--blend tools/flyover/out/town.blend] [--rebuild]
         [--res WxH] [--samples n] [--depth 8|16] [--force-mixed]
 
@@ -11,6 +11,10 @@ numbered PNGs, resumably. encode.py turns the frames into the .ogv / .mp4.
   otherwise the town is built fresh from the dump (an empty file, ~25 s), saved there
   with the key and reopened, so every run renders the saved file. `--rebuild` forces the
   build. A restart therefore skips the build.
+- Flights: `--flight` (default town_pass, the film) renders that flight's camera in its
+  own scene (flight.py); frames dirs are per flight (film.json records it). `--playblast
+  <mp4> [--step n] [--res WxH]` renders the fast Workbench preview instead
+  (render.playblast: timing / framing, not the look).
 - Resumable: frame N is <dir>/f_NNNN.png. It is rendered to f_NNNN.partial.png and
   renamed when complete, so a killed render never leaves a frame that counts as done;
   existing frames are skipped, stale partials deleted on start.
@@ -41,14 +45,16 @@ KEY_PROP = "flyover_build_key"
 
 
 def build_key(world_path):
-    """sha256 over the dump + every package module: a .blend with this key is current."""
+    """sha256 over the dump + every package module (flights/ too): a .blend with this key
+    is current."""
     h = hashlib.sha256()
     with open(world_path, "rb") as f:
         h.update(f.read())
-    for path in sorted(glob.glob(os.path.join(PKG_DIR, "*.py"))):
+    paths = glob.glob(os.path.join(PKG_DIR, "*.py")) + glob.glob(os.path.join(PKG_DIR, "flights", "*.py"))
+    for path in sorted(paths):
         if os.path.basename(path) in ("film.py", "encode.py"):
             continue    # the renderer / encoder do not shape the scene
-        h.update(os.path.basename(path).encode())
+        h.update(os.path.relpath(path, PKG_DIR).encode())
         with open(path, "rb") as f:
             h.update(f.read())
     return h.hexdigest()[:16]
@@ -57,20 +63,23 @@ def build_key(world_path):
 def ensure_scene(world_path, blend, rebuild=False):
     """Open the current .blend or build (and save) it. Returns 'reused' / 'built'."""
     import bpy
+    import flight
     key = build_key(world_path)
     if not rebuild and os.path.exists(blend):
         bpy.ops.wm.open_mainfile(filepath=blend)
-        if bpy.context.scene.get(KEY_PROP) == key:
+        if flight.host_scene().get(KEY_PROP) == key:
             print(f"film: reusing {blend} (build key {key})", flush=True)
             return "reused"
-        print(f"film: {blend} is stale (key {bpy.context.scene.get(KEY_PROP)} != {key}): rebuilding",
+        print(f"film: {blend} is stale (key {flight.host_scene().get(KEY_PROP)} != {key}): rebuilding",
               flush=True)
     bpy.ops.wm.read_homefile(use_empty=True)
     import build
-    build.build(os.path.abspath(world_path))
-    bpy.context.scene[KEY_PROP] = key
+    build.build(os.path.abspath(world_path), cache=False)
+    import flight
+    flight.host_scene()[KEY_PROP] = key
     os.makedirs(os.path.dirname(blend), exist_ok=True)
     bpy.ops.wm.save_as_mainfile(filepath=blend)
+    flight.save_cache(blend)
     bpy.ops.wm.open_mainfile(filepath=blend)    # render what a resumed run renders: the file
     print(f"film: built and saved {blend} (build key {key})", flush=True)
     return "built"
@@ -108,19 +117,21 @@ def _fmt(secs):
 
 
 def render_frames(frames_dir, preset, start=None, end=None, res=None, samples=None, force_mixed=False,
-                  depth=None):
-    """Render every missing frame of start..end; returns the log dict."""
+                  depth=None, flight_name=None):
+    """Render every missing frame of start..end of a flight (default the primary) in its
+    own scene; returns the log dict."""
     import bpy
 
-    import config
     import flight
     import output
-    sc = bpy.context.scene
+    flight_name = flight_name or flight.primary()
+    sq = flight.seq(flight_name)
+    sc = flight.set_window_scene(flight.scene_of(flight_name))
     r = sc.render
     p = output.apply(preset, sc, res, samples)
     if depth:                         # PNG bit depth override (8 halves final_2160's disk; dithered)
         r.image_settings.color_depth = str(depth)
-    sc.camera = bpy.data.objects[config.FLIGHT_CAMERA]
+    sc.camera = bpy.data.objects[sq.CAMERA]
     fc = flight.dusk_fcurve(sc)
     if fc is None:
         raise AssertionError("the flight's flyover_dusk keys are missing: is the flight built?")
@@ -131,8 +142,9 @@ def render_frames(frames_dir, preset, start=None, end=None, res=None, samples=No
     os.makedirs(frames_dir, exist_ok=True)
     for stale in glob.glob(os.path.join(frames_dir, "f_*.partial.png")):
         os.remove(stale)
-    want = dict(preset=preset, res=list(res or p["res"]), samples=samples or p["samples"],
-                mb_steps=p["mb_steps"], depth=r.image_settings.color_depth, build_key=sc.get(KEY_PROP), fps=r.fps,
+    want = dict(flight=flight_name, preset=preset, res=list(res or p["res"]), samples=samples or p["samples"],
+                mb_steps=p["mb_steps"], depth=r.image_settings.color_depth,
+                build_key=flight.host_scene().get(KEY_PROP), fps=r.fps,
                 frame_start=sc.frame_start, frame_end=sc.frame_end)
     log = _load_log(frames_dir, want, force_mixed)
     todo = [f for f in range(start, end + 1) if not os.path.exists(frame_path(frames_dir, f))]
@@ -166,7 +178,11 @@ def _parse(argv):
     ap = argparse.ArgumentParser(prog="film.py")
     ap.add_argument("--world", required=True, help="world dump JSON (godot --dump-world)")
     ap.add_argument("--preset", default="preview_1080", help="output.PRESETS name")
-    ap.add_argument("--frames-dir", required=True, help="where f_####.png + film.json go")
+    ap.add_argument("--flight", default="town_pass", help="which flight (flights.NAMES); frames dirs are per flight")
+    ap.add_argument("--frames-dir", default=None, help="where f_####.png + film.json go")
+    ap.add_argument("--playblast", default=None, metavar="MP4",
+                    help="instead: the fast Workbench preview of the flight to this .mp4 (render.playblast)")
+    ap.add_argument("--step", type=int, default=1, help="--playblast: every Nth frame (at fps / N)")
     ap.add_argument("--start", type=int, default=None)
     ap.add_argument("--end", type=int, default=None)
     ap.add_argument("--blend", default=DEFAULT_BLEND, help="the built town, reused if current")
@@ -183,8 +199,16 @@ def main():
     ensure_scene(os.path.abspath(args.world), os.path.abspath(args.blend), args.rebuild)
     res = tuple(int(v) for v in args.res.split("x")) if args.res else None
     t0 = time.time()
+    if args.playblast:
+        import render
+        secs = render.playblast(args.flight, os.path.abspath(args.playblast), res or render.PLAYBLAST_RES,
+                                args.step)
+        print(f"film: playblast {args.flight} -> {args.playblast} in {_fmt(secs)}", flush=True)
+        return
+    if not args.frames_dir:
+        raise SystemExit("film: --frames-dir is required (or --playblast)")
     log = render_frames(os.path.abspath(args.frames_dir), args.preset, args.start, args.end, res,
-                        args.samples, args.force_mixed, args.depth)
+                        args.samples, args.force_mixed, args.depth, args.flight)
     print(f"film: session {_fmt(time.time() - t0)}; {log.get('frames_done', 0)} frames done, "
           f"avg {log.get('avg_s_per_frame', 0)} s/frame", flush=True)
 

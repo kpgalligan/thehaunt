@@ -11,7 +11,7 @@ import bpy
 import config
 
 _DATA_KINDS = ("objects", "meshes", "materials", "cameras", "lights", "curves", "worlds",
-               "node_groups", "images", "metaballs", "actions", "collections")
+               "node_groups", "images", "metaballs", "actions", "collections", "texts")
 
 
 def tag(idb):
@@ -29,6 +29,17 @@ def wipe():
     root = bpy.data.collections.get(config.ROOT)
     if root is not None and not is_ours(root):
         raise RuntimeError(f"collection '{config.ROOT}' exists but was not made by the build")
+    # the flights' own scenes (flight.py) go first: the host becomes the active scene
+    own = [sc for sc in bpy.data.scenes if is_ours(sc)]
+    if own:
+        host = next((sc for sc in bpy.data.scenes if not is_ours(sc)), None)
+        if host is None:
+            raise RuntimeError("every scene is the build's: no host scene to keep")
+        for win in bpy.context.window_manager.windows:
+            if is_ours(win.scene):
+                win.scene = host
+        for sc in own:
+            bpy.data.scenes.remove(sc)
     if root is not None:
         for ob in list(root.all_objects):
             bpy.data.objects.remove(ob, do_unlink=True)

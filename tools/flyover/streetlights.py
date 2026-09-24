@@ -147,17 +147,12 @@ def drive(idb, path, prop, scale, index=-1):
     time of the light (config.DUSK_GATE over flyover_dusk; Phase 8), as a driver: Phase 9
     / 10 animate the properties. `v * k * clamp(...)` stays a simple expression (runs
     without Python), so it evaluates headless too."""
-    import bpy
     fc = idb.driver_add(path) if index < 0 else idb.driver_add(path, index)
     d = fc.driver
     d.type = "SCRIPTED"
+    import look
     for name, p in (("v", prop), ("d", config.DUSK_PROP)):
-        v = d.variables.new()
-        v.name = name
-        v.type = "SINGLE_PROP"
-        v.targets[0].id_type = "SCENE"
-        v.targets[0].id = bpy.context.scene
-        v.targets[0].data_path = f'["{p}"]'
+        look.scene_var(d, name, f'["{p}"]')        # the ACTIVE scene's (each flight's own)
     a, b = config.DUSK_GATE[prop]
     d.expression = f"v * {float(scale)!r} * clamp((d - {a!r}) / {b - a!r}, 0.0, 1.0)"
     return fc

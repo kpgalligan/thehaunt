@@ -154,64 +154,196 @@ def _mute_flight_dusk(sc):
 
 
 # ---------------------------------------------------------------------------
-# The flight (Phase 9): its beat stills and its frames, through an output preset.
+# The flights (Phase 9): beat stills and frames through an output preset, in the
+# flight's own scene (flight.scene_of), and the fast Workbench playblast.
 # ---------------------------------------------------------------------------
 
-def flight_stills(out_dir, preset="preview_1080", res=None, samples=None, frames=None):
-    """Render the flight camera at each beat's hero frame (flight.BEATS) or at the given
+class _OnScene:
+    """Make a flight's scene active for a render (restoring the previous active scene)."""
+
+    def __init__(self, name):
+        import flight
+        self.flight = flight
+        self.prev = bpy.context.window_manager.windows[0].scene if bpy.context.window_manager.windows else None
+        self.sq = flight.seq(name)
+        self.sc = flight.scene_of(name)
+
+    def __enter__(self):
+        self.flight.set_window_scene(self.sc)
+        return self.sc
+
+    def __exit__(self, *exc):
+        if self.prev is not None:
+            self.flight.set_window_scene(self.prev)
+
+
+def flight_stills(out_dir, preset="preview_1080", res=None, samples=None, frames=None, flight=None):
+    """Render a flight's camera at each beat's hero frame (its BEATS) or at the given
     [(name, frame)]; returns [(path, seconds)]. Settings restored afterwards."""
     import time
 
-    import flight
+    import flight as flight_mod
     import output
-    sc = bpy.context.scene
-    r = sc.render
-    saved = dict(fp=r.filepath, cam=sc.camera, frame=sc.frame_current, preset=sc.get("flyover_output", output.DEFAULT))
-    os.makedirs(out_dir, exist_ok=True)
+    on = _OnScene(flight or flight_mod.primary())
     out = []
-    try:
-        output.apply(preset, sc, res, samples)
-        sc.camera = bpy.data.objects[config.FLIGHT_CAMERA]
-        fps = r.fps
-        jobs = frames or [(n, int(round(h * fps)) + 1) for n, _s, h in flight.BEATS]
-        for name, f in jobs:
-            sc.frame_set(f)
-            safe = "".join(c if c.isalnum() else "_" for c in name).strip("_")
-            r.filepath = os.path.join(out_dir, f"{safe}_{f:04d}.png")
-            t0 = time.time()
-            bpy.ops.render.render(write_still=True)
-            out.append((r.filepath, time.time() - t0))
-    finally:
-        output.apply(saved["preset"], sc)
-        r.filepath, sc.camera = saved["fp"], saved["cam"]
-        sc.frame_set(saved["frame"])
+    os.makedirs(out_dir, exist_ok=True)
+    with on as sc:
+        r = sc.render
+        saved = dict(fp=r.filepath, cam=sc.camera, frame=sc.frame_current,
+                     preset=sc.get("flyover_output", output.DEFAULT))
+        try:
+            output.apply(preset, sc, res, samples)
+            sc.camera = bpy.data.objects[on.sq.CAMERA]
+            fps = r.fps
+            jobs = frames or [(n, int(round(h * fps)) + 1) for n, _s, h in on.sq.BEATS]
+            for name, f in jobs:
+                sc.frame_set(f)
+                safe = "".join(c if c.isalnum() else "_" for c in name).strip("_")
+                r.filepath = os.path.join(out_dir, f"{safe}_{f:04d}.png")
+                t0 = time.time()
+                bpy.ops.render.render(write_still=True)
+                out.append((r.filepath, time.time() - t0))
+        finally:
+            output.apply(saved["preset"], sc)
+            r.filepath, sc.camera = saved["fp"], saved["cam"]
+            sc.frame_set(saved["frame"])
     return out
 
 
 def flight_frames(out_dir, preset="preview_1080", res=None, samples=None, step=1, motion_blur=True,
-                  start=None, end=None):
-    """Render the flight's frames (every `step`th) as out_dir/f_####.png; returns seconds.
+                  start=None, end=None, flight=None):
+    """Render a flight's frames (every `step`th) as out_dir/f_####.png; returns seconds.
     Settings restored afterwards."""
     import time
 
+    import flight as flight_mod
     import output
-    sc = bpy.context.scene
-    r = sc.render
-    saved = dict(fp=r.filepath, cam=sc.camera, step=sc.frame_step, s=sc.frame_start, e=sc.frame_end,
-                 preset=sc.get("flyover_output", output.DEFAULT))
+    on = _OnScene(flight or flight_mod.primary())
     os.makedirs(out_dir, exist_ok=True)
-    try:
-        output.apply(preset, sc, res, samples)
-        r.use_motion_blur = motion_blur
-        sc.camera = bpy.data.objects[config.FLIGHT_CAMERA]
-        sc.frame_step = step
-        sc.frame_start = start or saved["s"]
-        sc.frame_end = end or saved["e"]
-        r.filepath = os.path.join(out_dir, "f_####")
-        t0 = time.time()
-        bpy.ops.render.render(animation=True)
-        return time.time() - t0
-    finally:
-        output.apply(saved["preset"], sc)
-        r.filepath, sc.camera, sc.frame_step = saved["fp"], saved["cam"], saved["step"]
-        sc.frame_start, sc.frame_end = saved["s"], saved["e"]
+    with on as sc:
+        r = sc.render
+        saved = dict(fp=r.filepath, cam=sc.camera, step=sc.frame_step, s=sc.frame_start, e=sc.frame_end,
+                     preset=sc.get("flyover_output", output.DEFAULT))
+        try:
+            output.apply(preset, sc, res, samples)
+            r.use_motion_blur = motion_blur
+            sc.camera = bpy.data.objects[on.sq.CAMERA]
+            sc.frame_step = step
+            sc.frame_start = start or saved["s"]
+            sc.frame_end = end or saved["e"]
+            r.filepath = os.path.join(out_dir, "f_####")
+            t0 = time.time()
+            bpy.ops.render.render(animation=True)
+            return time.time() - t0
+        finally:
+            output.apply(saved["preset"], sc)
+            r.filepath, sc.camera, sc.frame_step = saved["fp"], saved["cam"], saved["step"]
+            sc.frame_start, sc.frame_end = saved["s"], saved["e"]
+
+
+PLAYBLAST_RES = (960, 540)
+
+
+def _video(sc, path, fps):
+    """Point sc's output at an H.264 .mp4; returns a restore function."""
+    r, im, ff = sc.render, sc.render.image_settings, sc.render.ffmpeg
+    keep = dict(media=im.media_type, fmt=im.file_format, cm=im.color_mode, fp=r.filepath, fps=r.fps,
+                ffmt=ff.format, codec=ff.codec, crf=ff.constant_rate_factor, ext=r.use_file_extension)
+    im.media_type = "VIDEO"
+    im.file_format = "FFMPEG"
+    im.color_mode = "RGB"
+    ff.format = "MPEG4"
+    ff.codec = "H264"
+    ff.constant_rate_factor = "MEDIUM"
+    ff.audio_codec = "NONE"
+    r.use_file_extension = False
+    r.filepath = path
+    r.fps = fps
+
+    def restore():
+        im.media_type = keep["media"]
+        im.file_format = keep["fmt"]
+        im.color_mode = keep["cm"]
+        ff.format, ff.codec, ff.constant_rate_factor = keep["ffmt"], keep["codec"], keep["crf"]
+        r.filepath, r.fps, r.use_file_extension = keep["fp"], keep["fps"], keep["ext"]
+    return restore
+
+
+def _stamp(sc, note):
+    r = sc.render
+    keys = ("use_stamp", "use_stamp_frame", "use_stamp_time", "use_stamp_marker", "use_stamp_note",
+            "use_stamp_date", "use_stamp_render_time", "use_stamp_camera", "use_stamp_lens", "use_stamp_scene",
+            "use_stamp_filename", "use_stamp_memory", "use_stamp_hostname", "use_stamp_frame_range",
+            "use_stamp_sequencer_strip", "use_stamp_time", "stamp_font_size", "stamp_note_text")
+    keep = {k: getattr(r, k) for k in keys}
+    for k in keys:
+        if k.startswith("use_stamp"):
+            setattr(r, k, False)
+    r.use_stamp = r.use_stamp_frame = r.use_stamp_time = r.use_stamp_marker = r.use_stamp_note = True
+    r.use_stamp_lens = True
+    r.stamp_font_size = 14
+    r.stamp_note_text = note
+
+    def restore():
+        for k, v in keep.items():
+            setattr(r, k, v)
+    return restore
+
+
+def playblast(name, path, res=PLAYBLAST_RES, step=1):
+    """The fast preview of a flight (timing / framing, not the look): Workbench (Solid,
+    studio light, material colours), no compositor / motion blur, the leaf cards (opaque
+    squares in Solid), street-light cones and life hidden, frame / time / beat burned in,
+    to an H.264 .mp4 at the flight's real speed (every `step`th frame at fps / step).
+    Settings restored. Returns seconds."""
+    import time
+
+    import flight as flight_mod
+    on = _OnScene(name)
+    hide = [ob for ob in bpy.data.objects if ob.name in flight_mod.LEAF_CARDS or ob.get("kind") == "light_cone"]
+    life = bpy.data.collections.get(config.COL_LIFE)
+    with on as sc:
+        r, sh = sc.render, sc.display.shading
+        keep = dict(engine=r.engine, rx=r.resolution_x, ry=r.resolution_y, pct=r.resolution_percentage,
+                    comp=r.use_compositing, mb=r.use_motion_blur, step=sc.frame_step, light=sh.light,
+                    ctype=sh.color_type, cam=sc.camera, vt=sc.view_settings.view_transform,
+                    look=sc.view_settings.look, exp=sc.view_settings.exposure,
+                    life=life.hide_render if life else None, cavity=sh.show_cavity)
+        was = [ob.hide_render for ob in hide]
+        restore_video = _video(sc, path, max(1, round(sc.render.fps / step)))
+        restore_stamp = _stamp(sc, name)
+        try:
+            for ob in hide:
+                ob.hide_render = True
+            if life is not None:
+                life.hide_render = True
+            r.engine = "BLENDER_WORKBENCH"
+            r.resolution_x, r.resolution_y = res
+            r.resolution_percentage = 100
+            r.use_compositing = False
+            r.use_motion_blur = False
+            sh.light = "STUDIO"
+            sh.color_type = "MATERIAL"
+            sh.show_cavity = False
+            sc.view_settings.view_transform = "Standard"
+            sc.view_settings.look = "None"
+            sc.view_settings.exposure = 0.0
+            sc.camera = bpy.data.objects[on.sq.CAMERA]
+            sc.frame_step = step
+            os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
+            t0 = time.time()
+            bpy.ops.render.render(animation=True)
+            return time.time() - t0
+        finally:
+            restore_stamp()
+            restore_video()
+            for ob, h in zip(hide, was):
+                ob.hide_render = h
+            if life is not None:
+                life.hide_render = keep["life"]
+            r.engine, r.resolution_x, r.resolution_y = keep["engine"], keep["rx"], keep["ry"]
+            r.resolution_percentage, r.use_compositing, r.use_motion_blur = keep["pct"], keep["comp"], keep["mb"]
+            sc.frame_step, sh.light, sh.color_type, sc.camera = keep["step"], keep["light"], keep["ctype"], keep["cam"]
+            sh.show_cavity = keep["cavity"]
+            sc.view_settings.view_transform, sc.view_settings.look = keep["vt"], keep["look"]
+            sc.view_settings.exposure = keep["exp"]
