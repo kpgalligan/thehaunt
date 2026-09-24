@@ -124,6 +124,8 @@ def build(world_path, only_map=None, diorama=False, finish=None):
     if only_map is not None:
         m["cameras"].frame_map(world, only_map, cam)
     m["output"].apply(m["output"].DEFAULT)
+    if not diorama:     # the grade's CamZ failed before the scene had a camera
+        print(f"flyover: {m['look'].revalidate_drivers()} drivers revalidated")
     print(f"flyover: built in {time.time() - t0:.1f}s")
     return world
 

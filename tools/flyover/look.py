@@ -397,3 +397,26 @@ def set_dusk(value):
     sc = bpy.context.scene
     sc[config.DUSK_PROP] = float(value)
     bpy.context.view_layer.update()
+
+
+def revalidate_drivers():
+    """Blender flags a driver that failed to evaluate once as invalid and skips it for the
+    rest of the session (only a file load clears the flag). The grade's CamZ reads
+    `camera.location[2]` and is made before the build has a scene camera, so a fresh
+    build's session kept a stale fog height (its renders differed from the saved .blend's
+    by ~38 dB PSNR). Called once the build is complete: clear the flag on every driver,
+    re-evaluate, and assert they all evaluate. Returns the number that had been flagged."""
+    ids = [*bpy.data.scenes, *bpy.data.objects, *bpy.data.lights, *bpy.data.cameras, *bpy.data.node_groups,
+           *(m.node_tree for m in bpy.data.materials if m.node_tree),
+           *(w.node_tree for w in bpy.data.worlds if w.node_tree)]
+    drivers = [fc.driver for idb in ids if idb.animation_data for fc in idb.animation_data.drivers]
+    flagged = [d for d in drivers if not d.is_valid]
+    for d in flagged:
+        d.is_valid = True
+        d.expression = d.expression         # tags the depsgraph relations for a rebuild
+    sc = bpy.context.scene
+    sc.frame_set(sc.frame_current)
+    bad = [d.expression for d in drivers if not d.is_valid]
+    if bad:
+        raise AssertionError(f"drivers still fail to evaluate: {bad}")
+    return len(flagged)

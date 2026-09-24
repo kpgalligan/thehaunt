@@ -59,6 +59,40 @@ tools/flyover/build.py`) for the reproducible build.
   `render.flight_stills(dir)` renders each beat's hero frame, `render.flight_frames(dir,
   res=, samples=, step=)` the frames (`f_####.png`); both through an output preset,
   settings restored.
+- The film (Phase 11): `film.py` renders the flight's frames, `encode.py` (plain python3 +
+  ffmpeg) encodes them. Review cut (1080p, into the git-ignored out/):
+  `Blender --background --python tools/flyover/film.py -- --world <dump> --preset
+  preview_1080 --frames-dir tools/flyover/out/frames_1080`, then `python3
+  tools/flyover/encode.py tools/flyover/out/frames_1080 tools/flyover/out/flyover_1080`.
+  4K final (after Kevin signs off the review cut): the same with `--preset final_2160
+  --frames-dir tools/flyover/out/frames_2160` (72 GB of 16-bit frames: check the disk,
+  or `--depth 8`), encoded to `tools/flyover/out/flyover_2160` (+ `--prores` for the
+  master); only the `.ogv` is copied to `assets/video/` (the .mp4 / .mov stay out).
+  - film.py reuses `--blend` (default out/town.blend) when its scene["flyover_build_key"]
+    (sha256 of the dump + the package's .py, film/encode excluded) matches, else builds,
+    saves and REOPENS it (every run renders the saved file); `--rebuild` forces. `--start /
+    --end` a range; `--res` / `--samples` / `--depth 8|16` overrides for checks.
+  - Resumable: each frame renders to f_####.partial.png and is renamed when complete;
+    existing frames are skipped, partials deleted; just rerun the same command after a
+    kill. `film.json` in the frames dir logs per-frame seconds, frames done, avg s/frame;
+    a dir started with another preset / size / samples / depth / build key is refused
+    (`--force-mixed`). Progress lines print per-frame time + ETA.
+  - Deterministic: a frame re-rendered alone, in another order or another process matches
+    to ~70 dB PSNR (GPU float noise). The V's edges at final_2160 (2 motion-blur steps,
+    shading at +-1/8 frame): frames 217 / 234 fully on, 218 / 233 fully off, measured.
+  - encode.py: `.ogv` Theora q:v 8 (0-10), yuv420p, BT.601 limited (Theora's colour
+    space), keyframe every 2 s, no audio; `.mp4` libx264 CRF 18 preset slow yuv420p
+    BT.709 +faststart; `--prores` a ProRes 422 HQ 10-bit `.mov`. Refuses a frame gap
+    (`--allow-short` for clips); ffprobes + decodes each output to null. Theora q8 keeps
+    faint 8x8 steps in the flat dusk sky only under a 7x contrast stretch (q10 no
+    better, 5x the size); x264 keeps the dither.
+  - Measured (M2 Max; per frame; the valley end is the slowest): preview_1080 3.3-10.6 s
+    (motel pass avg 4.1) -> ~5.7 s avg -> ~3.4 h for 2131 frames; final_2160 12-30 s
+    (~3.5x preview) -> ~20 s -> ~12 h. Disk: preview 2.1 MB/frame = ~4.5 GB; final 16-bit
+    31-37 MB/frame = ~72 GB (`--depth 8`, Blender-dithered: 8.7 MB = ~19 GB). Outputs at
+    1080p: ogv ~11 Mb/s (~100 MB), mp4 ~6 Mb/s (~55 MB); 4K projected ~4x (ogv ~400 MB,
+    mp4 ~250 MB), ProRes ~820 Mb/s (~7 GB). A 4K Theora decodes on the CPU in Godot:
+    Phase 12 checks playback cost (a 1080p .ogv may be the shipping file).
 - `python3 tools/flyover/world.py <world.json>` runs the stitch + asserts and prints the
   offset table without Blender; `routes.py` likewise. `terrain.py` / `forest.py` need numpy: run
   them with Blender's bundled `Contents/Resources/<ver>/python/bin/python3.*`.
@@ -205,7 +239,10 @@ tools/flyover/build.py`) for the reproducible build.
   terrain mask grows 2 px so ridge edges get no dark fringe; bloom; lift / gamma / gain;
   vignette), view transform AgX. The fog's camera height is a driver on
   `camera.location[2]` (Phase 9 fix: `matrix_world[2][3]` never resolved and read 0, so
-  Phase 8's stills fogged every view as if from the ground). ONE time control, `flyover_dusk` (config.DUSK_PROP: 0 =
+  Phase 8's stills fogged every view as if from the ground). It is made before the scene
+  has a camera, fails once, and Blender then skips a failed driver for the session: a
+  fresh build's own renders kept a stale fog height until the file was reopened (Phase
+  11 found it: ~38 dB apart); `look.revalidate_drivers()` ends every build. ONE time control, `flyover_dusk` (config.DUSK_PROP: 0 =
   16:00 .. 1 = 18:00): every keyed value (sun elevation / azimuth / energy / colour, sky
   colours, haze, fog colour) is a `lerp(afternoon, dusk, d)` simple-expression driver
   (evaluates headless; look.AFTERNOON vs the finish's key), and every light family is
@@ -479,5 +516,6 @@ Each phase ends in a standalone, render-verified state. Tick them off here as th
 - [x] 10. Life (optional): NO VACANCY's V blinking, wind, chimney smoke, falling leaves
   (neon flicker dropped: the V is the game's one animated sign).
 - [ ] 11. Final render + encode: PNG frames -> ffmpeg -> Theora `.ogv` (Godot 4's native
-  format) + an `.mp4` preview; size check; into `assets/video/`.
+  format) + an `.mp4` preview; size check; into `assets/video/`. 11a tooling ✓ (film.py,
+  encode.py); 11b full renders pending (review cut -> Kevin -> 4K final -> assets/video/).
 - [ ] 12. (Later, separate change) Play it in the intro, skippable, via StoryDirector.
