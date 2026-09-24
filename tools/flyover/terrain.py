@@ -506,6 +506,19 @@ class Terrain:
             return float(z)
         return float(self.relief.height(np.array([x]), np.array([y]))[0])
 
+    def z_many(self, X, Y):
+        """z_at over arrays: the lattice point by point, the far ring in one vectorised
+        relief pass (it is ~10 ms per call one point at a time)."""
+        X, Y = np.asarray(X, float).ravel(), np.asarray(Y, float).ravel()
+        fx, fy = (X / T - self.nx0) * S, (-Y / T - self.ny0) * S
+        inside = (fx >= 0) & (fx <= self.NI - 1) & (fy >= 0) & (fy <= self.NJ - 1)
+        out = np.empty(len(X))
+        for i in np.nonzero(inside)[0]:
+            out[i] = self.z_at(X[i], Y[i])
+        if (~inside).any():
+            out[~inside] = self.relief.height(X[~inside], Y[~inside])
+        return out
+
     def z_range(self, x0, y0, x1, y1, n=3):
         zs = [self.z_at(x0 + (x1 - x0) * a / (n - 1), y0 + (y1 - y0) * b / (n - 1))
               for a in range(n) for b in range(n)]

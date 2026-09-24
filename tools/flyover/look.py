@@ -326,7 +326,9 @@ def _grade():
 
 def _key_grade(ng, A, D):
     n = ng.nodes
-    _driver(n["CamZ"].outputs[0], "default_value", "z", extra=(("z", "camera.matrix_world[2][3]"),))
+    # the scene camera's height (its location: the film's cameras are unparented). NOT
+    # matrix_world[2][3]: a nested index never resolves in a driver path and read 0.
+    _driver(n["CamZ"].outputs[0], "default_value", "z", extra=(("z", "camera.location[2]"),))
     _key(n["Haze"].outputs[0], "default_value", A["haze_km"], D["haze_km"])
     _key(n["Valley"].outputs[0], "default_value", A["valley"], D["valley"])
     _key(n["ValleyH"].outputs[0], "default_value", A["valley_h"], D["valley_h"])

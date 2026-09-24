@@ -50,6 +50,10 @@ tools/flyover/build.py`) for the reproducible build.
   so edits apply without restarting Blender.
   `build.render_stills(world, dir)` writes the top-down checks (Workbench, flat,
   Standard view transform — exact palette colours) and restores render settings.
+  The flight (Phase 9) is part of every full build (not `--only-map` / `--diorama`):
+  `render.flight_stills(dir)` renders each beat's hero frame, `render.flight_frames(dir,
+  res=, samples=, step=)` the frames (`f_####.png`); both through an output preset,
+  settings restored.
 - `python3 tools/flyover/world.py <world.json>` runs the stitch + asserts and prints the
   offset table without Blender; `routes.py` likewise. `terrain.py` / `forest.py` need numpy: run
   them with Blender's bundled `Contents/Resources/<ver>/python/bin/python3.*`.
@@ -65,7 +69,7 @@ tools/flyover/build.py`) for the reproducible build.
   `ground` (smooth-shaded meshes), `road` (swept paved road), `markings` (lot paint
   decals), `materials` (one ground look painting the fields, EEVEE), `guides`,
   `look` + `output` (Phase 8, below), `cameras` (Cam_TopDown +
-  named views), `forest` (the planting table: density field, species, colours, LOD;
+  named views), `flight` (Phase 9, below), `forest` (the planting table: density field, species, colours, LOD;
   numpy; `plant()` asserts the keep-outs on exact geometry), `trees` (the kit: a body
   + a leaf-card prototype per variant, metaball crowns, three materials), `scatter`
   (one point cloud, two Geometry Nodes objects: bodies, and shadowless leaf cards).
@@ -95,6 +99,23 @@ tools/flyover/build.py`) for the reproducible build.
   Cam_Overview, Cam_MansionDrive, Cam_FarmTreeline, Cam_Billies, Cam_EastEntry,
   Cam_MansionGlimpse (up the drive, short of the clearing) (positions derived from
   routes/dump).
+- Flight (Phase 9): `flight` = the STORYBOARD at the top of flight.py (the one place to
+  tune: BEATS, CAM_KEYS, AIM_KEYS, DUSK_KEYS; config.FLIGHT_* the smoothing / clearance /
+  bank / turn limits). Keys name anchors on the guides and the dump (`out_w`/`out_e` arc,
+  `road` at a dump id's x, `at` a dump id, `track`, `mansion`), never world coordinates.
+  `plan()` (numpy): path spline through the camera keys, blurred (no hairpins); timing
+  from the keys' segment speeds, blurred (speed only eases), resting HOLD_S at the end;
+  the view turns between aim targets by angle (a held target stays locked as the camera
+  passes); heights lifted smoothly over the Clearance floor. `check()` ASSERTS every
+  frame's lens (a 0.5 m radius + FLIGHT_CLEAR_M: trees 3 m, solids 1.5 m, ground 2.5 m)
+  against each tree instance's kit geometry (per-ring min / max height, any turn),
+  building / tall-prop hulls, every prop / light mesh box and the terrain, and the view's
+  turn rate (<= 40 deg/s). `bake()`: Cam_Flight (scene camera; one LINEAR key per frame,
+  quaternions), Guide_CamPath / Guide_CamAim (POLY curves of the per-frame camera / aim
+  points), timeline markers per beat (scene["flyover_markers"]; a rebuild replaces its
+  own), frame range 1..2131 at 30 fps, and the tagged scene action keying flyover_dusk
+  (`flight.dusk_fcurve()`; render.eevee_stills mutes it so the named views stay at the
+  canonical 18:00). Actions are tagged and wiped like every datablock.
 - Buildings (Phases 5-6): `archkit` (parametric parts as polygon soups: walls with
   openings, roofs incl. `spire`, `overhead_door`, `boarded`, `wall_band`, `tower_walls`,
   `pointed_hood`; prototypes as linked children) painted by `archmats` (keys
@@ -156,7 +177,9 @@ tools/flyover/build.py`) for the reproducible build.
   the compositor tree Flyover_Grade (analytic exponential HEIGHT FOG from the Depth +
   Position passes between the camera's height and the point's, + a distance haze; the
   terrain mask grows 2 px so ridge edges get no dark fringe; bloom; lift / gamma / gain;
-  vignette), view transform AgX. ONE time control, `flyover_dusk` (config.DUSK_PROP: 0 =
+  vignette), view transform AgX. The fog's camera height is a driver on
+  `camera.location[2]` (Phase 9 fix: `matrix_world[2][3]` never resolved and read 0, so
+  Phase 8's stills fogged every view as if from the ground). ONE time control, `flyover_dusk` (config.DUSK_PROP: 0 =
   16:00 .. 1 = 18:00): every keyed value (sun elevation / azimuth / energy / colour, sky
   colours, haze, fog colour) is a `lerp(afternoon, dusk, d)` simple-expression driver
   (evaluates headless; look.AFTERNOON vs the finish's key), and every light family is
@@ -324,6 +347,53 @@ tools/flyover/build.py`) for the reproducible build.
 - (8) The time of the light maps flyover_dusk 0..1 to 16:00..18:00; lights follow the
   game: windows / street / pit ramp in, signs cut on at 18:00 (a 2.5% ramp). Phase 9 may
   animate it through the flight.
+- (9) The ENDING: rise and turn back over the valley looking west (the town strung along
+  the road, its lamps, the drive-in's screen lower left, the west ridges and the dusk sky
+  over the way the film came in), held 3 s. Why: the game begins at the farm and the
+  mayor's canon is that leaving east brings you in from the west: the film tries to leave
+  and turns back to the town. The farm itself is too far (~560 m, behind trees) to read
+  in that frame. Alternative: a hold on the east ridges, road curving away (no return).
+- (9) Beat 6 order: the drive-in FIRST (screen off to the right as the camera climbs out
+  of town), then the mansion (a left turn up the drive). The drive-in is due south and
+  the ruin due north of the same fork: both from one spot is a ~180 deg whip. The ruin
+  glimpse needs ~38-40 m (its roof sits in the dark hemlocks, never against sky).
+- (9) Height: mostly 6-40 m; the reveal climbs to 72 m (the only view over 40 m). The
+  canopy passes (48-50 s, 55-58 s) read as soft blurred crowns at 30-40 m: the 3 m tree
+  clearance keeps leaves off the lens, not out of frame.
+- (9) The dusk animates 17:43 -> 18:00 over the first 8 s; the neon + lit bands cut on at
+  7.4 s with the motel sign in frame; the sun drops ~2 deg meanwhile (in the forest).
+- (9) Lens 35 mm throughout (no zooms); gentle bank <= 4 deg into turns; motion blur
+  from the preset (180 deg shutter).
+- (9) Look fix: the height fog now follows the camera (the CamZ driver read 0 before),
+  so high views are clearer than Phase 8's Cam_Overview still.
+- (9) Length 71 s (70 s asked): the extra second is the reveal's settle.
+
+## The flight as built (Phase 9; 71.0 s, 2131 frames at 30 fps)
+
+Plan + check + bake ~1.6 s of a ~21 s headless build. Measured renders (M-series): the
+animatic (960x540, 4 samples, motion blur, every 2nd frame held) 1.6 s/frame, ~28 min;
+the 1080p beat stills (preview_1080) 3-8.5 s each.
+
+1. Road in (0-6.3 s): 12 -> 8.5 m over the west road-out's bend at 23 m/s, canopy both
+   sides, the road running out of the trees at the town; the dusk ramps 17:43 -> 18:00.
+2. West Entry (6.3-16): the MOTEL pole sign passes at eye level on the left and its
+   neon cuts on at 7.4 s (the game's hard cut); the lot and Pell's sedan; a pan right to
+   the gas station (GAS / OPEN lit) and the dark garage. ~9-12 m/s.
+3. Billie's (16-22.5): over Billie's roof and lit windows, then slowing and dipping to
+   6 m with the pit's cover low right: its two red seams, then on.
+4. The Fork (22.5-30.5): rising to 19 m, a turn north up the farm road through the
+   treeline, the derelict barn in the gloom beyond; back east.
+5. Town (30.5-38): south of the plaza at 17-20 m, the town hall held in frame (lit
+   windows, cupola), the well and its two mercury lamps below.
+6. East Fork (38-48.5): climbing over the trees to 38 m, the drive-in's pale screen off
+   to the right, then a banking left turn up the chained drive: the ruin's dark gables
+   among the hemlocks (a glimpse, ~3 s, never closer than ~95 m).
+7. East Entry (48.5-58): down to 13-16 m along the road, police / hardware left, salon
+   right, the road curving into the forest; out over the road-out's trees, climbing to
+   40 m at ~30 m/s.
+8. The valley (58-71): rising to 72 m over the forest north of the road-out while the
+   view turns ~150 deg through the northern ridges (~21 deg/s), settling at 68 s on the
+   whole valley looking west, back the way the film came in; 3 s still hold.
 
 ## Phases
 
@@ -357,7 +427,7 @@ Each phase ends in a standalone, render-verified state. Tick them off here as th
   FOR SALE board, drive-in screen/speakers/marquee. Lettering in the 3x5 PixelFont.
 - [x] 8. Look-dev: dusk sky + sun, the three light families, the pit glow; test stills in
   both render styles; Kevin picks.
-- [ ] 9. Camera + animatic: storyboard with Kevin; path from the west road over the fork
+- [x] 9. Camera + animatic: storyboard with Kevin; path from the west road over the fork
   (look up toward the farm), the plaza, the mansion glimpse, the drive-in, out east.
 - [ ] 10. Life (optional): NO VACANCY's V blinking, neon flicker, wind, chimney smoke,
   falling leaves.

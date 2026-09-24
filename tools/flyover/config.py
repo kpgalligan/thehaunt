@@ -509,6 +509,19 @@ CROWN_CLEAR_M = 0.4
 VIEW_LENS_MM = 35.0
 CLIP_END_M = 9000.0
 
+# Phase 9: the flight (flight.py holds the storyboard: beats, camera / aim keys, dusk).
+FLIGHT_FPS = 30
+FLIGHT_CAMERA = "Cam_Flight"
+FLIGHT_LENS_MM = 35.0
+FLIGHT_NEAR_M = 0.5             # the lens's radius for every check (clip_start is 0.3)
+FLIGHT_CLEAR_M = {"tree": 3.0, "solid": 1.5, "ground": 2.5}   # clearance past the radius
+FLIGHT_PATH_SMOOTH_M = 6.0     # the path through the camera keys is blurred by this (m)
+FLIGHT_SPEED_SMOOTH_S = 1.2    # the keys' segment speeds are blurred by this (s): speed only eases
+FLIGHT_AIM_SMOOTH_S = 0.8      # the view's turns between targets are blurred by this (s)
+FLIGHT_FLOOR_SMOOTH_S = 1.6     # a lift over the clearance floor is spread over this
+FLIGHT_BANK = (0.45, 4.0)       # bank = gain x the turn's lean atan(a_lat / g), capped (deg)
+FLIGHT_MAX_TURN_DEG_S = 40.0    # asserted: the view never swings faster
+
 # Collections added in Phase 3.
 COL_GUIDES = "Flyover_Guides"
 

@@ -107,6 +107,7 @@ def eevee_stills(world, out_dir, names, preset="preview_1080", res=None, samples
     top_loc, top_scale = tuple(top.location), top.data.ortho_scale
     os.makedirs(out_dir, exist_ok=True)
     timings = []
+    dusk = _mute_flight_dusk(sc)
     try:
         p = output.apply(preset, sc, res, samples)
         res = res or p["res"]
@@ -130,4 +131,81 @@ def eevee_stills(world, out_dir, names, preset="preview_1080", res=None, samples
         output.apply(saved["preset"], sc)
         r.resolution_x, r.resolution_y, r.filepath, sc.camera = saved["rx"], saved["ry"], saved["fp"], saved["cam"]
         top.location, top.data.ortho_scale = top_loc, top_scale
+        if dusk is not None:
+            dusk.mute = False
     return timings
+
+
+def _mute_flight_dusk(sc):
+    """The named views show the canonical 18:00: mute the flight's flyover_dusk keys
+    (Phase 9) so the scene property (look.set_dusk) holds. Returns the muted fcurve."""
+    import flight
+    fc = flight.dusk_fcurve(sc)
+    if fc is not None and not fc.mute:
+        fc.mute = True
+        return fc
+    return None
+
+
+# ---------------------------------------------------------------------------
+# The flight (Phase 9): its beat stills and its frames, through an output preset.
+# ---------------------------------------------------------------------------
+
+def flight_stills(out_dir, preset="preview_1080", res=None, samples=None, frames=None):
+    """Render the flight camera at each beat's hero frame (flight.BEATS) or at the given
+    [(name, frame)]; returns [(path, seconds)]. Settings restored afterwards."""
+    import time
+
+    import flight
+    import output
+    sc = bpy.context.scene
+    r = sc.render
+    saved = dict(fp=r.filepath, cam=sc.camera, frame=sc.frame_current, preset=sc.get("flyover_output", output.DEFAULT))
+    os.makedirs(out_dir, exist_ok=True)
+    out = []
+    try:
+        output.apply(preset, sc, res, samples)
+        sc.camera = bpy.data.objects[config.FLIGHT_CAMERA]
+        fps = r.fps
+        jobs = frames or [(n, int(round(h * fps)) + 1) for n, _s, h in flight.BEATS]
+        for name, f in jobs:
+            sc.frame_set(f)
+            safe = "".join(c if c.isalnum() else "_" for c in name).strip("_")
+            r.filepath = os.path.join(out_dir, f"{safe}_{f:04d}.png")
+            t0 = time.time()
+            bpy.ops.render.render(write_still=True)
+            out.append((r.filepath, time.time() - t0))
+    finally:
+        output.apply(saved["preset"], sc)
+        r.filepath, sc.camera = saved["fp"], saved["cam"]
+        sc.frame_set(saved["frame"])
+    return out
+
+
+def flight_frames(out_dir, preset="preview_1080", res=None, samples=None, step=1, motion_blur=True,
+                  start=None, end=None):
+    """Render the flight's frames (every `step`th) as out_dir/f_####.png; returns seconds.
+    Settings restored afterwards."""
+    import time
+
+    import output
+    sc = bpy.context.scene
+    r = sc.render
+    saved = dict(fp=r.filepath, cam=sc.camera, step=sc.frame_step, s=sc.frame_start, e=sc.frame_end,
+                 preset=sc.get("flyover_output", output.DEFAULT))
+    os.makedirs(out_dir, exist_ok=True)
+    try:
+        output.apply(preset, sc, res, samples)
+        r.use_motion_blur = motion_blur
+        sc.camera = bpy.data.objects[config.FLIGHT_CAMERA]
+        sc.frame_step = step
+        sc.frame_start = start or saved["s"]
+        sc.frame_end = end or saved["e"]
+        r.filepath = os.path.join(out_dir, "f_####")
+        t0 = time.time()
+        bpy.ops.render.render(animation=True)
+        return time.time() - t0
+    finally:
+        output.apply(saved["preset"], sc)
+        r.filepath, sc.camera, sc.frame_step = saved["fp"], saved["cam"], saved["step"]
+        sc.frame_start, sc.frame_end = saved["s"], saved["e"]
