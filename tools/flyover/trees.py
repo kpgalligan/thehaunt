@@ -809,6 +809,21 @@ def build(root):
     return col, ccol
 
 
+def kit_vertices(kit_col, cards_col):
+    """{kit index: (n, 3) vertices of the body + its leaf cards} at scale 1 (for
+    forest.crown_profiles)."""
+    out = {}
+    for col in (kit_col, cards_col):
+        for ob in col.objects:
+            me = ob.data
+            v = np.empty(len(me.vertices) * 3, np.float32)
+            me.vertices.foreach_get("co", v)
+            v = v.reshape(-1, 3)
+            k = int(ob["kit_index"])
+            out[k] = np.concatenate([out[k], v]) if k in out else v
+    return {k: v if len(v) else np.zeros((1, 3), np.float32) for k, v in out.items()}
+
+
 def _layer_collection(lc, name):
     if lc.name == name:
         return lc

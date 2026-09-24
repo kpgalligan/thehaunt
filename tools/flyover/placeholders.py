@@ -1,5 +1,5 @@
 """Placeholder markers for everything that stands on the ground: buildings as boxes of
-their blocked FOOTPRINT, props / lights / signs as small boxes and posts. All share
+their blocked FOOTPRINT (not the art buildings buildings_hero.py designs), props / lights / signs as small boxes and posts. All share
 two unit meshes (scene.unit_box / unit_cylinder) scaled per object, with the colour
 linked per object. Phases 5-7 replace them; each object carries its dump identity
 (map_id, dump_id, kind, ...) as custom properties so a replacement can find its slot.
@@ -33,6 +33,7 @@ def _px(placed, px):
 
 _GROUND = None   # set by build(): the terrain sampler, or None for the flat diorama
 _FOREST = False  # set by build(): the forest places the sample trees / stumps / rocks
+_HERO = set()    # set by build(): ids of the buildings buildings_hero.py builds (no box, no glow marker)
 
 
 def _box(name, col, mat, x, y, w_m, d_m, h_m, z=0.0, **props):
@@ -63,6 +64,8 @@ def _post(name, col, mat, cx, cy, h_m, diameter=POLE_DIAMETER_M, **props):
 def build_buildings(placed, col, mats):
     t = config.TILE_M
     for b in placed.data["buildings"]:
+        if _HERO and b.get("art") in config.HERO_ART:
+            continue        # buildings_hero.py designs it
         colour = b["wall"] or config.ART_BUILDING_COLOUR
         mat = mats.colour("Wall", colour)
         x, y = _corner(placed, b["x"], b["y"])
@@ -112,6 +115,8 @@ def build_lights(placed, col, mats):
             colour = config.LIGHT_LIT_COLOUR if lt["lit"] else config.LIGHT_DEAD_COLOUR
             _post(name, col, mats.colour("Light", colour), cx, cy, config.STREET_LIGHT_HEIGHT_M,
                   facing=lt["facing"], lit=lt["lit"], **ident)
+        elif _HERO and lt.get("parent") in _HERO:
+            continue        # the building's own lit windows (LF_Window_Glass) carry it
         else:
             c = lt.get("color") or "#ffffff"
             colour = config.LIGHT_LIT_COLOUR if c.lower() == "#ffffff" else c
@@ -132,9 +137,13 @@ def build_signs(placed, col, mats):
                      conditional=s.get("conditional"))
 
 
-def build(world, col_buildings, col_props, mats, only=None, ground=None, forest=False):
-    global _GROUND, _FOREST
+def build(world, col_buildings, col_props, mats, only=None, ground=None, forest=False, hero=False):
+    """hero: the art buildings are built by buildings_hero.py (skip their boxes and the
+    glow markers of their windows)."""
+    global _GROUND, _FOREST, _HERO
     _GROUND, _FOREST = ground, forest
+    _HERO = {b["id"] for m in world.maps.values() for b in m.data["buildings"]
+             if b.get("art") in config.HERO_ART} if hero else set()
     for placed in world.maps.values():
         if only is not None and placed.id != only:
             continue

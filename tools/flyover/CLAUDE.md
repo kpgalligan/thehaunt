@@ -142,6 +142,32 @@ tools/flyover/build.py`) for the reproducible build.
   a phase says "Kevin picks/reviews", make the call, record it here, and list it for
   the end review.
 
+## For Kevin's end review (design calls made without asking)
+
+- Town hall: hipped slate roof (the art's flat roof band read as a hip), cupola centred
+  on it; 4 bays both storeys aligned front/back, 3 bays on the sides; the double door
+  centred on the facade (the art centres it; the collision tile is half a tile west);
+  doors shown closed; granite steps with cheek walls; a plain back door + stoop; no
+  chimney (none drawn).
+- General store: side-gable cedar shake, gable-end attic windows, a back door; drawn
+  OPEN (as scene_dusk): lit windows, door ajar on a lit hall. The bracket sign is a
+  blank BLADE sign (square to the road) with the two drawn cream rules.
+- Motel: the office and strip are real depths (10 / 9 m), not the 17.5 m footprint
+  (the 2D footprint blocks the drawn facade's height); lawn behind to the treeline. The
+  strip's aqua posts carry a canopy over the concrete walk (the googie stripe is its
+  fascia). Room 3 lit (dump RoomGlow). ICE lettered on a plate over the alcove.
+  Plumbing vents / ventilators / downspouts / a meter added on the roof and back.
+- Farmhouse: 1.5 storeys under a steep hip; the entry porch sits inside the footprint
+  (the front wall set back 1.8 m) so nothing crosses the mailbox tile; two gable
+  dormers on the back slope; fieldstone chimney through the east hip.
+- Barn: gable-FRONT gambrel (the drawn gambrel silhouette), hayloft door in the gable
+  above the big doors (drawn just under the eave); derelict = separate grey-brown
+  boards with missing / broken ones, roof holes to the rafters, left leaf sagging open
+  on one hinge, right leaf gone, loft door hanging, loose planks, mossy base.
+- The farm's per-save sample tree 1 tile west of the farmhouse is dropped (its crown
+  would pass through the roof).
+- Motel aqua #5fb9b0 (motel handoff) is config.ART_COLOURS, used on the motel only.
+
 ## Phases
 
 Each phase ends in a standalone, render-verified state. Tick them off here as they land.
@@ -163,7 +189,7 @@ Each phase ends in a standalone, render-verified state. Tick them off here as th
   golds/ambers/ochres (still no saturated red mass); the mansion band stays dark but
   its edge feathers into the forest.
 - [x] 4c. Irregular treeline around the town clearing (see Decisions).
-- [ ] 5. Hero buildings (real art exists): town hall, general store, motel, farmhouse,
+- [x] 5. Hero buildings (real art exists): town hall, general store, motel, farmhouse,
   barn (derelict). Five-band grammar; side-by-side renders against the handoff PNGs.
 - [ ] 6. Placeholder buildings (flat colours only in-game — Kevin reviews): gas station,
   garage, fireworks stand, Billie's, police, hardware, salon, Abe's shack, concession

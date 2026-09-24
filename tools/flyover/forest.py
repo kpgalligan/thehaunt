@@ -652,6 +652,68 @@ def check(forest):
     return bad
 
 
+PROFILE_STEP_M = 0.25
+
+
+def crown_profiles(kit):
+    """Per kit index: the LOWEST height of the prototype's geometry (bodies and leaf
+    cards) at or beyond each radial distance from the trunk, in PROFILE_STEP_M bins,
+    +inf past its reach. kit: {index: (n, 3) vertex array at scale 1}."""
+    out = {}
+    for k, v in kit.items():
+        rho = np.hypot(v[:, 0], v[:, 1])
+        nb = int(np.ceil(rho.max() / PROFILE_STEP_M)) + 1
+        b = np.minimum((rho / PROFILE_STEP_M).astype(int), nb - 1)
+        low = np.full(nb + 1, np.inf)
+        np.minimum.at(low, b, v[:, 2])
+        out[k] = np.minimum.accumulate(low[::-1])[::-1]    # lowest at >= this distance
+    return out
+
+
+def crown_conflicts(table, terrain, hulls, profiles, clear=config.CROWN_CLEAR_M):
+    """Rows whose kit geometry (scaled, any turn) would come within `clear` of a
+    building's top surface: hulls = [(x0, y0, cell, H)] height fields (-inf = open)."""
+    bad = np.zeros(len(table.x), bool)
+    skip = np.isin(table.group, ["tufts", "leaves"])
+    for x0, y0, cell, H in hulls:
+        J, I = np.nonzero(np.isfinite(H))
+        cx, cy, ch = x0 + (I + 0.5) * cell, y0 + (J + 0.5) * cell, H[J, I]
+        reach = 16.0
+        cand = np.nonzero(~skip & (table.x > cx.min() - reach) & (table.x < cx.max() + reach)
+                          & (table.y > cy.min() - reach) & (table.y < cy.max() + reach))[0]
+        for i in cand:
+            low = profiles[int(table.kind[i])]
+            sw = float(max(table.scale[i, 0], table.scale[i, 1]))
+            sz = float(table.scale[i, 2])
+            d = np.hypot(cx - table.x[i], cy - table.y[i]) - cell * 0.7072 - clear
+            idx = np.floor(np.maximum(d, 0.0) / sw / PROFILE_STEP_M).astype(int)
+            near = idx < len(low) - 1
+            if not near.any():
+                continue
+            zg = terrain.z_at(float(table.x[i]), float(table.y[i])) - float(table.sink[i])
+            if (zg + low[idx[near]] * sz < ch[near] + clear).any():
+                bad[i] = True
+    return bad
+
+
+def clear_crowns(forest, hulls, profiles):
+    """Drop the trees (and saplings, boulders) whose crowns would pass through a
+    building. The farm's per-save sample is random per save anyway, so a sample tree
+    the 2D map stands a tile from the farmhouse goes too (listed). Returns (count,
+    [dropped farm-sample (x, y)])."""
+    tb = forest.table
+    bad = crown_conflicts(tb, forest.terrain, hulls, profiles)
+    sample = [(round(float(x), 1), round(float(y), 1))
+              for x, y in zip(tb.x[bad & (tb.group == "farm_sample")], tb.y[bad & (tb.group == "farm_sample")])]
+    keep = ~bad
+    for k in Planting.COLS:
+        setattr(tb, k, getattr(tb, k)[keep])
+    left = crown_conflicts(tb, forest.terrain, hulls, profiles)
+    if left.any():
+        raise AssertionError(f"{left.sum()} crowns still reach into a building")
+    return int(bad.sum()), sample
+
+
 def plant(world, terrain):
     f = Forest(world, terrain)
     bad = check(f)

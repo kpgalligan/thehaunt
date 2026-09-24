@@ -378,6 +378,33 @@ ISLE_USED_M = 3.0           # and this far past every used margin
 ISLE_ROAD_M = 20.0          # and this far from the road's centreline
 ISLE_SCALE = (0.8, 1.05)    # field-grown: full size
 
+# ---------------------------------------------------------------------------
+# Phase 5: the hero buildings (buildings_hero.py designs them from archkit.py parts,
+# painted by archmats.py)
+# ---------------------------------------------------------------------------
+
+COL_HERO = "Flyover_Buildings"
+HERO_ART = ("town_hall", "general_store", "motel", "farmhouse", "barn")   # dump "art" values
+# Colours the art handoffs add beyond the 30: the motel's googie aqua (motel handoff,
+# MotelFacade.NeonAqua) - the motel's stripe, posts and aqua doors only.
+ART_COLOURS = {"aqua": "#5fb9b0"}
+# The three light families never mix; each is ONE scene custom property (read through a
+# View Layer attribute) times a per-object `glow` (0 dark / 1 lit):
+#   amber windows ("amber only indoors")  -> WINDOW_GLOW_PROP, materials LF_Window_*
+#   neon (signs, the googie tube, vending) -> NEON_GLOW_PROP,   materials LF_Neon_*
+#   mercury-vapour street light            -> Phase 7 (LF_Street_*)
+WINDOW_GLOW_PROP = "flyover_window_glow"
+WINDOW_GLOW = 1.0           # the build's default (Phase 8 animates / sets it for dusk)
+WINDOW_EMIT = 1.2           # emission strength at glow 1
+NEON_GLOW_PROP = "flyover_neon_glow"
+NEON_GLOW = 0.0             # off until Phase 7/8 light the signs
+NEON_EMIT = 8.0
+# Trees: a crown may overhang a roof but never pass through a building (buildings_hero
+# ray-casts each building into a height field; forest.clear_crowns drops the trees
+# whose kit geometry would reach into it, with this clearance).
+HULL_CELL_M = 0.5
+CROWN_CLEAR_M = 0.4
+
 # Named perspective stills (Phase 3 checks; Phase 9 builds the real path).
 VIEW_LENS_MM = 35.0
 CLIP_END_M = 9000.0
@@ -432,7 +459,8 @@ def hex_rgba(hex_colour, alpha=1.0):
 
 
 def colour(name_or_hex):
-    """A palette name, a foliage tint (TINTS) or a raw '#rrggbb' from the dump -> hex."""
+    """A palette name, an art colour (ART_COLOURS), a foliage tint (TINTS) or a raw
+    '#rrggbb' from the dump -> hex."""
     if name_or_hex.startswith("#"):
         return name_or_hex
-    return PALETTE.get(name_or_hex) or TINTS[name_or_hex]
+    return PALETTE.get(name_or_hex) or ART_COLOURS.get(name_or_hex) or TINTS[name_or_hex]

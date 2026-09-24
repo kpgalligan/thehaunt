@@ -29,7 +29,7 @@ if PKG_DIR not in sys.path:
 DEFAULT_OUT = os.path.join(PKG_DIR, "out", "town.blend")
 _MODULES = ("config", "world", "routes", "treeline", "terrain", "surfaces", "forest", "scene", "materials",
             "diorama", "ground", "road", "markings", "guides", "templight", "placeholders", "trees",
-            "scatter", "cameras", "render")
+            "scatter", "cameras", "render", "archkit", "pixelfont", "archmats", "buildings_hero")
 
 
 def _modules():
@@ -81,11 +81,22 @@ def build(world_path, only_map=None, diorama=False):
         m["guides"].build(terr, guides)
         m["templight"].build(light)
         m["placeholders"].build(world, buildings, props, mats, only_map, ground=terr,
-                                forest=only_map is None)
+                                forest=only_map is None, hero=True)
+        t1 = time.time()
+        hero = scene.collection(config.COL_HERO, root)
+        world.buildings = m["buildings_hero"].build(world, terr, hero, mats, only_map)
+        for b in world.buildings:
+            print(f"flyover: {b['name']} {b['tris']} tris, {b['objects']} objects, {b['height']:.1f} m tall")
+        print(f"flyover: hero buildings in {time.time() - t1:.1f}s")
         if only_map is None:
             t1 = time.time()
             world.forest = m["forest"].plant(world, terr)
             kit = m["trees"].build(root)
+            profiles = m["forest"].crown_profiles(m["trees"].kit_vertices(*kit))
+            dropped, sample = m["forest"].clear_crowns(world.forest, [b["hull"] for b in world.buildings],
+                                                       profiles)
+            print(f"flyover: {dropped} trees dropped to keep crowns out of the buildings "
+                  f"(farm sample trees among them: {sample})")
             grounds = [ob for ob in ground.objects if ob.name.startswith("Ground_")]
             fcol = scene.collection(config.COL_FOREST, root)
             m["scatter"].build(world.forest.table, grounds, kit, fcol)
