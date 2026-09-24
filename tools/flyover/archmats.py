@@ -13,7 +13,9 @@ NEIGHBOURS (a darker / lighter blend of the same colour), never off-palette hues
 
 Light families (config): LF_Window_Glass (amber interior glow = object `glow` x the
 scene's `flyover_window_glow`), LF_Neon_* (object `glow` x `flyover_neon_glow`),
-LF_SignLamp_* (lit wall bands: object `glow` x `flyover_sign_glow`).
+LF_SignLamp_* (lit wall bands: object `glow` x `flyover_sign_glow`), LF_Street_* (the
+cobra heads' lenses: `glow` x `flyover_street_glow`), LF_Pit_* (the dark under the pit's
+planks: `glow` x `flyover_pit_glow`).
 """
 
 import bpy
@@ -607,6 +609,226 @@ def sign_lamp(mat, colour, emit_colour=None):
     _bsdf(g, base, 0.5, spec=0.3, emit=e, emit_strength=g.math("MULTIPLY", lit, config.SIGN_EMIT))
 
 
+def street_lens(mat, colour):
+    """LF_Street_*: a cobra head's prismatic refractor. By day frosted glass in its
+    colour; lit (object `glow` x the scene's flyover_street_glow) the cold mercury-vapour
+    blue-green-white of StreetLight.cs (never warm)."""
+    g = G(mat)
+    lit = g.math("MULTIPLY", _obj_attr(g, "glow"), _prop(g, config.STREET_GLOW_PROP))
+    uv = _uv(g)
+    prism = g.math("FRACT", g.math("DIVIDE", g.sep(uv)[0], 0.012))       # the prism ribs
+    c = g.mix(g.math("MULTIPLY", g.step(prism, 0.5, 0.3), 0.25), rgba(colour), rgba(_light(colour, 0.3, "cream")))
+    _bsdf(g, c, 0.3, prism, (0.15, 0.002), spec=0.5, emit=rgba("mercury-cone"),
+          emit_strength=g.math("MULTIPLY", lit, config.STREET_EMIT))
+
+
+def pit_glow(mat, colour):
+    """LF_Pit_*: the dark under the pit's planks. Black earth by day; lit (object
+    `glow` x the scene's flyover_pit_glow) a faint ember red rising from the depth
+    (brighter in patches, never a flat plate)."""
+    g = G(mat)
+    lit = g.math("MULTIPLY", _obj_attr(g, "glow"), _prop(g, config.PIT_GLOW_PROP))
+    ob = _obj(g)
+    patch = g.math("MULTIPLY", g.step(g.noise(ob, 0.8, 3.0), 0.45, 0.25), 1.3)      # brighter in patches
+    c = g.mix(g.math("MULTIPLY", g.noise(ob, 4.0, 2.0), 0.4), rgba("ink-900"), rgba("earth-dark"))
+    _bsdf(g, c, 1.0, spec=0.05, emit=rgba(colour),
+          emit_strength=g.math("MULTIPLY", g.math("MULTIPLY", lit, patch), config.PIT_EMIT))
+
+
+def timber(mat, colour, along_u=False, weathered=True):
+    """Sawn timber (posts, rails, planks, legs): grain streaks along the member (v, up
+    a standing post; `along_u` for a lying rail / plank), checks, weathering grey on the
+    tops, grime at the foot."""
+    g = G(mat)
+    uv = _uv(g)
+    s = (1.0, 38.0, 1.0) if not along_u else (38.0, 1.0, 1.0)
+    s2 = (3.0, 0.25, 1.0) if not along_u else (0.25, 3.0, 1.0)
+    grain = g.noise(_vmul(g, uv, s), 2.0, 3.0, 0.6)
+    ob = _obj(g)
+    c = _mottle(g, ob, rgba(colour), rgba(_shade(colour, 0.18)), 1.8)
+    c = g.mix(g.math("MULTIPLY", g.step(grain, 0.57, 0.08), 0.4), c, rgba(_shade(colour, 0.4, "ink-700")))
+    check = g.step(g.noise(_vmul(g, uv, s2), 3.0, 2.0), 0.72, 0.015)
+    c = g.mix(g.math("MULTIPLY", check, 0.8), c, rgba("ink-900"))
+    if weathered:
+        c = g.mix(g.math("MULTIPLY", g.step(g.noise(ob, 1.3, 3.0), 0.55, 0.12), 0.45), c, rgba("stone-shade"))
+    c = _grime(g, c, colour, 0.45, 0.45, "earth-dark")
+    _bsdf(g, c, 0.85, g.math("SUBTRACT", g.math("MULTIPLY", grain, 0.4), check), (0.5, 0.006))
+
+
+def signboard(mat, colour):
+    """A board sign's BLANK face (Sign.cs draws no lettering, only a wood board): paint
+    in its colour weathered back toward the wood, a few faint illegible ghost marks in
+    the middle band (old paint, not words), rain streaks, lichen at the foot."""
+    g = G(mat)
+    uv = _uv(g)
+    u, v, _ = g.sep(uv)
+    ob = _obj(g)
+    c = _mottle(g, ob, rgba(colour), rgba(_shade(colour, 0.15)), 2.5)
+    grain = g.noise(_vmul(g, uv, (30.0, 1.0, 1.0)), 2.0, 3.0, 0.6)
+    c = g.mix(g.math("MULTIPLY", g.step(grain, 0.58, 0.08), 0.35), c, rgba(_shade(colour, 0.35, "earth-dark")))
+    ghost = g.step(g.noise(_vmul(g, uv, (5.0, 11.0, 1.0)), 1.0, 2.0, 0.5), 0.64, 0.05)   # smudges, never glyphs
+    c = g.mix(g.math("MULTIPLY", ghost, 0.22), c, rgba(_shade(colour, 0.45, "ink-700")))
+    peel = g.step(g.noise(ob, 3.5, 4.0, 0.7), 0.64, 0.02)
+    c = g.mix(g.math("MULTIPLY", peel, 0.7), c, rgba("stone-light"))
+    c = _streaks(g, c, colour, 0.3)
+    _bsdf(g, c, 0.8, g.math("MULTIPLY", grain, 0.3), (0.3, 0.004))
+
+
+def paper(mat, colour="cream"):
+    """Notices pinned on the board: cream paper, the drawn grey RULES of the art's notices
+    (lines, not letters), water-marked and curling at the edges."""
+    g = G(mat)
+    uv = _uv(g)
+    u, v, _ = g.sep(uv)
+    row = g.math("FLOOR", g.math("DIVIDE", v, 0.035))
+    line = g.math("MULTIPLY", g.step(g.math("FRACT", g.math("DIVIDE", v, 0.035)), 0.62, 0.05),
+                  g.step(g.white(g.combine(row, 5.0, 0.0)), 0.25))
+    c = g.mix(g.math("MULTIPLY", line, 0.45), rgba(colour), rgba("stone-light"))
+    ob = _obj(g)
+    c = g.mix(g.math("MULTIPLY", g.step(g.noise(ob, 6.0, 2.0), 0.62, 0.08), 0.35), c, rgba("stone-pale"))
+    _bsdf(g, c, 0.9)
+
+
+def carpaint(mat, colour):
+    """A 1950s sedan's enamel: glossy clear coat over the colour, road dust rising from
+    the sills, a faint oxidised bloom on the flat tops."""
+    g = G(mat)
+    ob = _obj(g)
+    c = _mottle(g, ob, rgba(colour), rgba(_shade(colour, 0.08)), 2.0)
+    c = _grime(g, c, colour, 0.55, 0.5, "earth-mid")
+    c = g.mix(g.math("MULTIPLY", g.step(g.noise(ob, 0.8, 3.0), 0.62, 0.1), 0.2), c, rgba(_light(colour, 0.25, "stone-pale")))
+    _bsdf(g, c, 0.28, spec=0.5, coat=0.6)
+
+
+def chrome(mat, colour="stone-light"):
+    g = G(mat)
+    ob = _obj(g)
+    c = _mottle(g, ob, rgba(colour), rgba(_shade(colour, 0.3)), 4.0)
+    c = g.mix(g.math("MULTIPLY", g.step(g.noise(ob, 30.0, 2.0), 0.7, 0.03), 0.6), c, rgba("earth-mid"))  # pitting
+    _bsdf(g, c, 0.18, None, metallic=1.0, spec=0.6)
+
+
+def rubber(mat, colour="ink-900"):
+    g = G(mat)
+    ob = _obj(g)
+    c = _mottle(g, ob, rgba(colour), rgba("ink-700"), 6.0)
+    c = _grime(g, c, colour, 0.25, 0.6, "earth-mid")
+    _bsdf(g, c, 0.9, g.noise(ob, 60.0), (0.2, 0.002), spec=0.2)
+
+
+def screen_face(mat, colour="cream"):
+    """The drive-in screen (DriveInScreen.cs): a big weathered white face, chalked grey
+    (stone-pale speckle), long water stains running down from the top (stone-light),
+    panel seams; shut years ago."""
+    g = G(mat)
+    uv = _uv(g)
+    u, v, _ = g.sep(uv)
+    ob = _obj(g)
+    c = _mottle(g, ob, rgba(colour), rgba(_shade(colour, 0.08, "stone-pale")), 0.35)
+    chalk = g.step(g.noise(ob, 6.0, 3.0, 0.6), 0.56, 0.05)
+    c = g.mix(g.math("MULTIPLY", chalk, 0.55), c, rgba("stone-pale"))
+    streak = g.noise(_vmul(g, uv, (1.4, 0.035, 1.0)), 1.0, 2.0, 0.5)          # long runs down the face
+    run = g.math("MULTIPLY", g.step(streak, 0.6, 0.04), g.step(g.noise(_vmul(g, uv, (0.9, 0.12, 1.0)), 1.0), 0.45, 0.2))
+    c = g.mix(g.math("MULTIPLY", run, 0.7), c, rgba("stone-light"))
+    fu = g.math("FRACT", g.math("DIVIDE", u, 2.44))
+    fv = g.math("FRACT", g.math("DIVIDE", v, 1.22))
+    seam = g.math("MAXIMUM", g.math("LESS_THAN", fu, 0.004), g.math("LESS_THAN", fv, 0.006))
+    c = g.mix(g.math("MULTIPLY", seam, 0.6), c, rgba("stone-base"))
+    _bsdf(g, c, 0.9, g.math("MULTIPLY", seam, -1.0), (0.3, 0.01))
+
+
+def letterboard(mat, colour="stone-pale"):
+    """A marquee's letter-board face (the drive-in: #b8b5a5, PoleSign Face): horizontal
+    grooves the letter tiles slide in, sun-bleached, grime in the grooves."""
+    g = G(mat)
+    uv = _uv(g)
+    _u, v, _ = g.sep(uv)
+    f = g.math("FRACT", g.math("DIVIDE", v, 0.05))
+    groove = g.step(f, 0.82, 0.03)
+    ob = _obj(g)
+    c = _mottle(g, ob, rgba(colour), rgba(_shade(colour, 0.12)), 1.5)
+    c = g.mix(g.math("MULTIPLY", groove, 0.6), c, rgba("stone-shade"))
+    c = _streaks(g, c, colour, 0.3)
+    _bsdf(g, c, 0.6, g.math("MULTIPLY", groove, -1.0), (0.4, 0.004))
+
+
+def mud(mat, colour="earth-dark"):
+    """The storm slide: wet churned mud (earth-dark / wood-warm), glossy where it is
+    wettest, pebbles and torn roots through it, leaf litter on top."""
+    g = G(mat)
+    ob = _obj(g)
+    wet = g.step(g.noise(ob, 0.45, 3.0), 0.5, 0.15)
+    c = g.mix(g.noise(ob, 2.5, 4.0), rgba(colour), rgba("earth-mid"))
+    c = g.mix(g.math("MULTIPLY", wet, 0.45), c, rgba(_mix(colour, "ink-700", 0.5)))
+    peb = g.voronoi(ob, 9.0, rand=1.0)
+    pebble = g.math("SUBTRACT", 1.0, g.step(peb.outputs["Distance"], 0.18, 0.04))
+    pebble = g.math("MULTIPLY", pebble, g.step(g.white(peb.outputs["Color"]), 0.72))
+    c = g.mix(pebble, c, g.mix(g.noise(ob, 20.0), rgba("stone-base"), rgba("stone-shade")))
+    leaf = g.step(g.noise(ob, 7.0, 2.0), 0.7, 0.02)
+    c = g.mix(g.math("MULTIPLY", leaf, 0.55), c, g.mix(g.noise(ob, 11.0), rgba("ochre"), rgba("earth-light")))
+    rough = g.fmix(wet, 0.75, 0.25)
+    h = g.math("ADD", g.math("MULTIPLY", g.noise(ob, 6.0, 4.0), 0.6), g.math("MULTIPLY", pebble, 0.6))
+    _bsdf(g, c, rough, h, (0.9, 0.03))
+
+
+def bark(mat, colour="earth-dark"):
+    """Bark on fallen / snapped trunks and logs (lying: UVm u runs along the trunk):
+    long fissures along the grain between ridged plates, palette browns and greys,
+    lichen and moss in patches."""
+    g = G(mat)
+    uv = _uv(g)
+    ob = _obj(g)
+    ridge = g.noise(_vmul(g, uv, (0.9, 11.0, 1.0)), 2.0, 4.0, 0.6)
+    fiss = g.step(ridge, 0.6, 0.05)
+    c = g.mix(g.noise(ob, 2.0, 3.0), rgba(_mix(colour, "wood-warm", 0.4)), rgba(_mix(colour, "stone-light", 0.45)))
+    c = g.mix(g.math("MULTIPLY", fiss, 0.55), c, rgba("ink-700"))
+    c = g.mix(g.math("MULTIPLY", g.step(g.noise(ob, 1.6, 3.0), 0.62, 0.08), 0.55), c,
+              g.mix(g.noise(ob, 9.0), rgba("green-dark"), rgba("stone-light")))
+    _bsdf(g, c, 0.9, g.math("SUBTRACT", 0.0, fiss), (0.9, 0.02))
+
+
+def boulder(mat, colour="stone-base"):
+    """Field stone / slide boulders: granite greys between palette neighbours, dark
+    cracks, pale lichen rosettes, moss on the tops, fresh mud on the lower half."""
+    g = G(mat)
+    ob = _obj(g)
+    _x, _y, z = g.sep(ob)
+    c = g.ramp(g.noise(ob, 1.2, 4.0, 0.6), [(0.3, "stone-shade"), (0.55, colour), (0.75, "stone-light")])
+    crack = g.math("SUBTRACT", 1.0, g.step(g.voronoi(ob, 0.9, "DISTANCE_TO_EDGE").outputs["Distance"], 0.012, 0.006))
+    crack = g.math("MULTIPLY", crack, g.step(g.noise(ob, 1.3, 2.0), 0.55, 0.05))       # a few cracks, not a grid
+    c = g.mix(g.math("MULTIPLY", crack, 0.6), c, rgba("ink-700"))
+    c = g.mix(g.math("MULTIPLY", g.step(g.noise(ob, 3.0, 3.0), 0.6, 0.15), 0.4), c, rgba("stone-dark"))
+    c = g.mix(g.math("MULTIPLY", g.step(g.noise(ob, 7.0, 2.0), 0.66, 0.03), 0.6), c, rgba("stone-pale"))
+    moss = g.math("MULTIPLY", g.step(z, 0.35, 0.2), g.step(g.noise(ob, 1.8, 3.0), 0.55, 0.1))
+    c = g.mix(g.math("MULTIPLY", moss, 0.6), c, g.mix(g.noise(ob, 8.0), rgba("green-dark"), rgba("green-mid")))
+    mudf = g.math("SUBTRACT", 1.0, g.step(g.math("ADD", z, g.math("MULTIPLY", g.noise(ob, 3.0), 0.3)), 0.3, 0.1))
+    c = g.mix(g.math("MULTIPLY", mudf, 0.8), c, rgba("earth-dark"))
+    h = g.math("ADD", g.math("MULTIPLY", g.noise(ob, 5.0, 4.0), 0.6), g.math("MULTIPLY", crack, -1.0))
+    _bsdf(g, c, 0.85, h, (0.9, 0.03))
+
+
+def mums(mat, colour="lantern"):
+    """A dome of autumn mums (the planters): tight small blooms in the colour with a
+    darker heart, dark-green leaf showing between them."""
+    g = G(mat)
+    ob = _obj(g)
+    v = g.voronoi(ob, 38.0, rand=1.0)
+    e = v.outputs["Distance"]
+    tone = g.sep(v.outputs["Color"])[0]
+    c = g.mix(g.math("MULTIPLY", tone, 0.6), rgba(colour), rgba(_shade(colour, 0.3)))
+    c = g.mix(g.step(e, 0.36, 0.06), c, rgba(_shade(colour, 0.5, "earth-dark")))       # the bloom's heart
+    leaf = g.math("MULTIPLY", g.step(g.noise(ob, 9.0, 2.0), 0.62, 0.05), 0.9)
+    c = g.mix(leaf, c, g.mix(g.noise(ob, 20.0), rgba("green-dark"), rgba("green-mid")))
+    _bsdf(g, c, 0.8, g.math("SUBTRACT", 1.0, e), (0.6, 0.01))
+
+
+def water(mat, colour="water-deep"):
+    g = G(mat)
+    ob = _obj(g)
+    c = g.mix(g.math("MULTIPLY", g.noise(ob, 3.0), 0.5), rgba(colour), rgba("ink-900"))
+    _bsdf(g, c, 0.04, g.noise(ob, 8.0, 2.0), (0.08, 0.004), spec=0.6)
+
+
 # ---------------------------------------------------------------------------
 # Key -> material
 # ---------------------------------------------------------------------------
@@ -628,8 +850,17 @@ KINDS = {
     "corrugated": (corrugated, "stone-base"), "corrugated_clean": (lambda m, c: corrugated(m, c, False), "stone-base"),
     "shingle": (shingle, "stone-dark"), "roll_roofing": (roll_roofing, "ink-500"),
     "slate_ruin": (slate_ruin, "stone-dark"), "ivy": (ivy, "green-dark"),
+    # Phase 7: props and signs
+    "streetlens": (street_lens, "stone-pale"), "pitglow": (pit_glow, "pit-red"),
+    "timber": (timber, "wood-warm"), "plank": (lambda m, c: timber(m, c, True), "wood-warm"),
+    "signboard": (signboard, "earth-base"), "paper": (paper, "cream"), "carpaint": (carpaint, "stone-base"),
+    "chrome": (chrome, "stone-light"), "rubber": (rubber, "ink-900"), "screen": (screen_face, "cream"),
+    "letterboard": (letterboard, "stone-pale"), "mud": (mud, "earth-dark"), "bark": (bark, "earth-dark"),
+    "boulder": (boulder, "stone-base"), "mums": (mums, "lantern"),
+    "water": (water, "water-deep"),
 }
 LIGHT_NAMES = {"glass": "LF_Window_Glass"}
+FAMILY_PREFIX = {"neon": "LF_Neon", "signlamp": "LF_SignLamp", "streetlens": "LF_Street", "pitglow": "LF_Pit"}
 
 
 class Resolver:
@@ -647,10 +878,8 @@ class Resolver:
             colour, extra = colour.split("/")
         if kind in LIGHT_NAMES:
             name = LIGHT_NAMES[kind]
-        elif kind == "neon":
-            name = f"LF_Neon_{colour.lstrip('#')}" + (f"_{extra.lstrip('#')}" if extra else "")
-        elif kind == "signlamp":
-            name = f"LF_SignLamp_{colour.lstrip('#')}" + (f"_{extra.lstrip('#')}" if extra else "")
+        elif kind in FAMILY_PREFIX:
+            name = f"{FAMILY_PREFIX[kind]}_{colour.lstrip('#')}" + (f"_{extra.lstrip('#')}" if extra else "")
         else:
             name = f"Arch_{kind.title().replace('_', '')}_{colour.lstrip('#')}"
         try:

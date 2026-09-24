@@ -69,7 +69,7 @@ def _rgba(names):
 class OpenRaster:
     """Open ground (no trunk may stand) and the distance into the woods from it."""
 
-    def __init__(self, terrain, guides, clearing):
+    def __init__(self, terrain, guides, clearing, extra=()):
         c = self.c = config.FOREST_CELL_M
         self.terrain = terrain
         x0, y0, x1, y1 = terrain.near_rect_m()
@@ -96,6 +96,8 @@ class OpenRaster:
         for g, clear in guides:
             self._stamp(np.asarray(densify(g, 1.0)), clear + 0.9)
         self._keepouts(terrain.world)
+        for x0_, y0_, x1_, y1_ in extra:       # the designed props' real extents (Phase 7)
+            self._rect(x0_, y0_, x1_, y1_, config.FOREST_PROP_MARGIN_M)
         if clearing is not None:
             self._clearing(clearing)
         self.open = self.surf_open | self.keep
@@ -272,15 +274,16 @@ class Planting:
 
 
 class Forest:
-    def __init__(self, world, terrain):
+    def __init__(self, world, terrain, extra=()):
         self.world, self.terrain, self.routes = world, terrain, terrain.routes
+        self.extra = list(extra)
         self.rng = np.random.default_rng(config.FOREST_SEED)
         self.seed = config.FOREST_SEED
         r = self.routes
         self.guides = [(r.centreline(), config.CORRIDOR_CLEAR_M)]
         self.guides += [(t.pts, config.TRACK_CLEAR_M) for t in r.tracks.values()]
         self.clearing = r.mansion_clearing()
-        self.raster = OpenRaster(terrain, self.guides, self.clearing)
+        self.raster = OpenRaster(terrain, self.guides, self.clearing, self.extra)
         self.coarse = Coarse(terrain)
         drive = r.tracks.get("MansionDrive")
         self.drive = (np.asarray(densify(drive.pts[max(0, drive.extension_from - 4):], 4.0))
@@ -692,6 +695,11 @@ def check(forest):
                    & (y < oy - b["y"] * T + mg) & (y > oy - (b["y"] + b["h"]) * T - mg))
             if inb.any():
                 bad.append(f"{inb.sum()} trunks within {mg} m of {m.id}/{b['id']}")
+    mg = config.FOREST_PROP_MARGIN_M
+    for x0_, y0_, x1_, y1_ in forest.extra:
+        inr = (x > x0_ - mg) & (x < x1_ + mg) & (y > y0_ - mg) & (y < y1_ + mg)
+        if inr.any():
+            bad.append(f"{inr.sum()} trunks within {mg} m of a prop at ({x0_:.1f}, {y0_:.1f})")
     if forest.clearing is not None:
         over = tb.group[trunk] == "overgrowth"          # the clearing's own young trees ...
         inside = (clearing_depth(forest.clearing, x, y) < 0) & ~over
@@ -766,8 +774,10 @@ def clear_crowns(forest, hulls, profiles):
     return int(bad.sum()), sample
 
 
-def plant(world, terrain):
-    f = Forest(world, terrain)
+def plant(world, terrain, extra=()):
+    """extra: [(x0, y0, x1, y1)] metres the designed props really cover (kept clear of
+    trunks by config.FOREST_PROP_MARGIN_M, and checked)."""
+    f = Forest(world, terrain, extra)
     bad = check(f)
     if bad:
         raise AssertionError("forest keep-outs violated: " + "; ".join(bad))

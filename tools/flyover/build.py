@@ -30,7 +30,7 @@ DEFAULT_OUT = os.path.join(PKG_DIR, "out", "town.blend")
 _MODULES = ("config", "world", "routes", "treeline", "terrain", "surfaces", "forest", "scene", "materials",
             "diorama", "ground", "road", "markings", "guides", "templight", "placeholders", "trees",
             "scatter", "cameras", "render", "archkit", "pixelfont", "archmats", "buildings_hero",
-            "buildings_town", "mansion")
+            "buildings_town", "mansion", "propkit", "streetlights", "signs", "props")
 
 
 def _modules():
@@ -56,8 +56,6 @@ def build(world_path, only_map=None, diorama=False):
     scene.wipe()
     root = scene.collection(config.ROOT)
     ground = scene.collection(config.COL_GROUND, root)
-    buildings = scene.collection(config.COL_BUILDINGS, root)
-    props = scene.collection(config.COL_PROPS, root)
     cams = scene.collection(config.COL_CAMERAS, root)
     mats = scene.Materials()
     world.terrain = None
@@ -65,6 +63,8 @@ def build(world_path, only_map=None, diorama=False):
         for kind in config.SURFACES:   # every surface material exists, used or not
             mats.surface(kind)
         m["diorama"].build(world, ground, mats, only_map)
+        buildings = scene.collection(config.COL_BUILDINGS, root)
+        props = scene.collection(config.COL_PROPS, root)
         m["placeholders"].build(world, buildings, props, mats, only_map)
     else:
         routes = m["routes"].build_routes(world)
@@ -81,8 +81,6 @@ def build(world_path, only_map=None, diorama=False):
         m["markings"].build(world, terr, ground, paint, only_map)
         m["guides"].build(terr, guides)
         m["templight"].build(light)
-        m["placeholders"].build(world, buildings, props, mats, only_map, ground=terr,
-                                forest=only_map is None, hero=True)
         t1 = time.time()
         hero = scene.collection(config.COL_HERO, root)
         world.buildings = m["buildings_hero"].build(world, terr, hero, mats, only_map)
@@ -92,12 +90,17 @@ def build(world_path, only_map=None, diorama=False):
         for b in world.buildings:
             print(f"flyover: {b['name']} {b['tris']} tris, {b['objects']} objects, {b['height']:.1f} m tall")
         print(f"flyover: buildings in {time.time() - t1:.1f}s")
+        t1 = time.time()
+        world.props, extents = build_props(m, world, terr, root, mats, only_map)
+        tall = [p for p in world.props if "hull" in p]
+        print(f"flyover: props {len(world.props)} placed, {sum(p['objects'] for p in world.props)} objects, "
+              f"{sum(p['tris'] for p in world.props)} tris ({len(tall)} tall with hulls) in {time.time() - t1:.1f}s")
         if only_map is None:
             t1 = time.time()
-            world.forest = m["forest"].plant(world, terr)
+            world.forest = m["forest"].plant(world, terr, extents)
             kit = m["trees"].build(root)
             profiles = m["forest"].crown_profiles(m["trees"].kit_vertices(*kit))
-            dropped, sample = m["forest"].clear_crowns(world.forest, [b["hull"] for b in world.buildings],
+            dropped, sample = m["forest"].clear_crowns(world.forest, [b["hull"] for b in world.buildings + tall],
                                                        profiles)
             print(f"flyover: {dropped} trees dropped to keep crowns out of the buildings "
                   f"(farm sample trees among them: {sample})")
@@ -113,6 +116,33 @@ def build(world_path, only_map=None, diorama=False):
         m["cameras"].frame_map(world, only_map, cam)
     print(f"flyover: built in {time.time() - t0:.1f}s")
     return world
+
+
+def build_props(m, world, terr, root, mats, only_map=None):
+    """Phase 7: street lights, signs, props (no Phase 2 markers ship). Returns (stats,
+    [(x0, y0, x1, y1)] world XY extents for the forest's keep-outs)."""
+    import bpy
+    import numpy as np
+    config, scene = m["config"], m["scene"]
+    col = scene.collection(config.COL_PROP_ART, root)
+    lights = scene.collection(config.COL_LIGHTS, root)
+    placer = m["propkit"].Placer(terr, col, m["archmats"].Resolver(mats))
+    routes = terr.routes
+    sub = world
+    if only_map is not None:
+        sub = type(world)(maps={only_map: world.maps[only_map]}, bounds=world.bounds)
+    m["streetlights"].build(sub, routes, placer, lights)
+    m["signs"].build(sub, routes, placer, lights)
+    m["props"].build(sub, routes, placer, lights)
+    bpy.context.view_layer.update()
+    extents = []
+    for ob in col.objects:
+        if ob.parent is not None:
+            continue
+        pts = [o.matrix_world @ v.co for o in [ob] + list(ob.children) for v in o.data.vertices]
+        a = np.array([(p.x, p.y) for p in pts])
+        extents.append((float(a[:, 0].min()), float(a[:, 1].min()), float(a[:, 0].max()), float(a[:, 1].max())))
+    return placer.out, extents
 
 
 VIEWS = ("Cam_WestRoad", "Cam_Fork", "Cam_Plaza", "Cam_DriveIn", "Cam_EastOut", "Cam_Overview",

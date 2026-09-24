@@ -73,15 +73,16 @@ tools/flyover/build.py`) for the reproducible build.
   tile edge: ask `Terrain.surfaces` (visible / field / own / open_field), not tiles.
   Alpha only where it cannot cast shadow (transparent shadows cost ~18x).
 - Layout: everything lives under the `Flyover` collection (Flyover_Ground,
-  Placeholders_Buildings, Placeholders_Props, Flyover_Cameras, Flyover_Guides,
+  Flyover_Buildings, Flyover_Props, Flyover_Lights, Flyover_Cameras, Flyover_Guides,
   Flyover_TempLight, Flyover_ForestKit + Flyover_ForestCards (excluded from the view
-  layer), Flyover_Forest); every datablock the build makes carries the `flyover` ID
+  layer), Flyover_Forest; the `--diorama` build alone makes Placeholders_*); every datablock the build makes carries the `flyover` ID
   property, and a rebuild removes exactly those. Ground meshes: one per map plus
   Ground_Terrain (outside the maps, forest floor), face material_index =
   `config.SURFACES` order (the tile's surface, for the Workbench layout stills; every
   slot wraps the one ground look, which paints the smooth fields, FO_Surfaces_0..2);
-  Road_Paved, Marking_* sit on them. Placeholders
-  carry `map_id` / `dump_id` / `kind` custom props and are grounded via `Terrain.z_at`.
+  Road_Paved, Marking_* sit on them. Props / signs / lights carry `map_id` / `dump_id` /
+  `kind` custom props and are grounded via `Terrain.z_at`. `placeholders.py` is the
+  diorama's layout markers only: no marker ships in the film.
 - Routes as data (Phase 4 forest keep-outs, Phase 9 camera): Flyover_Guides holds POLY
   curves Guide_Road (whole centreline), Guide_RoadOut_W/E, Guide_Track_<name>
   (FarmRoad, MansionDrive, ForkSouthStub, DriveInDrive) with a `clear_m` keep-out
@@ -130,6 +131,24 @@ tools/flyover/build.py`) for the reproducible build.
   the Workbench layout stills hide the forest. Tiers: full detail within 380 m of the
   bounds / road-outs, the `_lo` kit to 1.2 km, canopy clumps beyond. Autumn colours are
   palette blends (config.TINTS); red only as the rare muted copper/rust tree.
+
+- Props + signs (Phase 7): `propkit` (dump -> metres, `Placer` = realise + ground + stats /
+  crown hulls; loft, rock, mound, catenary `chain`, posts), `streetlights` (cobra heads;
+  `drive()` = a light's energy driven by a scene property, a plain `v * k` driver that
+  evaluates headless), `signs` (pole / bracket / board / for_sale), `props` (every other
+  dump prop; an unknown kind raises). Tall props (street lights, pole signs, the screen)
+  join forest.clear_crowns; every prop's real XY extent is a forest keep-out
+  (`forest.plant(..., extra)`, checked). Lettering only where the game DRAWS it: MOTEL,
+  NO VACANCY, FIREWORKS, DRIVE-IN / CLO ED, BAR (+ Phase 6's bands and OPEN); every
+  Sign.cs board and the FOR SALE plank are blank. ROADSIDE rule: a board / FOR SALE sign
+  just south of a road-facing (TOWN_FACING N) building is mirrored across it to the road
+  side. Boards face the road (config.SIGN_FACING overrides); pole signs are double-faced,
+  square to their route. Light families now: window (flyover_window_glow), neon
+  (flyover_neon_glow: signs' tubes, bulb rail, BAR bulb, their point lights), sign lamp
+  (flyover_sign_glow), street (flyover_street_glow: LF_Street lenses + 5 spots), pit
+  (flyover_pit_glow: LF_Pit void + Light_Pit_Under / _Leak); lights in Flyover_Lights,
+  each `energy = W x property`. The motel's V is its own object (`..._Neon_V_*`, glow 1)
+  for Phase 10; NO is glow 0.
 
 ## Decisions (Kevin, 2026-09-23)
 
@@ -227,6 +246,28 @@ tools/flyover/build.py`) for the reproducible build.
   upper storey + roofs. Ring-tree heights left as they were (not needed).
 - (6) Facing: south-of-road buildings face the road, so their 2D-front board / FOR SALE
   signs (south of the footprint) now stand BEHIND them: Phase 7 moves them roadside.
+- (7) Verge street lights reach over the road, square to it (the game's pool lands on the
+  road); only the plaza's two use the dump's E / W facing (toward each other). 8.6 m poles.
+- (7) Pole signs (motel, FIREWORKS, marquee) are double-faced and square to their route
+  (the road; the marquee its drive), not facing the 2D camera. Real sizes: motel cabinet
+  3.7 x 3.1 m on a 4.2 m pylon; the bulb rail + BAR bulb ride the neon family (sign circuit).
+- (7) The fork's FingerPost (a plain Sign in the game) is a finger post with three BLANK
+  arms (N farm, E town, W road); all boards blank-faced, faint illegible smudges only.
+- (7) Marquee: letter-board, each glyph on a cream tile; the missing S = a paler patch.
+- (7) Pell's sedan: late-50s four-door (fins, hooded lamps, whitewalls), 5.1 m, parked NOSE
+  WEST as the dump says, side-on inside room 3's stall (centred between the stripes). The
+  alternative: backed in, nose to the road.
+- (7) Pit: E-W heavy planks on a timber sill, one plank gone mid-cover + narrow gaps; the
+  pit chain gets 5 posts (12.5 m run). Glow tuned subtle (PIT_EMIT 0.45, 60 W under, 18 W
+  leak), default 0 like neon; Phase 8 sets it.
+- (7) Screen 32 m x 11 m on 4.5 m legs; the art's three legs are three doubled timber
+  trestle bents behind the face; the top-right panels gone show the girts. Faces north,
+  so in the temp daylight it reads blue-cold (sky-lit): Phase 8.
+- (7) Plaza benches face the well (north), the drive-in's the screen; notice board and
+  planters face the road; mums in the art's three colours (barn-red, lantern, cream).
+- (7) Storm slide: a mud fan spilling off the wooded east side across the dump's 4 debris
+  tiles, boulders at the rock tiles, two snapped trunks (butt upslope) at the log tiles.
+- (7) The farm's scooter is not in the dump: not built.
 
 ## Phases
 
@@ -254,7 +295,7 @@ Each phase ends in a standalone, render-verified state. Tick them off here as th
 - [x] 6. Placeholder buildings (flat colours only in-game — Kevin reviews): gas station,
   garage, fireworks stand, Billie's, police, hardware, salon, Abe's shack, concession
   stand. Plus the mansion roofline. No pumps/canopy unless Kevin says so.
-- [ ] 7. Props + signage: cobra-head street lights (incl. the dead one), pole/bracket/
+- [x] 7. Props + signage: cobra-head street lights (incl. the dead one), pole/bracket/
   wall-band signs, chains + boards, pit cover (plank gaps for the glow), well,
   benches, planters, notice board, fences, mailbox, shipping bin, Pell's sedan,
   FOR SALE board, drive-in screen/speakers/marquee. Lettering in the 3x5 PixelFont.
