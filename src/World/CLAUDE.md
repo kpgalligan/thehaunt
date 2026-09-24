@@ -83,7 +83,10 @@ What lives here:
 
 - Occupancy grows flags, never ints: `MotelRules.OccupiedRooms` (like LitRoom) is the
   derivation, and the west entry parks one `GuestCar` per occupied room in the stall
-  under that room's door — diffed in ApplyState, never baked into the build.
+  under that room's door — diffed in ApplyState, never baked into the build. Lot cars
+  park NOSE-IN facing the motel (Kevin, 2026-09-24: `NoseIn`, the rear view), centred
+  between the stall's two stripes (`WestEntryMap.RoomStallPx`, derived from `LotStalls`);
+  the garage lifts keep the side elevation.
 
 ## The scooter
 

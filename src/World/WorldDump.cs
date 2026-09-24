@@ -46,7 +46,8 @@ namespace TheHaunt.World;
 ///         strip), "rooms" (door, doorColor, to, lockedBy), "lettering" } ],
 ///     "props":   [ { "kind", "id" (node/placement name or null), "x","y","w","h" (footprint),
 ///         kind extras: well|bench|notice_board|planter ("variant"), chain ("board": sign id),
-///         pit_cover, screen/speaker ("drawnH"), car ("paint","facing"), mailbox,
+///         pit_cover, screen/speaker ("drawnH"), car ("paint", "facing" N|W = the nose,
+///         "footprintPx" [x,y,w,h] map px: the ground it stands on), mailbox,
 ///         shipping_bin, scatter (recipe id), fence ("gate"), debris ("piece"),
 ///         tree|stump|rock ("sample", tree "variant"), worn_cobble, kerb_cut ("side": N|S),
 ///         stall_stripes (rect = the lot; "stripesPx" [[x,y,w,h]] lot-local px),
@@ -351,10 +352,20 @@ public static class WorldDump
                     props.Add(PropEntry(speaker, "speaker", Anchored(speaker, 1, 1)));
                     break;
                 case GuestCar car:
-                    // Nose west, backed up to its room's door (GuestCar).
-                    props.Add(PropEntry(car, "car", AnchoredRect(map, car, GuestCar.TilesWide, 1),
-                        ("paint", car.Paint), ("facing", "W")));
+                {
+                    // Its real facing and footprint (GuestCar): the lot's cars park
+                    // nose-in (N) between a stall's stripes, off the tile grid, so the
+                    // exact ground rides along in px; the rect is the tiles it covers.
+                    Rect2 f = car.FootprintPx;
+                    var px = new Rect2(Local(map, car) + f.Position, f.Size);
+                    var first = new Vector2I(Mathf.FloorToInt(px.Position.X / MapRoot.TileSize),
+                        Mathf.FloorToInt(px.Position.Y / MapRoot.TileSize));
+                    var last = new Vector2I(Mathf.CeilToInt(px.End.X / MapRoot.TileSize),
+                        Mathf.CeilToInt(px.End.Y / MapRoot.TileSize));
+                    props.Add(PropEntry(car, "car", new Rect2I(first, last - first),
+                        ("paint", car.Paint), ("facing", car.Facing), ("footprintPx", RectJson(px))));
                     break;
+                }
                 case Mailbox box:
                     props.Add(PropEntry(box, "mailbox", new Rect2I(CellOf(map, box), Vector2I.One)));
                     break;

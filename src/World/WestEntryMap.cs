@@ -45,7 +45,6 @@ public partial class WestEntryMap : ExteriorMap
     private const int StripLeft = 8, StripRight = 25;
     private const int WalkRow = 8, WalkLeft = 2, WalkRight = 27;
     private const int LotTop = 9, LotBottom = 13, LotLeft = 7, LotRight = 26;
-    private const int CarRow = 11;   // guest cars' base row, mid-lot, backed up to the walk
     private const int OfficeDoorX = 6;
     private static readonly int[] RoomDoorX = { 8, 13, 17, 21 };
     private static readonly Vector2I SignFoot = new(4, 13);
@@ -137,12 +136,16 @@ public partial class WestEntryMap : ExteriorMap
         {
             if (_cars.ContainsKey(room))
                 continue;
+            // Nose-in to the motel in the stall under the guest's own door (Kevin
+            // 2026-09-24), centred between its two stripes both ways.
+            Rect2I stall = RoomStallPx(room);
             var car = new GuestCar
             {
                 Name = $"GuestCar{room}",
                 Paint = CarPaints[(room - 1) % CarPaints.Length],
-                // In the stall under the guest's own door, three tiles wide.
-                Position = Prop.Anchor(RoomDoorX[room - 1] - 1, CarRow, 3),
+                NoseIn = true,
+                Position = new Vector2(stall.Position.X + stall.Size.X / 2f,
+                    stall.End.Y - (stall.Size.Y - GuestCar.RearDepth) / 2f),
             };
             _cars[room] = car;
             AddChild(car);
@@ -423,6 +426,24 @@ public partial class WestEntryMap : ExteriorMap
                 stripes.Add(new Rect2I(x, 10, 2, 40));
             return (lot, stripes);
         }
+    }
+
+    /// <summary>The stall in front of a room (map px): the paint-free asphalt between
+    /// the two stripes that hold the room's door column centre, as deep as the stripes
+    /// run. Where that room's guest parks.</summary>
+    internal static Rect2I RoomStallPx(int room)
+    {
+        (Rect2I lot, IReadOnlyList<Rect2I> stripes) = LotStalls;
+        Vector2I origin = lot.Position * TileSize;
+        int door = RoomDoorX[room - 1] * TileSize + TileSize / 2;
+        for (int i = 0; i + 1 < stripes.Count; i++)
+        {
+            Rect2I west = stripes[i], east = stripes[i + 1];
+            int x0 = origin.X + west.End.X, x1 = origin.X + east.Position.X;
+            if (x0 <= door && door < x1)
+                return new Rect2I(x0, origin.Y + west.Position.Y, x1 - x0, west.Size.Y);
+        }
+        throw new System.InvalidOperationException($"room {room}'s door has no stall in front of it");
     }
 
     private Sprite2D BuildLotMarkings()

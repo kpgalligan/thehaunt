@@ -83,6 +83,42 @@ public static class WorldDumpTests
         }
     }
 
+    [SimTest]
+    public static async Task World_DumpParksPellsCarNoseInBetweenItsStripes(TestContext t)
+    {
+        // The film places the car from the dump (tools/flyover/props.py): it must say
+        // the car's real facing and ground, both of which the game now draws nose-in
+        // between two stall stripes (Kevin 2026-09-24).
+        string json = WorldDump.Render(t.Host);
+        await t.WaitFrames(1);
+        using JsonDocument doc = JsonDocument.Parse(json);
+        JsonElement west = doc.RootElement.GetProperty("maps").EnumerateArray()
+            .Single(m => m.GetProperty("id").GetString() == MapIds.WestEntry);
+        var props = west.GetProperty("props").EnumerateArray().ToList();
+        JsonElement car = props.Single(p => p.GetProperty("kind").GetString() == "car");
+        t.AssertEqual("GuestCar3", car.GetProperty("id").GetString(), "Pell's car, room 3");
+        t.AssertEqual("N", car.GetProperty("facing").GetString(), "nose-in, facing the motel");
+
+        int[] f = car.GetProperty("footprintPx").EnumerateArray().Select(v => v.GetInt32()).ToArray();
+        int x = car.GetProperty("x").GetInt32(), y = car.GetProperty("y").GetInt32();
+        int w = car.GetProperty("w").GetInt32(), h = car.GetProperty("h").GetInt32();
+        int tile = MapRoot.TileSize;
+        t.Assert(x * tile <= f[0] && f[0] + f[2] <= (x + w) * tile && y * tile <= f[1] && f[1] + f[3] <= (y + h) * tile,
+            "the tile rect covers the px footprint");
+
+        JsonElement lot = props.Single(p => p.GetProperty("kind").GetString() == "stall_stripes");
+        int lx = lot.GetProperty("x").GetInt32() * tile, ly = lot.GetProperty("y").GetInt32() * tile;
+        var stripes = lot.GetProperty("stripesPx").EnumerateArray()
+            .Select(r => r.EnumerateArray().Select(v => v.GetInt32()).ToArray())
+            .Select(r => (X0: lx + r[0], X1: lx + r[0] + r[2], Y0: ly + r[1], Y1: ly + r[1] + r[3]))
+            .OrderBy(r => r.X0).ToList();
+        int i = stripes.FindLastIndex(r => r.X1 <= f[0]);
+        t.Assert(i >= 0 && i + 1 < stripes.Count && f[0] + f[2] <= stripes[i + 1].X0,
+            "the footprint sits between two neighbouring stripes");
+        t.Assert(stripes[i].Y0 <= f[1] && f[1] + f[3] <= stripes[i].Y1, "within the stripes' length");
+        t.AssertEqual(stripes[i].X1 + stripes[i + 1].X0, 2 * f[0] + f[2], "centred between them");
+    }
+
     private static string Opposite(string edge) => edge switch
     {
         "N" => "S",

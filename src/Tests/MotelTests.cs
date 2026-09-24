@@ -70,17 +70,14 @@ public static class MotelTests
 
             var car = map.GetNodeOrNull<GuestCar>("GuestCar3");
             t.Assert(car != null, "Pell's car parks under its own name");
-            // Base-anchored mid-lot, three tiles wide, in the stall under room 3's
-            // door column (x=17).
-            t.AssertEqual(new Vector2(16 * 16 + 24, 12 * 16), car!.Position,
-                "in the stall under room 3's door");
+            AssertParkedInStall(t, car!, 3);
 
             map.ApplyState(SaveService.Instance.Current.GetMap(MapIds.WestEntry));
             await t.WaitFrames(1);
             t.AssertEqual(occupied.Count, CountCars(map), "a resync parks no duplicates");
 
             bool solid = false;
-            foreach (Node child in car.GetChildren())
+            foreach (Node child in car!.GetChildren())
             {
                 if (child is StaticBody2D body)
                     solid = body.CollisionLayer == 1;
@@ -97,6 +94,52 @@ public static class MotelTests
             SaveService.Instance.NewGame();
         }
     }
+
+    /// <summary>Kevin (2026-09-24): the guest parks NOSE-IN, facing the motel, between
+    /// the white lines of the stall in front of its room — squarely inside it, clear of
+    /// both stripes, the drawn car as well as its footprint and blocker.</summary>
+    private static void AssertParkedInStall(TestContext t, GuestCar car, int room)
+    {
+        t.Assert(car.NoseIn, "parked nose-in");
+        t.AssertEqual("N", car.Facing, "facing the motel (north)");
+
+        // The stall is the asphalt between two neighbouring stripes, under the door.
+        (Rect2I lot, IReadOnlyList<Rect2I> stripesLocal) = WestEntryMap.LotStalls;
+        var stripes = stripesLocal.Select(r => new Rect2I(r.Position + lot.Position * MapRoot.TileSize, r.Size)).ToList();
+        Rect2I stall = WestEntryMap.RoomStallPx(room);
+        int west = stripes.FindIndex(r => r.End.X == stall.Position.X);
+        t.Assert(west >= 0 && west + 1 < stripes.Count && stripes[west + 1].Position.X == stall.End.X,
+            $"room {room}'s stall is bounded by two neighbouring stripes");
+        t.AssertEqual(stripes[0].Position.Y, stall.Position.Y, "the stall runs the stripes' length (top)");
+        t.AssertEqual(stripes[0].End.Y, stall.End.Y, "the stall runs the stripes' length (bottom)");
+        int doorX = WestEntryMap.MotorCourt.RoomDoorX[room - 1] * MapRoot.TileSize + MapRoot.TileSize / 2;
+        t.Assert(stall.Position.X <= doorX && doorX < stall.End.X, $"the stall is in front of room {room}'s door");
+
+        var inStall = new Rect2(stall.Position, stall.Size);
+        var footprint = new Rect2(car.Position + car.FootprintPx.Position, car.FootprintPx.Size);
+        t.Assert(inStall.Encloses(footprint), $"footprint {footprint} inside the stall {stall}");
+        t.Assert(Mathf.Abs(footprint.GetCenter().X - inStall.GetCenter().X) < 0.01f
+            && Mathf.Abs(footprint.GetCenter().Y - inStall.GetCenter().Y) < 0.01f,
+            $"centred in the stall ({footprint.GetCenter()} vs {inStall.GetCenter()})");
+        t.Assert(footprint.Position.X > inStall.Position.X && footprint.End.X < inStall.End.X,
+            "clear of both stripes, with asphalt either side");
+
+        Sprite2D sprite = car.GetChildren().OfType<Sprite2D>().Single();
+        Vector2 size = sprite.Texture.GetSize();
+        var drawn = new Rect2(car.Position + sprite.Offset - size / 2f, size);
+        t.Assert(drawn.Position.X > inStall.Position.X && drawn.End.X < inStall.End.X
+            && drawn.Position.Y >= inStall.Position.Y && drawn.End.Y <= inStall.End.Y,
+            $"the drawn car {drawn} stays between the stripes, never over one");
+        t.Assert(stripes.All(r => !new Rect2(r.Position, r.Size).Intersects(drawn)), "no stripe under the drawn car");
+
+        var blocker = new Rect2(car.Position + car.BlockerPx.Position, car.BlockerPx.Size);
+        t.Assert(footprint.Encloses(blocker), "the blocker is the car's own ground");
+        t.Assert(inStall.End.Y <= lot.End.Y * MapRoot.TileSize - PlayerFeetClearance,
+            "a walkable strip of lot stays south of the stall");
+    }
+
+    // The player's feet box height plus a pixel: what a lane past the car needs.
+    private static readonly int PlayerFeetClearance = (int)MapRoot.PlayerFeetBox.Size.Y + 1;
 
     private static int CountCars(Node map)
     {
