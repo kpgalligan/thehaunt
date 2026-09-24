@@ -23,7 +23,8 @@ palette-led; sizes are real-world, positions and facings from the dump):
                  off the wooded side, boulders at the rock tiles, snapped trunks at the
                  log tiles ("the storm brought half the hillside down").
   car            Pell's sedan (GuestCar.cs): a late-1950s four-door in the dump's paint,
-                 nose west as the dump says.
+                 parked NOSE-IN (north, at the motel) squarely in its room's stall
+                 (Kevin's review: the film overrides the dump's nose-west facing).
   screen         DriveInScreen.cs: a weathered cream face on three timber trestle
                  bents, water stains, the top-right panel gone (frame showing); faces
                  north over the field.
@@ -412,7 +413,7 @@ def debris(placer, placed, pieces, rng):
 
 
 # ---------------------------------------------------------------------------
-# Pell's sedan (GuestCar.cs): a late-1950s four-door, nose +X (turned west on placing)
+# Pell's sedan (GuestCar.cs): a late-1950s four-door, nose +X (turned north on placing)
 # ---------------------------------------------------------------------------
 
 def sedan(paint):
@@ -611,24 +612,33 @@ def speaker_post(rng, both=True):
 # From the dump
 # ---------------------------------------------------------------------------
 
-SEDAN_L = 5.1      # a late-50s full-size four-door, bumpers ~5.3 m: it fits its stall side-on
+SEDAN_L = 5.1      # a late-50s full-size four-door, bumpers ~5.3 m: nose-in, 0.6 m to spare each end
 
 
-def _stall(placed, x, y):
-    """The car's x centred in the lot stall it stands in (between the dump's stall
-    stripes), or unchanged."""
+def _room_stall(placed, car):
+    """The lot stall in front of the car's room (WestEntryMap names each car
+    GuestCar<room>): the stall between two of the dump's stall stripes (stripe
+    centrelines) that holds that room's door x, and the stripes' y run. Returns the
+    stall's centre (x, y) and [x0, x1, y0, y1] metres. Kevin (review): the car parks
+    nose-in, facing the motel, centred between the white lines."""
+    room = int(car["id"].removeprefix("GuestCar"))
+    door = next(r["door"] for b in placed.data["buildings"] for r in b.get("rooms") or () if r["room"] == room)
+    dx = pk.tile_m(placed, door["x"], door["y"])[0]
     s = config.TILE_M / config.TILE_PX
     for p in placed.data["props"]:
         if p["kind"] != "stall_stripes":
             continue
-        x0, y0, x1, y1 = pk.rect_m(placed, p)
-        if not (y0 <= y <= y1):
-            continue
+        x0, _y0, _x1, y1 = pk.rect_m(placed, p)
         edges = sorted(x0 + (sx + sw / 2) * s for sx, _sy, sw, _sh in p["stripesPx"])
+        ys = [y1 - sy * s for _sx, sy, _sw, _sh in p["stripesPx"]] + \
+             [y1 - (sy + sh) * s for _sx, sy, _sw, sh in p["stripesPx"]]
         for a, b in zip(edges[:-1], edges[1:]):
-            if a <= x <= b:
-                return (a + b) / 2, [round(a, 3), round(b, 3)]
-    return x, None
+            if a <= dx <= b:
+                cx0, _cy0, cx1, _cy1 = pk.rect_m(placed, car)
+                if not (cx0 < (a + b) / 2 < cx1):
+                    raise AssertionError(f"{car['id']}: room {room}'s stall {a:.2f}..{b:.2f} is not the dump car's")
+                return ((a + b) / 2, (min(ys) + max(ys)) / 2), [round(v, 3) for v in (a, b, min(ys), max(ys))]
+    raise AssertionError(f"{car['id']}: no stall in front of room {room}'s door")
 
 
 def _facing_to(x, y, tx, ty):
@@ -701,11 +711,11 @@ def build(world, routes, placer, lights_col):
                 placer.put(part, f"Prop_{placed.id}_debris_slide", 0.0, 0.0, z=0.0,
                            pieces=len(debris_pieces), **ident)
             elif kind == "car":
-                rot = {"W": math.pi, "E": 0.0}[p["facing"]]
-                cx, stall = _stall(placed, cx, cy)
+                # nose-in to the motel (north), not the dump's nose west (Kevin's review)
+                (cx, cy), stall = _room_stall(placed, p)
                 car = sedan(p["paint"]).moved(ak.S(SEDAN_L / 5.3, 1.0, 1.0))
-                placer.put(car, name, cx, cy, rot=rot, z=placer.z(cx, cy), paint=p["paint"],
-                           facing=p["facing"], stall=stall, **ident)
+                placer.put(car, name, cx, cy, rot=math.pi / 2, z=placer.z(cx, cy), paint=p["paint"],
+                           facing="N", dump_facing=p["facing"], stall=stall, **ident)
             elif kind == "screen":
                 W = (x1 - x0) * 0.92
                 asm = screen(rng, W)

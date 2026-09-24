@@ -414,9 +414,11 @@ tools/flyover/build.py`) for the reproducible build.
 - (7) The fork's FingerPost (a plain Sign in the game) is a finger post with three BLANK
   arms (N farm, E town, W road); all boards blank-faced, faint illegible smudges only.
 - (7) Marquee: letter-board, each glyph on a cream tile; the missing S = a paler patch.
-- (7) Pell's sedan: late-50s four-door (fins, hooded lamps, whitewalls), 5.1 m, parked NOSE
-  WEST as the dump says, side-on inside room 3's stall (centred between the stripes). The
-  alternative: backed in, nose to the road.
+- (7) Pell's sedan: late-50s four-door (fins, hooded lamps, whitewalls), 5.1 m. (Kevin's
+  review of farm_to_pit, binding: "facing the motel, and parked between the white line")
+  the film OVERRIDES the dump's nose-west facing: NOSE-IN (north), centred in room 3's
+  stall (props._room_stall: the stall between the dump's stall_stripes that holds room
+  3's door; the car id GuestCar<room> names the room), 0.6 m to spare at each end.
 - (7) Pit: E-W heavy planks on a timber sill, one plank gone mid-cover + narrow gaps; the
   pit chain gets 5 posts (12.5 m run). Glow subtle (PIT_EMIT 0.45; (8) 25 W under, 7.5 W
   leak): two red seams between the planks up close, invisible from afar.
@@ -501,6 +503,14 @@ tools/flyover/build.py`) for the reproducible build.
   station the path jogs north round the big oak behind Billie's lot. Length 109.6 s.
   Wind follows town_pass only (the farm yard's trees are still), so the film's frames
   reproduce. The hardest move is the sharp east turn (26 m/s^2 lateral for ~0.2 s).
+- (flights, Kevin's review of farm_to_pit) The canopy run east became the drive-in /
+  mansion leg (beats 5-8), the road run 33 -> 15 s, the pit ending 2.6 m -> 10.6 m at
+  ~70 deg down (storyboard above). Calls: the drive-in turn is round the field's SW
+  corner so the exit runs NNE up its west half, the one stretch where the ruin shows
+  (ray-cast: ~50-65% of its roof points visible at 45-55 m there, < 30% east of x ~535 m,
+  where a straight bank toward the entry would have put the pan); the ruin is still
+  small (~8% of the width) and dark in the hemlocks: a glimpse, as asked. 50 m/s at 10 ft
+  is fast (~110 mph), the speed his "significantly" asked for over the fixed 620 m.
 
 ## The flights as built
 
@@ -533,10 +543,10 @@ the 1080p beat stills (preview_1080) 3-8.5 s each; the farm_to_pit Workbench pla
    view turns ~150 deg through the northern ridges (~21 deg/s), settling at 68 s on the
    whole valley looking west, back the way the film came in; 3 s still hold.
 
-### farm_to_pit (109.6 s, 3287 frames; Kevin's words quoted per beat in the file)
+### farm_to_pit (105.8 s, 3173 frames; Kevin's words + his review quoted per beat in the file)
 
-Lens 35 mm; margins tree 3 / solid 1 (exact surfaces) / ground 1 m; view turns <= 64.5
-deg/s (the sharp / quick turns; limit 90); flyover_dusk held at 1 (18:00).
+Lens 35 mm; margins tree 3 / solid 1 (exact surfaces) / ground 1 m; view turns <= 59.7
+deg/s (the hook; limit 90); flyover_dusk held at 1 (18:00).
 
 1. The farmhouse (0-3.0 s): 1.78 m (5'10") due south of the house, framed so its real
    footprint (eaves) spans 2/3 of the width (64% measured on the still), straight at it; still.
@@ -545,21 +555,31 @@ deg/s (the sharp / quick turns; limit 90); flyover_dusk held at 1 (18:00).
 3. Down the drive (14-18): down to 10-12 m along the drive's north edge, 6-8 m/s, to the bend.
 4. The corner (18-21.8): round the bend rising 10 -> 22 m, facing south down the lane,
    the storm slide centre frame (~25 m ahead, then below).
-5. East over the trees (21.8-33): the sharp turn east (~80 deg in ~1.5 s, 55 deg/s) then
-   3.5-5 m over the crowns (28-36 m up), 10 deg south of east, up to 36 m/s; the town hall
-   below right.
-6. Turn west over the road (33-40): out over the east entry's clearing, slowing to ~6 m/s,
-   down to 6.1 m (20 ft), a small hook over the road-out's mouth while the view swings
-   east -> west (64 deg/s), onto the centreline.
-7. The road west (40-72.8): 20 ft -> 10 ft (3.05 m) by the police station, then 3.05 m on
-   the centreline at ~21 m/s under the street lights' arms, the road dead centre.
-8. The west entrance (72.8-80.3): slowing to 4.5 m/s, a left banking turn (<= 14.5 deg
-   bank) 9 m inside the west edge, round through south to east.
-9. Behind the gas station (80.3-93.8): east at 3.1-3.4 m, ~5 m off the gas station's and
-   garage's backs at ~12 m/s, then north to the road's verge round the big oak behind
-   Billie's (its crown spans the whole strip south of the lot).
-10. The pit (93.8-109.6): south-east to 11 m south of the pit, turning north and tilting
-    down onto it, floating 4.7 -> 2.6 m; still from 106 s, the pit centred (red seams).
+5. Toward the drive-in (21.8-33): a left turn off the lane (<= 42 deg/s) onto the line to
+   the drive-in's south-west corner, climbing to 68 m over the plaza (29 s) at ~23 m/s,
+   then down to 49 m, the view held on the far field.
+6. Over the drive-in (33-38): a banked left turn (<= 12 deg bank, ~22 m radius, ~12 m/s)
+   round the field's SW corner past the screen's west end at 46-49 m, looking down on the
+   screen's face, the field's ramps and speaker rows, then across to the concession.
+7. The mansion (38-41): climbing to 56 m heading NNE up the field's west half (where the
+   line to the ruin runs up the chained drive's cut: its roofline shows through the
+   hemlocks), the view pans left (<= 38 deg/s) onto its roofline ~215 m off, held
+   ~38.8-40.4 s (in frame ~38-41 s), then back right (<= 44 deg/s).
+8. Turn west over the road (41-52): descending 56 -> 6.1 m (20 ft) at 17-21 m/s to the
+   east entry, across the road, then the right-hand hook over the road-out's mouth
+   (view east -> south -> west, <= 60 deg/s), onto the centreline.
+9. The road west (52-67): 20 ft -> 10 ft (3.05 m) by the police station on the centreline,
+   easing up to 50 m/s (<= 15 m/s^2) and down past the garage: 15 s (the review: "way too
+   much time"; it was 33 s at ~21 m/s).
+10. The west entrance (67-74.5): slowing to 4.5 m/s, a left banking turn (<= 14.5 deg
+    bank) 9 m inside the west edge, round through south to east.
+11. Behind the gas station (74.5-88): east at 3.1-3.4 m, ~5 m off the gas station's and
+    garage's backs at ~12 m/s, then north to the road's verge round the big oak behind
+    Billie's (its crown spans the whole strip south of the lot).
+12. The pit (88-105.8): rising 3.4 -> 11.3 m while turning north onto it and tilting down,
+    floating to 10.6 m, 69.5 deg down (the review: "stay higher ... looking down"); still
+    from ~100.5 s, the cover centred at ~70% of the width, the missing plank's gap and
+    the narrow seams red (PIT_EMIT unchanged: it reads at 1080p).
 
 ## Phases
 
