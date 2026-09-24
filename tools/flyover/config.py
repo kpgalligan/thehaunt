@@ -531,6 +531,16 @@ MOTEL_V_CYCLE_S = 4.0
 MOTEL_V_OFF_S = 0.55
 MOTEL_V_FIRST_OFF_S = 7.2
 MOTEL_V_SPILL_OFF = 0.7 / 0.9   # PanelGlow Strength 0.9 -> 0.7 while the V is off
+# The pit breathes (Kevin 2026-09-24, film-only: "pulse slightly. Not like a fire. More
+# like something breathing", ~30% between max and min). Not a sign and not a flicker: a
+# slow smooth rise and fall of the whole pit glow (the void's object glow, its two lights
+# with it), the inhale quicker than the exhale, no noise, no randomness.
+PIT_BREATH_S = 5.0              # one breath
+PIT_BREATH_IN = 0.4             # the inhale's share of it (2 s up, 3 s down)
+PIT_BREATH_RANGE = (0.77, 1.10)  # x the reviewed glow (PIT_EMIT / PIT_LIGHT_W): min / max = 0.70
+# A trough (end of an exhale) in farm_to_pit's final pit hold (still ~100.5-105.73 s): the
+# hold holds a whole breath (in 102.2-104.2, out from 104.2) and ends mid-exhale.
+PIT_BREATH_TROUGH_S = 102.2
 # Wind (canon is silent: a light westerly, New England's prevailing wind): the heading it
 # blows TOWARD (deg from +X, counter-clockwise; 0 = east). Trees within WIND_NEAR_M of the
 # lens tilt about their base by WIND_TILT_RAD x (lean + gust + sway + cross rock) weights

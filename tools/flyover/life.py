@@ -9,7 +9,11 @@ isolation and nothing is simulated or baked.
   (MOTEL_V_FIRST_OFF_S). Edges sit on quarter frames (between the 180-degree shutters),
   so every rendered frame is fully on or fully off. The panel's two spill lights drop to
   MOTEL_V_SPILL_OFF with it (MotelSign's PanelGlow: "the V's share of the glow cuts with
-  the V"). Nothing else in the film flickers or pulses.
+  the V"). The V is the only animated SIGN; nothing in the film flickers.
+- The pit breathes (Kevin, 2026-09-24; film-only, not a sign, not a flicker): the void's
+  object `glow` keyed every frame on a slow smooth breath (config.PIT_BREATH_*: 5 s,
+  inhale 2 s / exhale 3 s, cosine-eased, 0.77-1.10 of the reviewed level, min / max 0.70),
+  and the two pit lights driven by it, so emission and light rise and fall together.
 - Wind: trees near the flight (within WIND_NEAR_M of the lens at some frame) move from
   the two static forest objects (`sway` point attribute: dropped there) to two wind
   twins (Forest_Wind / Forest_WindCards on Forest_WindPoints, pre-grounded exactly as
@@ -95,6 +99,52 @@ def blink(n_frames, fps):
         lo = config.MOTEL_V_SPILL_OFF
         d.expression = f"({d.expression}) * ({lo!r} + {1.0 - lo!r} * b)"
     return v, (frames, vals)
+
+
+# ---------------------------------------------------------------------------
+# The pit's breath
+# ---------------------------------------------------------------------------
+
+def breath(t):
+    """The pit's glow level at t seconds (numpy-friendly): a trough at
+    PIT_BREATH_TROUGH_S (+ k x PIT_BREATH_S), rising for the inhale's share of the
+    cycle, falling for the rest; each half a half-cosine, so the level and its slope are
+    continuous everywhere (no kink at the top or bottom: a breath, not a pulse)."""
+    P = config.PIT_BREATH_S
+    rise = P * config.PIT_BREATH_IN
+    u = np.mod(np.asarray(t, dtype=float) - config.PIT_BREATH_TROUGH_S, P)
+    s = np.where(u < rise, 0.5 - 0.5 * np.cos(np.pi * u / rise),
+                 0.5 + 0.5 * np.cos(np.pi * (u - rise) / (P - rise)))
+    lo, hi = config.PIT_BREATH_RANGE
+    return lo + (hi - lo) * s
+
+
+def breathe(n_frames, fps):
+    """Key the pit void's glow on every frame 1..n_frames (LINEAR between: motion blur
+    samples the curve) and scale the pit's two lights by it. Returns the void object."""
+    import bpy
+
+    import flight
+    voids = [ob for ob in bpy.data.objects if ob.get(config.TAG_PROP)
+             and any(sl.material and sl.material.name.startswith("LF_Pit") for sl in ob.material_slots)]
+    if len(voids) != 1:
+        raise AssertionError(f"expected the pit's one void (LF_Pit), found {[o.name for o in voids]}")
+    void = voids[0]
+    frames = np.arange(1, n_frames + 1, dtype=float)
+    flight._fcurves(void, "Life_Pit_Action", [('["glow"]', 0, frames, breath((frames - 1) / fps))])
+    lights = [bpy.data.objects.get(f"Light_Pit_{n}") for n in ("Under", "Leak")]
+    if None in lights:
+        raise AssertionError("the pit's lights (Light_Pit_Under / _Leak) are missing")
+    for ob in lights:
+        d = ob.data.animation_data.drivers.find("energy").driver
+        var = d.variables.new()
+        var.name = "b"
+        var.type = "SINGLE_PROP"
+        var.targets[0].id_type = "OBJECT"
+        var.targets[0].id = void
+        var.targets[0].data_path = '["glow"]'
+        d.expression = f"({d.expression}) * b"
+    return void
 
 
 # ---------------------------------------------------------------------------
@@ -708,7 +758,9 @@ def build(world, terrain, fl, kit, kit_vertices, grounds, root, fcol, others=())
     t0 = time.time()
     secs = {}
     col = scene.collection(config.COL_LIFE, root)
-    _v, (frames, _vals) = blink(max([fl.n] + [o.n for o in others]) + 60 * fl.fps, fl.fps)
+    n_life = max([fl.n] + [o.n for o in others]) + 60 * fl.fps
+    _v, (frames, _vals) = blink(n_life, fl.fps)
+    breathe(n_life, fl.fps)
     kit_hi = {k: float(v[:, 2].max()) for k, v in kit_vertices.items()}
     kit_rho = {k: float(np.hypot(v[:, 0], v[:, 1]).max()) for k, v in kit_vertices.items()}
     t1 = time.time()

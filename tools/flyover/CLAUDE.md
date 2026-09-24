@@ -27,9 +27,11 @@ tools/flyover/build.py`) for the reproducible build.
   are believable real-world heights, not the 2D drawn heights.
 - The motel's V is THE ONE animated sign (MotelSign.cs, binding): a 4.0 s cycle, OFF for
   the first 0.55 s, a hard cut, never randomised ("a second flickering sign would make
-  this one stop meaning"). Nothing else in the film flickers or pulses: no neon, sign,
-  bulb or lamp animation (the signs' 18:00 cut-on is the time of the light, not a
-  flicker). Life (Phase 10) is a pure function of the frame: no simulation, no bake.
+  this one stop meaning"). The V is the only animated SIGN, and nothing in the film
+  flickers: no neon, sign, bulb or lamp animation (the signs' 18:00 cut-on is the time of
+  the light, not a flicker). The pit's breathing glow is Kevin's film-only addition
+  (2026-09-24, Decisions): not a sign, not a flicker. Life (Phase 10) is a pure function
+  of the frame: no simulation, no bake.
 - Canon only: no PLANNED places (clinic, homes, Stumble Inn, power station, pond), no
   town name, sign lettering only from the canon list in the places' files. No Act I
   dread accents (plum, bile-green, bone). Exceptions Kevin approved are listed under
@@ -199,7 +201,11 @@ tools/flyover/build.py`) for the reproducible build.
   The V: its object `glow` keyed CONSTANT (config.MOTEL_V_*; edges on quarter frames,
   between the 180-degree shutters, so every frame is fully on / off: 16 frames off per
   cycle), first in-frame off at 7.2 s; the panel's two spill lights x 0.78 with it
-  (PanelGlow 0.9 -> 0.7). Wind (config.WIND_*, a westerly): the trees within 90 m of the
+  (PanelGlow 0.9 -> 0.7). The pit breathes (life.breathe, config.PIT_BREATH_*): the
+  void's object `glow` keyed every frame (LINEAR) on a cosine-eased 5 s breath, inhale
+  2 s / exhale 3 s, 0.77-1.10 x the reviewed level (min / max 0.70), a trough at 102.2 s;
+  Light_Pit_Under / _Leak multiply by it (a driver variable, as the V's spill lights), so
+  emission and light move together in every scene. Wind (config.WIND_*, a westerly): the trees within 90 m of the
   lens at some frame (~5000) are dropped from the static scatter (`sway`) and planted
   again pre-grounded (life.Ground = the scatter's raycast, checked equal) on
   Forest_WindPoints, instanced by Forest_Wind / Forest_WindCards, whose nodes tilt each
@@ -326,6 +332,15 @@ tools/flyover/build.py`) for the reproducible build.
   drive — gothic, in ruins, overgrown (its canon description). Roofline only; the
   building itself stays out of frame.
 - The pit: a slight red glow leaks from under its plank cover.
+- (2026-09-24, film-only) The pit's red glow BREATHES: "pulse slightly. Not like a
+  fire. More like something breathing", ~30% between max and min. Calls: a 5 s breath,
+  the inhale (2 s) quicker than the exhale (3 s), half-cosine eased both ways (no kink,
+  no flicker, no noise, no randomness), 0.77-1.10 x the reviewed glow so min / max =
+  0.70 and the mean stays near the reviewed level; emission and both lights together, in
+  both flights. Phased on farm_to_pit's final hold (still ~100.5-105.7 s): a trough at
+  102.2 s, the peak at 104.2 s, ending mid-exhale (0.93). In the 1080p render the gap's
+  red reads ~26% dimmer (display-encoded) at the trough than at the peak: visible, gentle.
+  Not a sign: the V stays the one animated sign.
 - The road curves out of frame at both ends, into forest (art bible Act I rule).
 - Game integration (playing the video in the intro) is a later, separate change.
 - (Review of 4b) The town clearing gets an IRREGULAR treeline — bays of field, trees
@@ -416,9 +431,13 @@ tools/flyover/build.py`) for the reproducible build.
 - (7) Marquee: letter-board, each glyph on a cream tile; the missing S = a paler patch.
 - (7) Pell's sedan: late-50s four-door (fins, hooded lamps, whitewalls), 5.1 m. (Kevin's
   review of farm_to_pit, binding: "facing the motel, and parked between the white line")
-  the film OVERRIDES the dump's nose-west facing: NOSE-IN (north), centred in room 3's
-  stall (props._room_stall: the stall between the dump's stall_stripes that holds room
-  3's door; the car id GuestCar<room> names the room), 0.6 m to spare at each end.
+  NOSE-IN (north), centred in room 3's stall, 0.6 m to spare at each end. The film
+  follows the game again: the game changed 2026-09-24 on Kevin's instruction (GuestCar
+  NoseIn, the rear view), so the dump's `facing` N and exact `footprintPx` place it, and
+  props._room_stall ASSERTS it is centred in the stall between the stall_stripes that
+  holds room 3's door (the car id GuestCar<room> names the room). The car's dump rect
+  grew north to its footprint, so town_pass's aim at it carries dy -2.5 m to hold the
+  reviewed camera (both flights' camera keys measured identical to before).
 - (7) Pit: E-W heavy planks on a timber sill, one plank gone mid-cover + narrow gaps; the
   pit chain gets 5 posts (12.5 m run). Glow subtle (PIT_EMIT 0.45; (8) 25 W under, 7.5 W
   leak): two red seams between the planks up close, invisible from afar.
@@ -520,7 +539,7 @@ animatic (960x540, 4 samples, motion blur, every 2nd frame held) 1.6 s/frame, ~2
 the 1080p beat stills (preview_1080) 3-8.5 s each; the farm_to_pit Workbench playblast
 0.2 s/frame (11 min headless; ~0.14 s/frame from the viewport).
 
-### town_pass (the film; 71.0 s, 2131 frames; frames reproduce the review cut at 68-71 dB)
+### town_pass (the film; 71.0 s, 2131 frames; frames reproduced the review cut at 68-71 dB until the pit's breath, 2026-09-24, which changes the pit's frames)
 
 1. Road in (0-6.3 s): 12 -> 8.5 m over the west road-out's bend at 23 m/s, canopy both
    sides, the road running out of the trees at the town; the dusk ramps 17:43 -> 18:00.

@@ -68,7 +68,9 @@ AIM_KEYS = (
     (3.0, ("road", "MotelSign", -5.0), 4.0),
     (5.6, ("at", "MotelSign", 0.0, 0.0), 5.5),
     (7.6, ("at", "MotelSign", 0.0, 0.0), 5.5),
-    (9.8, ("at", "GuestCar3", 0.0, 0.0), 1.0),
+    # the car's dump rect grew north to its nose-in footprint (2026-09-24): -2.5 m holds
+    # the aim the review cut was flown on (the old one-row rect's centre)
+    (9.8, ("at", "GuestCar3", 0.0, -2.5), 1.0),
     (12.2, ("at", "GasStation", 0.0, 0.0), 3.0),
     (13.6, ("at", "Garage", 0.0, 0.0), 3.0),
     (15.8, ("at", "Bar", 0.0, -3.0), 3.0),
