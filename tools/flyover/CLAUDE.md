@@ -517,5 +517,5 @@ Each phase ends in a standalone, render-verified state. Tick them off here as th
   (neon flicker dropped: the V is the game's one animated sign).
 - [ ] 11. Final render + encode: PNG frames -> ffmpeg -> Theora `.ogv` (Godot 4's native
   format) + an `.mp4` preview; size check; into `assets/video/`. 11a tooling ✓ (film.py,
-  encode.py); 11b full renders pending (review cut -> Kevin -> 4K final -> assets/video/).
+  encode.py); 11b: the 1080p review cut rendered 2026-09-24 (2h30m, 4.2 s/frame; out/flyover_1080.mp4 + .ogv); pending Kevin -> 4K final -> assets/video/.
 - [ ] 12. (Later, separate change) Play it in the intro, skippable, via StoryDirector.
