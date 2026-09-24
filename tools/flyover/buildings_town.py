@@ -351,6 +351,7 @@ def billies(W, D, zb, ctx):
     b.box(lx0 + 1.4, ly1, -0.3, lx0 + 2.6, ly1 + 0.9, zp - 0.02, "block:stone-base", skip=("bottom",))
     # the chimney (block) up the east gable, an exhaust fan hood on the lean-to
     ak.chimney(b, x1 + 0.35, ym + 0.8, 0.6, 0.6, 0.0, zr + 0.9, "block:stone-shade", "stone_trim:stone-base", pots=0)
+    a.meta["mounts"]["flue"] = (x1 + 0.35, ym + 0.8, zr + 0.97)      # Phase 10's smoke (the hearth nook)
     b.box(lx1 - 3.0, ly1 - 1.2, lz + 0.15, lx1 - 2.3, ly1 - 0.5, lz + 0.75, "metal:stone-light")
     a.meta["ridge"] = zr
     return a

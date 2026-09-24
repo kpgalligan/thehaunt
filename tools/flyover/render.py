@@ -43,12 +43,16 @@ def still(world, path, map_id=None, px_per_tile=6):
     saved = _Saved(sc)
     forest = bpy.data.collections.get(config.COL_FOREST)
     hidden = forest.hide_render if forest is not None else None
+    life = bpy.data.collections.get(config.COL_LIFE)
+    life_hidden = life.hide_render if life is not None else None
     cones = [ob for ob in bpy.data.objects if ob.get("kind") == "light_cone" and not ob.hide_render]
     try:
         for ob in cones:            # a glow in the air, not a solid
             ob.hide_render = True
         if forest is not None:      # the layout check shows the ground, not the canopy
             forest.hide_render = True
+        if life is not None:        # nor the leaves in the air, the smoke
+            life.hide_render = True
         x0, y0, x1, y1 = cameras.rect_m(world, map_id)
         tiles_w = (x1 - x0) / config.TILE_M * config.FRAME_PADDING
         tiles_h = (y1 - y0) / config.TILE_M * config.FRAME_PADDING
@@ -74,6 +78,8 @@ def still(world, path, map_id=None, px_per_tile=6):
             ob.hide_render = False
         if forest is not None:
             forest.hide_render = hidden
+        if life is not None:
+            life.hide_render = life_hidden
     return path
 
 

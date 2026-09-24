@@ -33,12 +33,14 @@ def rgba(name):
 class G:
     """A tiny node-graph builder over one material's (or node group's) node tree."""
 
-    def __init__(self, mat=None, tree=None):
+    def __init__(self, mat=None, tree=None, keep=False):
+        """keep: build on in an existing tree (its nodes stay)."""
         if mat is not None:
             mat.use_nodes = True
             tree = mat.node_tree
         self.nt = tree
-        self.nt.nodes.clear()
+        if not keep:
+            self.nt.nodes.clear()
         self.x = 0
 
     def node(self, kind, **props):

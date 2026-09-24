@@ -522,6 +522,52 @@ FLIGHT_FLOOR_SMOOTH_S = 1.6     # a lift over the clearance floor is spread over
 FLIGHT_BANK = (0.45, 4.0)       # bank = gain x the turn's lean atan(a_lat / g), capped (deg)
 FLIGHT_MAX_TURN_DEG_S = 40.0    # asserted: the view never swings faster
 
+# Phase 10: life (life.py). Everything is a function of the scene frame.
+COL_LIFE = "Flyover_Life"       # the leaves, the smoke (+ their hidden prototypes)
+LIFE_SEED = 10
+# The motel's V (MotelSign.cs BlinkCycle / BlinkOff: BINDING, never randomised): the ONE
+# animated sign. The phase: the first in-frame off edge (the sign close, centre-left).
+MOTEL_V_CYCLE_S = 4.0
+MOTEL_V_OFF_S = 0.55
+MOTEL_V_FIRST_OFF_S = 7.2
+MOTEL_V_SPILL_OFF = 0.7 / 0.9   # PanelGlow Strength 0.9 -> 0.7 while the V is off
+# Wind (canon is silent: a light westerly, New England's prevailing wind): the heading it
+# blows TOWARD (deg from +X, counter-clockwise; 0 = east). Trees within WIND_NEAR_M of the
+# lens tilt about their base by WIND_TILT_RAD x (lean + gust + sway + cross rock) weights
+# WIND_MIX: <= ~1.3 x 0.009 rad, ~0.3 m at a 25 m crown (the flight's tree margin is 3 m).
+WIND_TOWARD_DEG = 0.0
+WIND_NEAR_M = 90.0
+WIND_TILT_RAD = 0.009
+WIND_MIX = (0.25, 0.9, 0.45, 0.3)   # lean, gust, per-tree sway, cross-wind rock
+WIND_PERIOD_S = 3.6
+WIND_GUST_M = 35.0              # gust cell size ...
+WIND_GUST_SPEED_MS = 4.0        # ... carried downwind at this speed
+# Falling leaves: from broadleaf crowns the lens passes (flight windows, seconds).
+LEAF_WINDOWS = ((0.0, 6.3), (32.0, 36.0), (39.0, 41.0), (48.0, 50.0), (55.0, 58.0))
+LEAF_FAMILIES = ("maple", "birch", "oak")
+LEAF_TREE_M = 40.0              # a crown within this of the lens, ahead of it (nearest first)
+LEAF_TREES_PER_WINDOW = 60
+LEAF_PER_TREE = 7
+LEAF_FALL_MS = (0.6, 1.1)
+LEAF_DRIFT_MS = 0.9             # downwind drift (x a per-leaf 0.35-1)
+LEAF_SPIN = 2.5                 # tumble, rad/s
+LEAF_SIZE_M = (0.12, 0.18)
+LEAF_FADE = 0.06                # of the loop, faded in / out at its ends
+LEAF_CLEAR_M = 3.0              # never nearer the lens than this
+# Chimney smoke: only a lit hearth canon puts in a building at the film's 18:00. Billie's
+# (BilliesBarMap: the hearth nook's fire, open all hours). Every other chimney is cold
+# (the calls: tools/flyover/CLAUDE.md, For Kevin's end review).
+SMOKE_DESIGNS = ("billies",)
+SMOKE_PUFFS = 44
+SMOKE_LIFE_S = 8.0
+SMOKE_RISE_MS = (0.55, 0.8)
+SMOKE_DRIFT_MS = 0.9
+SMOKE_RADIUS = (0.25, 0.2)      # r0 + growth per second
+SMOKE_ALPHA = 0.8
+SMOKE_FADE_POW = 1.2         # opacity (1 - age / life) ** this
+SMOKE_COLOUR = "stone-light"
+SMOKE_CLEAR_M = 1.5             # between the lens and a puff's edge
+
 # Collections added in Phase 3.
 COL_GUIDES = "Flyover_Guides"
 

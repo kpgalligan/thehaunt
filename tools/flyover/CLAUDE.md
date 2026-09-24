@@ -25,6 +25,11 @@ tools/flyover/build.py`) for the reproducible build.
   video ship.
 - Scale: 1 tile = 2.5 m (one constant). Positions come from tiles; building heights
   are believable real-world heights, not the 2D drawn heights.
+- The motel's V is THE ONE animated sign (MotelSign.cs, binding): a 4.0 s cycle, OFF for
+  the first 0.55 s, a hard cut, never randomised ("a second flickering sign would make
+  this one stop meaning"). Nothing else in the film flickers or pulses: no neon, sign,
+  bulb or lamp animation (the signs' 18:00 cut-on is the time of the light, not a
+  flicker). Life (Phase 10) is a pure function of the frame: no simulation, no bake.
 - Canon only: no PLANNED places (clinic, homes, Stumble Inn, power station, pond), no
   town name, sign lettering only from the canon list in the places' files. No Act I
   dread accents (plum, bile-green, bone). Exceptions Kevin approved are listed under
@@ -69,10 +74,11 @@ tools/flyover/build.py`) for the reproducible build.
   `ground` (smooth-shaded meshes), `road` (swept paved road), `markings` (lot paint
   decals), `materials` (one ground look painting the fields, EEVEE), `guides`,
   `look` + `output` (Phase 8, below), `cameras` (Cam_TopDown +
-  named views), `flight` (Phase 9, below), `forest` (the planting table: density field, species, colours, LOD;
+  named views), `flight` (Phase 9, below), `life` (Phase 10, below), `forest` (the planting table: density field, species, colours, LOD;
   numpy; `plant()` asserts the keep-outs on exact geometry), `trees` (the kit: a body
   + a leaf-card prototype per variant, metaball crowns, three materials), `scatter`
-  (one point cloud, two Geometry Nodes objects: bodies, and shadowless leaf cards).
+  (one point cloud, two Geometry Nodes objects: bodies, and shadowless leaf cards; the
+  points life marks `sway` are dropped there).
 - Look conventions (Phase 4b, reuse for stylized-real buildings): real sizes, smooth
   shading, palette colours with noise shifts between palette NEIGHBOURS plus a bump
   height, detail down to centimetres; nothing tile-stepped. Surfaces never meet on a
@@ -81,7 +87,8 @@ tools/flyover/build.py`) for the reproducible build.
 - Layout: everything lives under the `Flyover` collection (Flyover_Ground,
   Flyover_Buildings, Flyover_Props, Flyover_Lights, Flyover_Cameras, Flyover_Guides,
   Flyover_Look, Flyover_ForestKit + Flyover_ForestCards (excluded from the view
-  layer), Flyover_Forest; the `--diorama` build alone makes Placeholders_*); every datablock the build makes carries the `flyover` ID
+  layer), Flyover_Forest (+ Phase 10's wind twins), Flyover_Life (leaves, smoke; hidden
+  in the Workbench stills); the `--diorama` build alone makes Placeholders_*); every datablock the build makes carries the `flyover` ID
   property, and a rebuild removes exactly those. Ground meshes: one per map plus
   Ground_Terrain (outside the maps, forest floor), face material_index =
   `config.SURFACES` order (the tile's surface, for the Workbench layout stills; every
@@ -116,6 +123,25 @@ tools/flyover/build.py`) for the reproducible build.
   own), frame range 1..2131 at 30 fps, and the tagged scene action keying flyover_dusk
   (`flight.dusk_fcurve()`; render.eevee_stills mutes it so the named views stay at the
   canonical 18:00). Actions are tagged and wiped like every datablock.
+- Life (Phase 10): `life`, built after the flight, every motion keyed to the scene frame
+  (t = (frame - 1) / fps; Geometry Nodes read Scene Time), so any frame renders alone.
+  The V: its object `glow` keyed CONSTANT (config.MOTEL_V_*; edges on quarter frames,
+  between the 180-degree shutters, so every frame is fully on / off: 16 frames off per
+  cycle), first in-frame off at 7.2 s; the panel's two spill lights x 0.78 with it
+  (PanelGlow 0.9 -> 0.7). Wind (config.WIND_*, a westerly): the trees within 90 m of the
+  lens at some frame (~5000) are dropped from the static scatter (`sway`) and planted
+  again pre-grounded (life.Ground = the scatter's raycast, checked equal) on
+  Forest_WindPoints, instanced by Forest_Wind / Forest_WindCards, whose nodes tilt each
+  instance about its base (a gust field carried downwind + a per-tree sway; <= ~0.4 m at
+  a 25 m crown vs the 3 m tree margin). Rigid per tree: EEVEE shader displacement does
+  nothing in Blender 5.2 (tested: no vertex moves, EEVEE or Cycles). Leaves
+  (config.LEAF_*): ~1700 palette leaves looping down from the maple / birch / oak crowns
+  the lens passes nearest in LEAF_WINDOWS (fall, drift, flutter, tumble, faded at the
+  loop's ends); every frame checked in numpy with the node formula: never within 3 m of
+  the lens, never inside a building. Smoke (config.SMOKE_*): soft BLENDED alpha puffs
+  from each SMOKE_DESIGNS body's `mount_flue`, drifting with the wind; asserted >= 1.5 m
+  off the lens. Build +1 s (~22 s); per-frame render unchanged (8 preview_1080 frames
+  32.7 s vs Phase 9's 33.4 s: nothing time-dependent ray-casts or re-grounds per frame).
 - Buildings (Phases 5-6): `archkit` (parametric parts as polygon soups: walls with
   openings, roofs incl. `spire`, `overhead_door`, `boarded`, `wall_band`, `tower_walls`,
   `pointed_hood`; prototypes as linked children) painted by `archmats` (keys
@@ -360,13 +386,34 @@ tools/flyover/build.py`) for the reproducible build.
 - (9) Height: mostly 6-40 m; the reveal climbs to 72 m (the only view over 40 m). The
   canopy passes (48-50 s, 55-58 s) read as soft blurred crowns at 30-40 m: the 3 m tree
   clearance keeps leaves off the lens, not out of frame.
-- (9) The dusk animates 17:43 -> 18:00 over the first 8 s; the neon + lit bands cut on at
-  7.4 s with the motel sign in frame; the sun drops ~2 deg meanwhile (in the forest).
+- (9) The dusk animates 17:43 -> 18:00 over the first 7 s; the neon + lit bands cut on at
+  6.3 s (10: moved from 7.4 s so the V can blink in full view) with the motel sign centre
+  frame; the sun drops ~2 deg meanwhile (in the forest).
 - (9) Lens 35 mm throughout (no zooms); gentle bank <= 4 deg into turns; motion blur
   from the preset (180 deg shutter).
 - (9) Look fix: the height fog now follows the camera (the CamZ driver read 0 before),
   so high views are clearer than Phase 8's Cam_Overview still.
 - (9) Length 71 s (70 s asked): the extra second is the reveal's settle.
+- (10) The V: steady VACANCY from the cut-on (6.3 s), the V off 7.2-7.75 s with the sign
+  at 17-12 m, back on before it leaves frame (~8.2 s); then every 4 s off camera. The
+  spill lights dim with it (the game's PanelGlow). The neon cut moved 7.4 -> 6.3 s for
+  it (the dusk ramp is 0.8 s shorter at the start).
+- (10) Wind: canon is silent, so a light WESTERLY (New England's prevailing wind); trees
+  sway rigidly about the base, only within 90 m of the flight (the far forest is still;
+  sub-pixel there). Leaves drift east, smoke leans east.
+- (10) Falling leaves: sparse, only from the broadleaf crowns the camera passes nearest
+  (road-in, the fork-to-town and East Fork climbs, the east road-out); none from the
+  conifers; none land visibly (they fade at the ground).
+- (10) Chimney smoke: ONLY Billie's (BilliesBarMap: the hearth nook's fire, "the only
+  fire in the room", open all hours). Cold, with the canon checked: the FARMHOUSE (its
+  hearth has a fire tile in-game, but the farm "sat empty" before the sale and at 18:00
+  on day 1 Jane is at the town-hall meeting, IntroRules.MeetingStartMinuteOfDay 720;
+  OPEN QUESTION, since its windows are lit from the art: should it smoke?), the garage
+  (for sale, dark), hardware (closed), salon (closed after 5), the gas station's oil
+  flue (canon has no heating), Abe's stovepipe (Abe stands outside at all hours; no
+  hearth or interior in canon: open question), the concession (boarded), the mansion
+  (a ruin). The police station and town hall have no chimney.
+- (10) No birds, cars, people or other motion (none canon).
 
 ## The flight as built (Phase 9; 71.0 s, 2131 frames at 30 fps)
 
@@ -376,8 +423,8 @@ the 1080p beat stills (preview_1080) 3-8.5 s each.
 
 1. Road in (0-6.3 s): 12 -> 8.5 m over the west road-out's bend at 23 m/s, canopy both
    sides, the road running out of the trees at the town; the dusk ramps 17:43 -> 18:00.
-2. West Entry (6.3-16): the MOTEL pole sign passes at eye level on the left and its
-   neon cuts on at 7.4 s (the game's hard cut); the lot and Pell's sedan; a pan right to
+2. West Entry (6.3-16): the MOTEL pole sign passes at eye level on the left; its neon
+   cuts on at 6.3 s (the game's hard cut), the V blinks off 7.2-7.75 s as it passes; the lot and Pell's sedan; a pan right to
    the gas station (GAS / OPEN lit) and the dark garage. ~9-12 m/s.
 3. Billie's (16-22.5): over Billie's roof and lit windows, then slowing and dipping to
    6 m with the pit's cover low right: its two red seams, then on.
@@ -429,8 +476,8 @@ Each phase ends in a standalone, render-verified state. Tick them off here as th
   both render styles; Kevin picks.
 - [x] 9. Camera + animatic: storyboard with Kevin; path from the west road over the fork
   (look up toward the farm), the plaza, the mansion glimpse, the drive-in, out east.
-- [ ] 10. Life (optional): NO VACANCY's V blinking, neon flicker, wind, chimney smoke,
-  falling leaves.
+- [x] 10. Life (optional): NO VACANCY's V blinking, wind, chimney smoke, falling leaves
+  (neon flicker dropped: the V is the game's one animated sign).
 - [ ] 11. Final render + encode: PNG frames -> ffmpeg -> Theora `.ogv` (Godot 4's native
   format) + an `.mp4` preview; size check; into `assets/video/`.
 - [ ] 12. (Later, separate change) Play it in the intro, skippable, via StoryDirector.

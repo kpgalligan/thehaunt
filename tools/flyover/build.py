@@ -32,7 +32,7 @@ DEFAULT_OUT = os.path.join(PKG_DIR, "out", "town.blend")
 _MODULES = ("config", "world", "routes", "treeline", "terrain", "surfaces", "forest", "scene", "materials",
             "diorama", "ground", "road", "markings", "guides", "look", "output", "placeholders", "trees",
             "scatter", "cameras", "flight", "render", "archkit", "pixelfont", "archmats", "buildings_hero",
-            "buildings_town", "mansion", "propkit", "streetlights", "signs", "props")
+            "buildings_town", "mansion", "propkit", "streetlights", "signs", "props", "life")
 
 
 def _modules():
@@ -115,7 +115,9 @@ def build(world_path, only_map=None, diorama=False, finish=None):
             print(f"flyover: forest {len(world.forest.table.x)} instances "
                   f"{world.forest.table.counts()} in {time.time() - t1:.1f}s")
             solids = [bpy.data.collections.get(n) for n in (config.COL_HERO, config.COL_PROP_ART, config.COL_LIGHTS)]
-            world.flight, _cam = m["flight"].build(world, terr, cams, guides, m["trees"].kit_vertices(*kit), solids)
+            kv = m["trees"].kit_vertices(*kit)
+            world.flight, _cam = m["flight"].build(world, terr, cams, guides, kv, solids)
+            world.life = m["life"].build(world, terr, world.flight, kit, kv, grounds, root, fcol)
     cam = m["cameras"].build_topdown(world, cams)
     if not diorama:
         m["cameras"].build_views(world, world.terrain, cams)

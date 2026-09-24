@@ -118,8 +118,10 @@ AIM_KEYS = (
 )
 
 # (t, flyover_dusk): 17:43 light in the forest (0.86 of 16:00 -> 18:00); the neon cuts
-# on as the motel's sign fills the left of frame (DUSK_GATE's 0.97-0.995 ramp); 18:00 on.
-NEON_ON_S = 7.4
+# on with the motel's sign centre frame (DUSK_GATE's 0.97-0.995 ramp); 18:00 on. Phase 10
+# moved it from 7.4 s so the V has room to blink in full view (config.MOTEL_V_FIRST_OFF_S:
+# lit ~6.7 s, V off 7.2-7.75 s, back on before the sign leaves frame at ~8.2 s).
+NEON_ON_S = 6.3
 DUSK_KEYS = ((0.0, 0.86), (NEON_ON_S - 0.3, 0.968), (NEON_ON_S + 0.5, 1.0))
 
 
@@ -609,9 +611,9 @@ def _curve(name, pts, col, **props):
     return ob
 
 
-def _fcurves(idb, name, keys):
-    """A tagged action on idb with one LINEAR fcurve per (data_path, index, frames,
-    values). Returns the action."""
+def _fcurves(idb, name, keys, interp="LINEAR"):
+    """A tagged action on idb with one fcurve per (data_path, index, frames, values),
+    `interp` keys (LINEAR; life.py's V is CONSTANT). Returns the action."""
     import bpy
     from bpy_extras import anim_utils
     import scene
@@ -623,7 +625,7 @@ def _fcurves(idb, name, keys):
     ad.action = act
     ad.action_slot = slot
     bag = anim_utils.action_ensure_channelbag_for_slot(act, slot)
-    lin = bpy.types.Keyframe.bl_rna.properties["interpolation"].enum_items["LINEAR"].value
+    ip = bpy.types.Keyframe.bl_rna.properties["interpolation"].enum_items[interp].value
     for path, index, frames, values in keys:
         fc = bag.fcurves.new(path, index=index)
         kp = fc.keyframe_points
@@ -631,7 +633,7 @@ def _fcurves(idb, name, keys):
         co = np.empty(2 * len(frames))
         co[0::2], co[1::2] = frames, values
         kp.foreach_set("co", co)
-        kp.foreach_set("interpolation", [lin] * len(frames))
+        kp.foreach_set("interpolation", [ip] * len(frames))
         fc.update()
     return act
 
