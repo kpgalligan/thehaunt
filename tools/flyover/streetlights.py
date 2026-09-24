@@ -5,7 +5,8 @@ dump's street lights.
 Each: a concrete footing, a ribbed collar (ink), the tapered aluminium pole (stone-shade
 with its highlight), a davit mast arm rising in a curve to the luminaire, the cobra
 head's pale shell (stone-pale), dark underside and the prismatic refractor lens
-(LF_Street_*: object `glow` 1 lit / 0 dead x the scene's flyover_street_glow).
+(LF_Street_*: object `glow` 1 lit / 0 dead x the scene's flyover_street_glow), and under
+a lit head the game's pale cone (Phase 8: LF_StreetCone, `light_cone`).
 
 The arm: a light in the verge (by the kerb) reaches over the road, square to it, as a
 cobra head does (the game's cone and pool land ON the road); the plaza's two reach the
@@ -70,6 +71,22 @@ def cobra_head(lit):
     return p, lp, (hx0 + 0.45, 0.0, zh - 0.22)
 
 
+def light_cone(at, n=28):
+    """The game's cone (StreetLight.cs `_cone`, the handoff's pale wedge to the pool): an
+    open cone from just under the lens to the ground, LF_StreetCone (additive mercury
+    glow, brightest under the head and down its axis; casts no shadow)."""
+    p = ak.Part()
+    x, y, z = at
+    r0, r1 = 0.14, config.STREET_CONE_SPREAD * z
+    ring = [(math.cos(2 * math.pi * k / n), math.sin(2 * math.pi * k / n)) for k in range(n)]
+    for k in range(n):
+        (ca, sa), (cb, sb) = ring[k], ring[(k + 1) % n]
+        p.quad((x + r1 * ca, y + r1 * sa, 0.03), (x + r1 * cb, y + r1 * sb, 0.03),
+               (x + r0 * cb, y + r0 * sb, z - 0.02), (x + r0 * ca, y + r0 * sa, z - 0.02), "streetcone:mercury-cone",
+               smooth=True)
+    return p
+
+
 def build(world, routes, placer, lights_col):
     """Every dump street light. Returns the number built."""
     import bpy
@@ -96,6 +113,9 @@ def build(world, routes, placer, lights_col):
             asm.body = body_p
             asm.protos["Lens"] = lens_p
             asm.place("Lens", T(), glow=1.0 if lit else 0.0)
+            if lit:
+                asm.protos["Cone"] = light_cone(lens_at)
+                asm.place("Cone", T(), glow=1.0)
             name = f"StreetLight_{placed.id}_{lt.get('id') or i}"
             z = placer.z(x, y)
             body = placer.put(asm, name, x, y, rot=rot, z=z, map_id=placed.id, dump_id=lt.get("id"),
@@ -103,6 +123,10 @@ def build(world, routes, placer, lights_col):
             n += 1
             if not lit:
                 continue
+            for ob in body.children:
+                if ob.get("proto") == "Cone":
+                    ob.visible_shadow = False           # a glow in the air: never an occluder
+                    ob["kind"] = "light_cone"
             L = scene.tag(bpy.data.lights.new(f"Light_Street_{placed.id}_{i}", "SPOT"))
             L.color = config.hex_rgba(config.colour("mercury"))[:3]
             L.spot_size = math.radians(config.STREET_SPOT_DEG[0])
@@ -119,18 +143,21 @@ def build(world, routes, placer, lights_col):
 
 
 def drive(idb, path, prop, scale, index=-1):
-    """idb.path = scale x the scene's custom property `prop` (a driver: Phase 8 and 10
-    animate the one property). A plain `v * k` expression runs without Python (the
-    simple-expression evaluator), so it evaluates headless too."""
+    """idb.path = scale x the scene's custom property `prop` x the family's gate over the
+    time of the light (config.DUSK_GATE over flyover_dusk; Phase 8), as a driver: Phase 9
+    / 10 animate the properties. `v * k * clamp(...)` stays a simple expression (runs
+    without Python), so it evaluates headless too."""
     import bpy
     fc = idb.driver_add(path) if index < 0 else idb.driver_add(path, index)
     d = fc.driver
     d.type = "SCRIPTED"
-    v = d.variables.new()
-    v.name = "v"
-    v.type = "SINGLE_PROP"
-    v.targets[0].id_type = "SCENE"
-    v.targets[0].id = bpy.context.scene
-    v.targets[0].data_path = f'["{prop}"]'
-    d.expression = f"v * {float(scale)!r}"
+    for name, p in (("v", prop), ("d", config.DUSK_PROP)):
+        v = d.variables.new()
+        v.name = name
+        v.type = "SINGLE_PROP"
+        v.targets[0].id_type = "SCENE"
+        v.targets[0].id = bpy.context.scene
+        v.targets[0].data_path = f'["{p}"]'
+    a, b = config.DUSK_GATE[prop]
+    d.expression = f"v * {float(scale)!r} * clamp((d - {a!r}) / {b - a!r}, 0.0, 1.0)"
     return fc

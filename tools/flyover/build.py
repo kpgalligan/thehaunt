@@ -4,10 +4,12 @@ Headless:
     Blender --background --python tools/flyover/build.py -- --world <dump.json>
         [--out tools/flyover/out/town.blend] [--only-map <id>]
         [--render-dir <dir>] [--px-per-tile 6] [--diorama] [--views]
+        [--finish clear_dusk|misty_dusk|blue_hour] [--dusk 0..1]
   --diorama builds the Phase 2 flat per-tile diorama instead of terrain + roads (the
   top-down layout/fidelity reference). --views also renders the EEVEE perspective
   stills (named cameras) + an EEVEE top-down into --render-dir
-  ([--view-names a,b] [--view-res 3840x2160] [--samples 32] [--no-layout]).
+  ([--view-names a,b] [--preset preview_1080|final_2160] [--view-res WxH] [--samples n]
+  [--no-layout]).
   Opens --out if it exists (the rebuild replaces only the Flyover tree inside it),
   otherwise starts from an empty file; saves back to --out.
 
@@ -28,7 +30,7 @@ if PKG_DIR not in sys.path:
 
 DEFAULT_OUT = os.path.join(PKG_DIR, "out", "town.blend")
 _MODULES = ("config", "world", "routes", "treeline", "terrain", "surfaces", "forest", "scene", "materials",
-            "diorama", "ground", "road", "markings", "guides", "templight", "placeholders", "trees",
+            "diorama", "ground", "road", "markings", "guides", "look", "output", "placeholders", "trees",
             "scatter", "cameras", "render", "archkit", "pixelfont", "archmats", "buildings_hero",
             "buildings_town", "mansion", "propkit", "streetlights", "signs", "props")
 
@@ -41,9 +43,10 @@ def _modules():
     return mods
 
 
-def build(world_path, only_map=None, diorama=False):
+def build(world_path, only_map=None, diorama=False, finish=None):
     """Wipe and regenerate the Flyover tree in the current file. Returns the World
-    (with .terrain attached unless diorama)."""
+    (with .terrain attached unless diorama). finish: a look.FINISHES name (default
+    config.FINISH)."""
     import time
     t0 = time.time()
     m = _modules()
@@ -71,7 +74,7 @@ def build(world_path, only_map=None, diorama=False):
         terr = m["terrain"].Terrain(world, routes)
         world.terrain = terr
         guides = scene.collection(config.COL_GUIDES, root)
-        light = scene.collection(config.COL_TEMP_LIGHT, root)
+        light = scene.collection(config.COL_LOOK, root)
         m["materials"].surface_materials(mats, world, terr)
         m["materials"].road_materials(mats)
         paint = m["materials"].paint_material(mats)
@@ -80,7 +83,7 @@ def build(world_path, only_map=None, diorama=False):
             m["road"].build(terr, ground, mats)
         m["markings"].build(world, terr, ground, paint, only_map)
         m["guides"].build(terr, guides)
-        m["templight"].build(light)
+        m["look"].build(light, finish)
         t1 = time.time()
         hero = scene.collection(config.COL_HERO, root)
         world.buildings = m["buildings_hero"].build(world, terr, hero, mats, only_map)
@@ -114,6 +117,7 @@ def build(world_path, only_map=None, diorama=False):
         m["cameras"].build_views(world, world.terrain, cams)
     if only_map is not None:
         m["cameras"].frame_map(world, only_map, cam)
+    m["output"].apply(m["output"].DEFAULT)
     print(f"flyover: built in {time.time() - t0:.1f}s")
     return world
 
@@ -153,9 +157,10 @@ def render_stills(world, out_dir, px_per_tile=6, only_map=None):
     return _modules()["render"].stills(world, out_dir, px_per_tile, only_map)
 
 
-def render_views(world, out_dir, names=VIEWS, samples=32, res=(1920, 1080), topdown=True, suffix=""):
+def render_views(world, out_dir, names=VIEWS, preset="preview_1080", samples=None, res=None, topdown=True,
+                 suffix=""):
     import render
-    return render.eevee_stills(world, out_dir, names, res=res, samples=samples, topdown=topdown,
+    return render.eevee_stills(world, out_dir, names, preset=preset, res=res, samples=samples, topdown=topdown,
                                suffix=suffix)
 
 
@@ -170,8 +175,11 @@ def _parse(argv):
     p.add_argument("--diorama", action="store_true", help="the flat Phase 2 diorama instead")
     p.add_argument("--views", action="store_true", help="also render the EEVEE view stills")
     p.add_argument("--view-names", default=None, help="comma-separated cameras (default: all)")
-    p.add_argument("--view-res", default="1920x1080", help="EEVEE still size, e.g. 3840x2160")
-    p.add_argument("--samples", type=int, default=32, help="EEVEE samples per still")
+    p.add_argument("--finish", default=None, help="the look: clear_dusk (default) / misty_dusk / blue_hour")
+    p.add_argument("--dusk", type=float, default=None, help="the time of the light, 0 = 16:00 .. 1 = dusk")
+    p.add_argument("--preset", default="preview_1080", help="output preset for --views (output.PRESETS)")
+    p.add_argument("--view-res", default=None, help="override the preset's size, e.g. 3840x2160")
+    p.add_argument("--samples", type=int, default=None, help="override the preset's EEVEE samples")
     p.add_argument("--no-layout", action="store_true", help="skip the Workbench layout stills")
     return p.parse_args(argv)
 
@@ -184,7 +192,9 @@ def main():
         bpy.ops.wm.open_mainfile(filepath=out)
     else:
         bpy.ops.wm.read_homefile(use_empty=True)
-    world = build(os.path.abspath(args.world), args.only_map, args.diorama)
+    world = build(os.path.abspath(args.world), args.only_map, args.diorama, args.finish)
+    if args.dusk is not None and not args.diorama:
+        sys.modules["look"].set_dusk(args.dusk)
     os.makedirs(os.path.dirname(out), exist_ok=True)
     bpy.ops.wm.save_as_mainfile(filepath=out)
     print(f"flyover: saved {out}")
@@ -195,10 +205,11 @@ def main():
                 print(f"flyover: rendered {path}")
         if args.views and not args.diorama:
             names = args.view_names.split(",") if args.view_names else VIEWS
-            w, h = (int(v) for v in args.view_res.split("x"))
-            suffix = "" if (w, h) == (1920, 1080) else f"_{h}p"
-            for path, secs in render_views(world, os.path.abspath(args.render_dir), names,
-                                           args.samples, (w, h), topdown=args.view_names is None,
+            res = tuple(int(v) for v in args.view_res.split("x")) if args.view_res else None
+            h = (res or sys.modules["output"].PRESETS[args.preset]["res"])[1]
+            suffix = "" if h == 1080 else f"_{h}p"
+            for path, secs in render_views(world, os.path.abspath(args.render_dir), names, args.preset,
+                                           args.samples, res, topdown=args.view_names is None,
                                            suffix=suffix):
                 print(f"flyover: rendered {path} in {secs:.1f}s")
 

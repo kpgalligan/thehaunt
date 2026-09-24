@@ -21,6 +21,7 @@ class _Saved:
         self.vals = dict(engine=r.engine, rx=r.resolution_x, ry=r.resolution_y,
                          pct=r.resolution_percentage, fp=r.filepath, cam=sc.camera,
                          vt=sc.view_settings.view_transform, look=sc.view_settings.look,
+                         exp=sc.view_settings.exposure, comp=r.use_compositing,
                          light=sh.light, ctype=sh.color_type)
         cam = bpy.data.objects[config.CAMERA_TOPDOWN]
         self.cam_loc, self.cam_scale = tuple(cam.location), cam.data.ortho_scale
@@ -31,6 +32,7 @@ class _Saved:
         r.engine, r.resolution_x, r.resolution_y = v["engine"], v["rx"], v["ry"]
         r.resolution_percentage, r.filepath, sc.camera = v["pct"], v["fp"], v["cam"]
         sc.view_settings.view_transform, sc.view_settings.look = v["vt"], v["look"]
+        sc.view_settings.exposure, r.use_compositing = v["exp"], v["comp"]
         sh.light, sh.color_type = v["light"], v["ctype"]
         cam = bpy.data.objects[config.CAMERA_TOPDOWN]
         cam.location, cam.data.ortho_scale = self.cam_loc, self.cam_scale
@@ -41,7 +43,10 @@ def still(world, path, map_id=None, px_per_tile=6):
     saved = _Saved(sc)
     forest = bpy.data.collections.get(config.COL_FOREST)
     hidden = forest.hide_render if forest is not None else None
+    cones = [ob for ob in bpy.data.objects if ob.get("kind") == "light_cone" and not ob.hide_render]
     try:
+        for ob in cones:            # a glow in the air, not a solid
+            ob.hide_render = True
         if forest is not None:      # the layout check shows the ground, not the canopy
             forest.hide_render = True
         x0, y0, x1, y1 = cameras.rect_m(world, map_id)
@@ -56,6 +61,8 @@ def still(world, path, map_id=None, px_per_tile=6):
         sc.display.shading.color_type = "MATERIAL"
         sc.view_settings.view_transform = "Standard"
         sc.view_settings.look = "None"
+        sc.view_settings.exposure = 0.0
+        r.use_compositing = False          # no haze / grade: exact palette colours
         cam = bpy.data.objects[config.CAMERA_TOPDOWN]
         sc.camera = cam
         cameras.frame(cam, (x0, y0, x1, y1), r.resolution_x / r.resolution_y)
@@ -63,6 +70,8 @@ def still(world, path, map_id=None, px_per_tile=6):
         bpy.ops.render.render(write_still=True)
     finally:
         saved.restore()
+        for ob in cones:
+            ob.hide_render = False
         if forest is not None:
             forest.hide_render = hidden
     return path
@@ -81,28 +90,26 @@ def stills(world, out_dir, px_per_tile=6, only=None):
 
 # ---------------------------------------------------------------------------
 # EEVEE perspective stills from the named views (cameras.build_views) + an EEVEE
-# top-down, under the temporary light (templight). Settings restored afterwards.
+# top-down, in the film's look (look.py) at an output preset (output.py). Settings
+# restored afterwards.
 # ---------------------------------------------------------------------------
 
-def eevee_stills(world, out_dir, names, res=(1280, 720), samples=16, topdown=True, suffix=""):
+def eevee_stills(world, out_dir, names, preset="preview_1080", res=None, samples=None, topdown=True, suffix=""):
+    """Render each named camera; returns [(path, seconds)]."""
     import time
+
+    import output
     sc = bpy.context.scene
     r = sc.render
-    saved = dict(engine=r.engine, rx=r.resolution_x, ry=r.resolution_y,
-                 pct=r.resolution_percentage, fp=r.filepath, cam=sc.camera,
-                 vt=sc.view_settings.view_transform, look=sc.view_settings.look,
-                 samples=sc.eevee.taa_render_samples)
+    saved = dict(rx=r.resolution_x, ry=r.resolution_y, fp=r.filepath, cam=sc.camera,
+                 preset=sc.get("flyover_output", output.DEFAULT))
     top = bpy.data.objects[config.CAMERA_TOPDOWN]
     top_loc, top_scale = tuple(top.location), top.data.ortho_scale
     os.makedirs(out_dir, exist_ok=True)
     timings = []
     try:
-        r.engine = "BLENDER_EEVEE"
-        r.resolution_x, r.resolution_y = res
-        r.resolution_percentage = 100
-        sc.eevee.taa_render_samples = samples
-        sc.view_settings.view_transform = "Standard"
-        sc.view_settings.look = "None"
+        p = output.apply(preset, sc, res, samples)
+        res = res or p["res"]
         jobs = [(n, bpy.data.objects[n]) for n in names]
         if topdown:
             jobs.append(("TopDown_eevee", top))
@@ -120,9 +127,7 @@ def eevee_stills(world, out_dir, names, res=(1280, 720), samples=16, topdown=Tru
             bpy.ops.render.render(write_still=True)
             timings.append((path, time.time() - t0))
     finally:
-        r.engine, r.resolution_x, r.resolution_y = saved["engine"], saved["rx"], saved["ry"]
-        r.resolution_percentage, r.filepath, sc.camera = saved["pct"], saved["fp"], saved["cam"]
-        sc.view_settings.view_transform, sc.view_settings.look = saved["vt"], saved["look"]
-        sc.eevee.taa_render_samples = saved["samples"]
+        output.apply(saved["preset"], sc)
+        r.resolution_x, r.resolution_y, r.filepath, sc.camera = saved["rx"], saved["ry"], saved["fp"], saved["cam"]
         top.location, top.data.ortho_scale = top_loc, top_scale
     return timings

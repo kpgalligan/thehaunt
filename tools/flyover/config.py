@@ -396,15 +396,15 @@ ART_COLOURS = {"aqua": "#5fb9b0"}
 #   mercury-vapour street light            -> STREET_GLOW_PROP, LF_Street_* + spot lights (Phase 7)
 #   (the sign lamp and the pit glow are families of their own: SIGN_GLOW_PROP, PIT_GLOW_PROP)
 WINDOW_GLOW_PROP = "flyover_window_glow"
-WINDOW_GLOW = 1.0           # the build's default (Phase 8 animates / sets it for dusk)
-WINDOW_EMIT = 1.2           # emission strength at glow 1
+WINDOW_GLOW = 1.0           # the family's level at full dusk (Phase 8: x its flyover_dusk gate)
+WINDOW_EMIT = 0.75          # emission strength at glow 1 (Phase 8: amber, not blown, under AgX)
 NEON_GLOW_PROP = "flyover_neon_glow"
-NEON_GLOW = 0.0             # off until Phase 7/8 light the signs
+NEON_GLOW = 1.0             # lit at dusk (Phase 8; gated by flyover_dusk)
 NEON_EMIT = 8.0
 # A LIT wall band (WallBandSign: cream letters by day, lantern after dusk, lit from
 # below) is its own family, the sign lamp: its letters + the trough lamp under the band.
 SIGN_GLOW_PROP = "flyover_sign_glow"
-SIGN_GLOW = 0.0             # off until Phase 8 (like the neon)
+SIGN_GLOW = 1.0             # lit at dusk (Phase 8; gated by flyover_dusk)
 SIGN_EMIT = 3.0
 
 # ---------------------------------------------------------------------------
@@ -450,10 +450,12 @@ COL_LIGHTS = "Flyover_Lights"       # the Blender lights the light families driv
 # (the spot's energy by a driver). StreetLight.cs's cold blue-green, deliberately
 # outside the warm palette (motel handoff), as art colours.
 STREET_GLOW_PROP = "flyover_street_glow"
-STREET_GLOW = 0.0           # off until Phase 8 (dusk)
+STREET_GLOW = 1.0           # lit at dusk (Phase 8; gated by flyover_dusk)
 STREET_EMIT = 6.0
-STREET_LIGHT_W = 900.0      # spot energy at glow 1 (Phase 8 tunes)
+STREET_LIGHT_W = 1500.0     # spot energy at glow 1 (Phase 8: a readable pool on the road)
 STREET_SPOT_DEG = (118.0, 0.55)     # spot size, blend: a directed cone, not a radial
+STREET_CONE_SPREAD = 0.5    # the visible cone's radius at the ground / the lens height (Phase 8)
+STREET_CONE_EMIT = 0.15     # its emission at the core, just under the lens
 ART_COLOURS["mercury"] = "#afe6e1"      # StreetLight.Mercury (175, 230, 225)
 ART_COLOURS["mercury-cone"] = "#bee6e1"  # ConeTop (190, 235, 230): the lens
 STREET_POLE_M = 8.6         # base to the arm's root (aluminium, tapered)
@@ -461,9 +463,9 @@ STREET_ARM_M = 2.6          # the mast arm's reach
 # The pit (Kevin: "a slight red glow coming from the pit"): the 6th family, its own
 # property. A hidden point light under the planks + the void's faint emission.
 PIT_GLOW_PROP = "flyover_pit_glow"
-PIT_GLOW = 0.0              # off until Phase 8
+PIT_GLOW = 1.0              # the faint glow (Phase 8; gated by flyover_dusk)
 PIT_EMIT = 0.45
-PIT_LIGHT_W = 60.0
+PIT_LIGHT_W = 25.0
 ART_COLOURS["pit-red"] = "#b8402c"     # barn-red toward the neon red: an ember, not a beacon
 # Signs that hang lights of their own on the NEON family (the sign circuit: the motel's
 # red spill and bulb rail, the BAR bulb): point lights, energy = W x flyover_neon_glow.
@@ -478,6 +480,25 @@ POLE_SIGN_PX_M = {"MotelSign": 0.05, "FireworksPole": 0.07, "Marquee": 0.08}   #
 POLE_SIGN_BOTTOM_M = {"MotelSign": 4.2, "FireworksPole": 3.0, "Marquee": 2.6}   # cabinet underside
 PROP_SEED = 17
 
+# ---------------------------------------------------------------------------
+# Phase 8: look-dev (look.py: sun, sky, haze, grade, finishes) + output.py (render
+# presets). The film's canonical lighting state is the game's at FILM_MINUTE.
+# ---------------------------------------------------------------------------
+
+FILM_MINUTE = 720           # 18:00, DayNight.cs's dusk key ("lanterns light here")
+SHOP_HOURS = (180, 660)     # Core/ShopHours.cs 9-5: the general store's open / closed facade
+# The time of the light: one scene property, 0 = 16:00 (the last day key, late
+# afternoon) .. 1 = 18:00 (dusk). It drives the sun, sky, haze and every family's gate.
+DUSK_PROP = "flyover_dusk"
+# Each family's on-ramp over flyover_dusk (emission and lights = object glow x family
+# level x gate): the game's LightLevel ramps windows / street lights in from 16:00 to
+# 18:00; DayNight.SignsLit hard-cuts neon, sign bulbs and lit bands at 18:00 (a cut
+# over the last 2.5% so a flight through it reads as the signs flicking on).
+DUSK_GATE = {WINDOW_GLOW_PROP: (0.0, 1.0), STREET_GLOW_PROP: (0.0, 1.0), PIT_GLOW_PROP: (0.0, 1.0),
+             NEON_GLOW_PROP: (0.97, 0.995), SIGN_GLOW_PROP: (0.97, 0.995)}
+FINISH = "clear_dusk"       # the default finish (look.FINISHES; build.py --finish)
+COL_LOOK = "Flyover_Look"   # the sun (the world and the compositor tree are datablocks)
+
 # Trees: a crown may overhang a roof but never pass through a building (buildings_hero
 # ray-casts each building into a height field; forest.clear_crowns drops the trees
 # whose kit geometry would reach into it, with this clearance).
@@ -490,7 +511,6 @@ CLIP_END_M = 9000.0
 
 # Collections added in Phase 3.
 COL_GUIDES = "Flyover_Guides"
-COL_TEMP_LIGHT = "Flyover_TempLight"
 
 # The Phase 2 layout markers (placeholders.py): the --diorama build only.
 BUILDING_HEIGHT_M = 3.0

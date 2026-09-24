@@ -201,9 +201,33 @@ def town_hall(W, D, zb, ctx):
 
 # ---------------------------------------------------------------------------
 # General store: clapboard, one storey, cedar-shake side gable, three windows, blade
-# sign on an iron bracket (no lettering), open (lit windows, the door open on a lit
-# interior)
+# sign on an iron bracket (no lettering). Open or closed by ShopHours at the film's
+# minute (StoreFacade.cs swaps building_store.png's variants): open = lit windows, the
+# door open on a lit interior; closed (the film's 18:00) = the outer two windows behind
+# shut louvred shutters, the middle one dark glass, the panelled door shut, all dark.
 # ---------------------------------------------------------------------------
+
+def shutters(w, h, paint="paint:wood-warm"):
+    """A pair of closed louvred shutters filling a w x h opening, in the reveal just
+    behind the wall face (window coordinates: centred x, bottom z 0, outside -Y)."""
+    p = ak.Part()
+    hw, y0, st = w / 2, 0.012, 0.07
+    for x0, x1 in ((-hw, -0.004), (0.004, hw)):
+        p.box(x0, y0 + 0.03, 0.0, x1, y0 + 0.05, h, "paint:earth-dark", skip=("back",))   # the dark behind the louvres
+        p.box(x0, y0, 0.0, x0 + st, y0 + 0.03, h, paint, skip=("back",))                  # stiles
+        p.box(x1 - st, y0, 0.0, x1, y0 + 0.03, h, paint, skip=("back",))
+        for za, zb in ((0.0, st * 1.4), (h / 2 - st / 2, h / 2 + st / 2), (h - st, h)):      # rails
+            p.box(x0 + st, y0, za, x1 - st, y0 + 0.03, zb, paint, skip=("back",))
+        for z0, z1 in ((st * 1.4, h / 2 - st / 2), (h / 2 + st / 2, h - st)):             # the louvres
+            n = max(2, int((z1 - z0) / 0.075))
+            for k in range(n):
+                za = z0 + (z1 - z0) * k / n
+                p.box(x0 + st, y0 + 0.004, za + 0.008, x1 - st, y0 + 0.026, za + (z1 - z0) / n, paint,
+                      skip=("back",))
+        p.cylinder((x1 - 0.12 if x0 < 0 else x0 + 0.12, y0, h / 2), (x1 - 0.12 if x0 < 0 else x0 + 0.12, y0 - 0.04,
+                   h / 2), 0.015, "metal:ink-900", n=6)                                       # the turn-button
+    return p
+
 
 def general_store(W, D, zb, ctx):
     a = ak.Assembly("GeneralStore")
@@ -218,21 +242,34 @@ def general_store(W, D, zb, ctx):
                                            casing_w=0.12, sill="trim:cream"))
     attic = a.proto("Win_Attic", lambda: ak.window(0.7, 0.95, 0.16, (2, 2), sash="fixed", frame="trim_dark",
                                                    casing="trim_dark", casing_w=0.1, sill="trim:cream"))
-    door = a.proto("Door", lambda: ak.door(1.0, 2.25, 0.16, paint="paint:wood-warm", glass_upper=True,
-                                           transom=0.4, casing="trim_dark", open_deg=72.0,
-                                           interior=(1.8, "paint:earth-base", "deck:wood-warm")))
+    is_open = ctx["open"]
+    if is_open:
+        door = a.proto("Door", lambda: ak.door(1.0, 2.25, 0.16, paint="paint:wood-warm", glass_upper=True,
+                                               transom=0.4, casing="trim_dark", open_deg=72.0,
+                                               interior=(1.8, "paint:earth-base", "deck:wood-warm")))
+    else:
+        door = a.proto("Door_Shut", lambda: ak.door(1.0, 2.25, 0.16, paint="paint:wood-warm", transom=0.4,
+                                                    casing="trim_dark"))
+
+    def _shuttered():
+        p = ak.window(1.25, 1.65, 0.16, (2, 2), frame="trim_dark", casing="trim_dark", casing_w=0.12,
+                      sill="trim:cream")
+        p.add(shutters(1.25, 1.65), T())
+        return p
+    shut = a.proto("Win_Shuttered", _shuttered) if not is_open else win
     door_back = a.proto("Door_Back", lambda: ak.door(1.0, 2.2, 0.16, paint="paint:wood-warm", casing="trim_dark"))
     walls = Walls(a, rect, zp, zw, "clapboard:cream", 0.16)
     xd = ctx["door_x"]
-    for xa in ctx["windows"]:
-        walls.add("S", xa, 1.25, 1.45, 1.65, win, glow=1.0)
-    walls.add("S", xd, 1.0, zp, 2.65, door, glow=1.0)
+    lit = 1.0 if is_open else 0.0
+    for k, xa in enumerate(ctx["windows"]):
+        walls.add("S", xa, 1.25, 1.45, 1.65, shut if k != 1 else win, glow=lit)
+    walls.add("S", xd, 1.0, zp, 2.65, door, glow=lit)
     for x in (x0 + 3.2, x1 - 3.2):
         walls.add("N", x, 1.25, 1.45, 1.65, win, glow=0.0)
     walls.add("N", x0 + 6.4, 1.0, zp, 2.2, door_back, glow=0.0)
     ym = (y0 + y1) / 2
     for s in "EW":
-        walls.add(s, ym, 1.25, 1.45, 1.65, win, glow=1.0 if s == "W" else 0.0)
+        walls.add(s, ym, 1.25, 1.45, 1.65, win, glow=lit if s == "W" else 0.0)
         walls.add(s, ym, 0.7, zw + 0.9, 0.95, attic, glow=0.0)
     walls.top("E", profile_tops(prof, y0, y1))
     walls.top("W", profile_tops(prof, y0, y1, reverse=True))
@@ -764,6 +801,7 @@ def context(placed, bld):
     ctx = {}
     dx = (bld["door"]["x"] - bld["x"] + 0.5) * TM if bld.get("door") else None
     if art == "general_store":
+        ctx["open"] = config.SHOP_HOURS[0] <= config.FILM_MINUTE < config.SHOP_HOURS[1]   # StoreFacade.cs
         ctx["door_x"] = dx                                  # building_store.png: windows at px 19, 39, 93
         ctx["windows"] = [_px_x(bld, 19), _px_x(bld, 39), _px_x(bld, 93)]
     elif art == "farmhouse":

@@ -36,10 +36,12 @@ tools/flyover/build.py`) for the reproducible build.
   `godot-mono --headless --path . -- --dump-world /tmp/world.json`, then
   `/Applications/Blender.app/Contents/MacOS/Blender --background --python
   tools/flyover/build.py -- --world /tmp/world.json [--out <blend>] [--only-map <id>]
-  [--render-dir <dir> --px-per-tile 6] [--views] [--diorama]`. `--views` adds the EEVEE
-  stills from the named cameras (+ an EEVEE top-down; `--view-names a,b`, `--view-res
-  3840x2160`, `--samples 32`, `--no-layout` skips the Workbench stills); `--diorama` builds the Phase 2
-  flat per-tile diorama instead of terrain + roads (the layout/fidelity reference).
+  [--render-dir <dir> --px-per-tile 6] [--views] [--diorama] [--finish <name>] [--dusk
+  0..1]`. `--views` adds the EEVEE stills from the named cameras (+ an EEVEE top-down;
+  `--view-names a,b`, `--preset preview_1080|final_2160`, `--view-res WxH` / `--samples n`
+  override it, `--no-layout` skips the Workbench stills); `--finish` picks the look
+  (look.FINISHES, default clear_dusk), `--dusk` the time of the light; `--diorama` builds
+  the Phase 2 flat per-tile diorama instead of terrain + roads (the layout/fidelity reference).
   Out defaults to `tools/flyover/out/town.blend`
   (git-ignored); an existing out file is reopened and rebuilt in place.
 - Live session (MCP execute code): `import sys; sys.path.insert(0,
@@ -62,7 +64,7 @@ tools/flyover/build.py`) for the reproducible build.
   in three float images; numpy) ->
   `ground` (smooth-shaded meshes), `road` (swept paved road), `markings` (lot paint
   decals), `materials` (one ground look painting the fields, EEVEE), `guides`,
-  `templight` (TEMPORARY sun + sky; Phase 8 replaces it), `cameras` (Cam_TopDown +
+  `look` + `output` (Phase 8, below), `cameras` (Cam_TopDown +
   named views), `forest` (the planting table: density field, species, colours, LOD;
   numpy; `plant()` asserts the keep-outs on exact geometry), `trees` (the kit: a body
   + a leaf-card prototype per variant, metaball crowns, three materials), `scatter`
@@ -74,7 +76,7 @@ tools/flyover/build.py`) for the reproducible build.
   Alpha only where it cannot cast shadow (transparent shadows cost ~18x).
 - Layout: everything lives under the `Flyover` collection (Flyover_Ground,
   Flyover_Buildings, Flyover_Props, Flyover_Lights, Flyover_Cameras, Flyover_Guides,
-  Flyover_TempLight, Flyover_ForestKit + Flyover_ForestCards (excluded from the view
+  Flyover_Look, Flyover_ForestKit + Flyover_ForestCards (excluded from the view
   layer), Flyover_Forest; the `--diorama` build alone makes Placeholders_*); every datablock the build makes carries the `flyover` ID
   property, and a rebuild removes exactly those. Ground meshes: one per map plus
   Ground_Terrain (outside the maps, forest floor), face material_index =
@@ -149,6 +151,40 @@ tools/flyover/build.py`) for the reproducible build.
   (flyover_pit_glow: LF_Pit void + Light_Pit_Under / _Leak); lights in Flyover_Lights,
   each `energy = W x property`. The motel's V is its own object (`..._Neon_V_*`, glow 1)
   for Phase 10; NO is glow 0.
+- Look-dev (Phase 8): `look` = the Sun (Flyover_Look), the world Flyover_Sky (a painted
+  palette gradient + sun glow + disc, not the physical sky; it is also the cool fill) and
+  the compositor tree Flyover_Grade (analytic exponential HEIGHT FOG from the Depth +
+  Position passes between the camera's height and the point's, + a distance haze; the
+  terrain mask grows 2 px so ridge edges get no dark fringe; bloom; lift / gamma / gain;
+  vignette), view transform AgX. ONE time control, `flyover_dusk` (config.DUSK_PROP: 0 =
+  16:00 .. 1 = 18:00): every keyed value (sun elevation / azimuth / energy / colour, sky
+  colours, haze, fog colour) is a `lerp(afternoon, dusk, d)` simple-expression driver
+  (evaluates headless; look.AFTERNOON vs the finish's key), and every light family is
+  gated by it (config.DUSK_GATE, in archmats `_lit` and streetlights `drive`: windows,
+  street, pit ramp in with the game's LightLevel 16:00 -> 18:00; neon + lit bands cut on
+  at 0.97-0.995, DayNight.SignsLit's hard cut). Family properties stay independent levels
+  (default 1 = canonical dusk). `look.apply_finish(name)` re-keys live; `look.set_dusk(v)`.
+  FINISHES: clear_dusk (default), misty_dusk, blue_hour. Street lights also carry the
+  game's CONE (`light_cone`, LF_StreetCone: additive, shadowless, hidden in the Workbench
+  stills). `output` = render presets preview_1080 / final_2160 (build leaves preview set);
+  render.eevee_stills renders through a preset in the film's look.
+- Canon lighting at the film's minute (config.FILM_MINUTE 720 = 18:00, the dusk key), per
+  the game's own rules:
+  - General store: CLOSED (ShopHours 9-5, StoreFacade's closed variant): outer windows
+    shuttered, middle window dark glass, panelled door shut, all dark.
+  - Salon: OPEN neon OFF (NeonWordSign OnAt = ShopHours; dump onMinutes 180-659), shop
+    windows dark; SALON band LIT (WallBandSign LitAtNight default true).
+  - Gas station: OPEN neon ON (onMinutes 60-1139, GasStation 7 AM-1 AM), office lit, GAS lit.
+  - Garage (for sale) / hardware (closed): bands LitAtNight false, all dark.
+  - Police: POLICE band lit (LitAtNight), front office lit. Town hall: windows + cupola lit.
+  - Billie's: windows lit (drunks at all open hours), BAR bracket bulb on (BracketSign:
+    DayNight.SignsLit at 18:00).
+  - Motel: sign on (MotelSign night): NO dark (circuit A, never in Act I), ACANCY + V lit
+    (V blinks in Phase 10), bulb rail + starburst on; room 3 lit (dump RoomGlow); office lit.
+  - Street lights: on (LightLevel 0.55 at 18:00) except the dead EastLightDead (lit false).
+  - Drive-in: dead and dark (PoleSign: "nobody else out here pays to light one"; SNACKS
+    LitAtNight false). FIREWORKS pole: unlit (PoleSign).
+  - Shack: one window at a faint lamp (glow 0.35). Mansion: dark. Pit: the faint red glow.
 
 ## Decisions (Kevin, 2026-09-23)
 
@@ -187,9 +223,11 @@ tools/flyover/build.py`) for the reproducible build.
   centred on the facade (the art centres it; the collision tile is half a tile west);
   doors shown closed; granite steps with cheek walls; a plain back door + stoop; no
   chimney (none drawn).
-- General store: side-gable cedar shake, gable-end attic windows, a back door; drawn
-  OPEN (as scene_dusk): lit windows, door ajar on a lit hall. The bracket sign is a
-  blank BLADE sign (square to the road) with the two drawn cream rules.
+- General store: side-gable cedar shake, gable-end attic windows, a back door. The
+  bracket sign is a blank BLADE sign (square to the road) with the two drawn cream rules.
+  (8) Shown CLOSED at the film's 18:00 (ShopHours; scene_dusk draws it open): louvred
+  shutters on the outer two windows, dark glass between, door shut. The open state is
+  still built (config.FILM_MINUTE inside SHOP_HOURS).
 - Motel: the office and strip are real depths (10 / 9 m), not the 17.5 m footprint
   (the 2D footprint blocks the drawn facade's height); lawn behind to the treeline. The
   strip's aqua posts carry a canopy over the concrete walk (the googie stripe is its
@@ -206,10 +244,10 @@ tools/flyover/build.py`) for the reproducible build.
   would pass through the roof).
 - Motel aqua #5fb9b0 (motel handoff) is config.ART_COLOURS, used on the motel only.
 - (6) OPEN neon: NeonWordSign.cs's #e05a3f lit / #6d4038 dead tube (ART_COLOURS neon-red /
-  neon-dead), hung in the window on a dark backing board. At NEON_EMIT 8 under Standard
-  it clips to near-white: Phase 8 exposure.
+  neon-dead), hung in the window on a dark backing board. (8) Under AgX + bloom it keeps
+  its red.
 - (6) Lit bands (dump lit: GAS, POLICE, SALON) are a 4th family, the sign lamp
-  (flyover_sign_glow, default 0 like neon); GARAGE, HARDWARE, SNACKS stay dark paint.
+  (flyover_sign_glow); GARAGE, HARDWARE, SNACKS stay dark paint.
 - (6) Gas station: 1950s flat-roof block box, cream enamel frieze carrying GAS, office
   plate glass + glass door lit, stock room / restroom doors dark, oil tank + flue behind.
   NO pumps, NO canopy (Kevin): forecourt empty. OPEN QUESTION: pumps / canopy?
@@ -228,8 +266,7 @@ tools/flyover/build.py`) for the reproducible build.
   gable, recessed centred entry, two display windows on bulkheads, transoms, dark
   HARDWARE band; all dark; double loading door behind.
 - (6) Salon: small side-gable clapboard cottage-shop, picture window with OPEN, glass
-  door, lit SALON band. Lit, but Sam's hours end at 5 PM (dump onMinutes): if the film's
-  dusk is later, Phase 8 sets its windows / neon glow 0.
+  door, lit SALON band. (8) Closed at 18:00: OPEN off, shop windows dark.
 - (6) Abe's shack: separate grey boards (tinted by the wall colour) on block piers, sagging
   rusty corrugated shed roof with a tar-paper patch and rocks, plank door, one window at a
   faint lamp (glow 0.35), leaning stovepipe, woodpile.
@@ -258,16 +295,35 @@ tools/flyover/build.py`) for the reproducible build.
   WEST as the dump says, side-on inside room 3's stall (centred between the stripes). The
   alternative: backed in, nose to the road.
 - (7) Pit: E-W heavy planks on a timber sill, one plank gone mid-cover + narrow gaps; the
-  pit chain gets 5 posts (12.5 m run). Glow tuned subtle (PIT_EMIT 0.45, 60 W under, 18 W
-  leak), default 0 like neon; Phase 8 sets it.
+  pit chain gets 5 posts (12.5 m run). Glow subtle (PIT_EMIT 0.45; (8) 25 W under, 7.5 W
+  leak): two red seams between the planks up close, invisible from afar.
 - (7) Screen 32 m x 11 m on 4.5 m legs; the art's three legs are three doubled timber
-  trestle bents behind the face; the top-right panels gone show the girts. Faces north,
-  so in the temp daylight it reads blue-cold (sky-lit): Phase 8.
+  trestle bents behind the face; the top-right panels gone show the girts. Faces north:
+  (8) at dusk a pale sky-lit face over the dark field.
 - (7) Plaza benches face the well (north), the drive-in's the screen; notice board and
   planters face the road; mums in the art's three colours (barn-red, lantern, cream).
 - (7) Storm slide: a mud fan spilling off the wooded east side across the dump's 4 debris
   tiles, boulders at the rock tiles, two snapped trunks (butt upslope) at the log tiles.
 - (7) The farm's scooter is not in the dump: not built.
+- (8) FINISH = clear_dusk (default): the sun 5 deg up in the WSW, just over the western
+  ridges, so the valley floor is in cool shade with its lights on while the crowns and
+  the east / north ridges catch the last warm light; light valley haze layering the
+  ridges. It is the game's own 18:00 key (the canon state the film shows) and keeps the
+  autumn palette readable. Alternatives (`--finish`): misty_dusk (heavy valley mist,
+  ridges as flat layers; hides the town from high up), blue_hour (sun below the ridge,
+  deep teal-blue with an amber band, lights carry everything: closest to the motel
+  handoff's night scene, but it is the game's 20:00, and the autumn colour goes).
+- (8) The look: AgX (Base Contrast), a painted palette sky rather than the physical sky,
+  compositor height fog rather than volumetrics (cheap, noise-free), bloom for the neon
+  and lamps. Warm sun kept gold (#ffdcb0) so the ambers never go red; shadows lifted
+  toward teal (never violet: no plum). The anti-sun horizon is a warm grey, not the pink
+  twilight arch.
+- (8) Street lights draw the game's pale CONE (StreetLight.cs `_cone`) as a faint additive
+  mercury glow under each lit head; mercury also turns the grass under it cold green
+  (the canon colour on green; 1500 W keeps it off bile-green).
+- (8) The time of the light maps flyover_dusk 0..1 to 16:00..18:00; lights follow the
+  game: windows / street / pit ramp in, signs cut on at 18:00 (a 2.5% ramp). Phase 9 may
+  animate it through the flight.
 
 ## Phases
 
@@ -299,7 +355,7 @@ Each phase ends in a standalone, render-verified state. Tick them off here as th
   wall-band signs, chains + boards, pit cover (plank gaps for the glow), well,
   benches, planters, notice board, fences, mailbox, shipping bin, Pell's sedan,
   FOR SALE board, drive-in screen/speakers/marquee. Lettering in the 3x5 PixelFont.
-- [ ] 8. Look-dev: dusk sky + sun, the three light families, the pit glow; test stills in
+- [x] 8. Look-dev: dusk sky + sun, the three light families, the pit glow; test stills in
   both render styles; Kevin picks.
 - [ ] 9. Camera + animatic: storyboard with Kevin; path from the west road over the fork
   (look up toward the farm), the plaza, the mansion glimpse, the drive-in, out east.

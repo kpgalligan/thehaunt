@@ -54,10 +54,11 @@ def _wallband(a, cx, y_face, z0, text, lit, px=0.11, depth=0.16, pad=0.28):
     return w, h
 
 
-def _neon_open(a, Mwall, u, z_top, px=0.065):
-    """The window mount's OPEN (NeonWordSign.cs): tube letters hung just inside the glass."""
+def _neon_open(a, Mwall, u, z_top, px=0.065, on=True):
+    """The window mount's OPEN (NeonWordSign.cs): tube letters hung just inside the glass,
+    lit (glow 1) only if its OnAt covers the film's minute (the dump's onMinutes)."""
     a.protos.setdefault("Neon_OPEN", pixelfont.text_part("OPEN", px, 0.022, "neon:neon-dead/neon-red"))
-    a.place("Neon_OPEN", Mwall @ T(u, 0.2 - 0.08, z_top), glow=1.0)
+    a.place("Neon_OPEN", Mwall @ T(u, 0.2 - 0.08, z_top), glow=1.0 if on else 0.0)
     w, h = pixelfont.measure("OPEN", px) + 0.2, pixelfont.GLYPH_H * px + 0.2      # its dark backing board
     a.body.add(ak.Part().box(-w / 2, 0.0, -h + 0.1, w / 2, 0.012, 0.1, "paint:ink-900", skip=("back",)),
                Mwall @ T(u, 0.2 - 0.08, z_top))
@@ -119,7 +120,7 @@ def gas_station(W, D, zb, ctx):
     ak.band(b, rect, zw - 1.0, zw - 0.95, 0.15, "metal:stone-dark")
     ak.flat_roof(b, *rect, zw + 0.4, 0.15, 0.14, "gravel_roof", "metal:stone-dark", parapet=0.06)
     _wallband(a, ctx["band_x"], y0 - 0.12, zw - 0.86, ctx["band_text"], ctx["band_lit"], px=0.1, depth=0.1)
-    _neon_open(a, walls.frames["S"], walls.u("S", neon_at), 0.95 + 1.9 * 0.62, px=0.075)
+    _neon_open(a, walls.frames["S"], walls.u("S", neon_at), 0.95 + 1.9 * 0.62, px=0.075, on=ctx["neon_on"])
     # steps to the door, the downspouts from the back scuppers, the oil tank and flue
     for x in (x0 + 0.3, x1 - 0.3):
         b.box(x - 0.1, y1, zw + 0.1, x + 0.1, y1 + 0.25, zw + 0.25, "metal:stone-shade")
@@ -552,18 +553,19 @@ def salon(W, D, zb, ctx):
     door = a.proto("Door", lambda: ak.door(0.95, 2.1, 0.16, paint="paint:stone-shade", glass_upper=True,
                                            casing="trim:cream"))
     walls = Walls(a, rect, zp, zw, wall, 0.16)
-    walls.add("S", xn, 2.7, 0.9, 1.65, pic, glow=1.0)
-    walls.add("S", xd, 0.95, zp, 2.1, door, glow=1.0)
+    lit = 1.0 if ctx["neon_on"] else 0.0        # the shop is lit while its OPEN is (ShopHours)
+    walls.add("S", xn, 2.7, 0.9, 1.65, pic, glow=lit)
+    walls.add("S", xd, 0.95, zp, 2.1, door, glow=lit)
     other = xd - (xn - xd) * 0.9
-    walls.add("S", other, 1.0, 1.15, 1.4, win, glow=1.0)
+    walls.add("S", other, 1.0, 1.15, 1.4, win, glow=lit)
     ym = (y0 + y1) / 2
-    walls.add("E", ym, 1.0, 1.15, 1.4, win, glow=1.0)
+    walls.add("E", ym, 1.0, 1.15, 1.4, win, glow=lit)
     walls.add("W", ym, 1.0, 1.15, 1.4, win, glow=0.0)
     for s in "EW":
         walls.add(s, ym, 0.6, zw + 0.55, 0.75, win, glow=0.0)
     bdoor = a.proto("Door_Back", lambda: ak.door(0.9, 2.05, 0.16, paint="paint:stone-shade", casing="trim:cream"))
     walls.add("N", x0 + 2.2, 0.9, zp, 2.05, bdoor, glow=0.0)
-    walls.add("N", x1 - 2.8, 1.0, 1.15, 1.4, win, glow=1.0)
+    walls.add("N", x1 - 2.8, 1.0, 1.15, 1.4, win, glow=lit)
     walls.top("E", profile_tops(prof, y0, y1))
     walls.top("W", profile_tops(prof, y0, y1, reverse=True))
     walls.build()
@@ -579,7 +581,7 @@ def salon(W, D, zb, ctx):
     # the flat hood over the door, on two iron brackets; a concrete step
     b.box(xd - 0.75, y0 - 0.55, -0.3, xd + 0.75, y0, zp - 0.02, "stone_trim:stone-pale", skip=("bottom",))
     _wallband(a, ctx["band_x"], y0 - 0.02, zp + 2.33, ctx["band_text"], ctx["band_lit"], px=0.075, depth=0.1, pad=0.15)
-    _neon_open(a, walls.frames["S"], walls.u("S", xn), 0.9 + 1.65 * 0.66, px=0.06)
+    _neon_open(a, walls.frames["S"], walls.u("S", xn), 0.9 + 1.65 * 0.66, px=0.06, on=ctx["neon_on"])
     ak.chimney(b, x1 - 2.0, ym + 1.0, 0.5, 0.5, zw - 0.5, zr + 0.6, "block:stone-shade", "stone_trim:stone-base", pots=0)
     a.meta = dict(eave=zw, ridge=zr)
     return a
@@ -763,7 +765,7 @@ DESIGN_NOTES = {
     "billies": "front + east windows and the kitchen lit (open all hours)",
     "police": "front office windows lit (3 of 4) + door transom, cells dark",
     "hardware": "all dark (closed until further notice)",
-    "salon": "lit (Sam's hours end 5 PM: Phase 8 may darken it for dusk)",
+    "salon": "shop dark + OPEN off after 5 PM (ShopHours, the film's 18:00); SALON band lit",
     "shack": "one small window, a faint lamp (glow 0.35)", "concession": "all dark (boarded)",
 }
 
@@ -791,6 +793,7 @@ def context(placed, bld, facing):
         elif s["kind"] == "neon":
             assert s["text"] == "OPEN", s
             ctx["neon_x"] = x
+            ctx["neon_on"] = any(a <= config.FILM_MINUTE <= b for a, b in s["onMinutes"])
         elif s["kind"] == "bracket":
             ctx["bracket_x"] = x
     # a kerb cut in front (the garage's big bay sits on it)

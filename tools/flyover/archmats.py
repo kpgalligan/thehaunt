@@ -15,7 +15,8 @@ Light families (config): LF_Window_Glass (amber interior glow = object `glow` x 
 scene's `flyover_window_glow`), LF_Neon_* (object `glow` x `flyover_neon_glow`),
 LF_SignLamp_* (lit wall bands: object `glow` x `flyover_sign_glow`), LF_Street_* (the
 cobra heads' lenses: `glow` x `flyover_street_glow`), LF_Pit_* (the dark under the pit's
-planks: `glow` x `flyover_pit_glow`).
+planks: `glow` x `flyover_pit_glow`). Each is also gated by the time of the light
+(`flyover_dusk`, config.DUSK_GATE): see `_lit`.
 """
 
 import bpy
@@ -568,6 +569,18 @@ def _obj_attr(g, name):
     return n.outputs["Fac"]
 
 
+def _lit(g, prop):
+    """A light family's level on this object: object `glow` x the family's scene property
+    x its gate over the time of the light (config.DUSK_GATE over flyover_dusk: the game's
+    LightLevel ramp, or DayNight.SignsLit's cut at 18:00)."""
+    a, b = config.DUSK_GATE[prop]
+    gate = g.node("ShaderNodeMapRange", clamp=True)
+    g.link(_prop(g, config.DUSK_PROP), gate.inputs["Value"])
+    gate.inputs["From Min"].default_value = a
+    gate.inputs["From Max"].default_value = b
+    return g.math("MULTIPLY", g.math("MULTIPLY", _obj_attr(g, "glow"), _prop(g, prop)), gate.outputs["Result"])
+
+
 def window_glass(mat, colour="water-deep"):
     """LF_Window_Glass: dark reflective glass; lit (object `glow` x the scene's
     flyover_window_glow) it shows a warm amber interior - a lamp-lit gradient with soft
@@ -575,7 +588,7 @@ def window_glass(mat, colour="water-deep"):
     g = G(mat)
     uv = _uv(g)
     ob = g.node("ShaderNodeTexCoord").outputs["Object"]
-    lit = g.math("MULTIPLY", _obj_attr(g, "glow"), _prop(g, config.WINDOW_GLOW_PROP))
+    lit = _lit(g, config.WINDOW_GLOW_PROP)
     _u, v, _ = g.sep(uv)
     blob = g.noise(uv, 1.3, 2.0, 0.5)
     warm = g.ramp(g.math("ADD", g.math("MULTIPLY", blob, 0.6), g.math("MULTIPLY", g.math("FRACT", g.math("DIVIDE", v, 2.0)), 0.3)),
@@ -592,7 +605,7 @@ def neon(mat, colour, emit_colour=None):
     """LF_Neon_*: a sign / tube colour by day; lit (object `glow` x the scene's
     flyover_neon_glow) it glows in its own colour (or `emit_colour`)."""
     g = G(mat)
-    lit = g.math("MULTIPLY", _obj_attr(g, "glow"), _prop(g, config.NEON_GLOW_PROP))
+    lit = _lit(g, config.NEON_GLOW_PROP)
     e = rgba(emit_colour or colour)
     _bsdf(g, rgba(colour), 0.35, spec=0.5, emit=e, emit_strength=g.math("MULTIPLY", lit, config.NEON_EMIT))
 
@@ -603,7 +616,7 @@ def sign_lamp(mat, colour, emit_colour=None):
     glow with object `glow` x the scene's flyover_sign_glow, a family of its own (not
     window amber, not neon)."""
     g = G(mat)
-    lit = g.math("MULTIPLY", _obj_attr(g, "glow"), _prop(g, config.SIGN_GLOW_PROP))
+    lit = _lit(g, config.SIGN_GLOW_PROP)
     e = rgba(emit_colour or colour)
     base = g.mix(g.math("MINIMUM", lit, 1.0), rgba(colour), e)
     _bsdf(g, base, 0.5, spec=0.3, emit=e, emit_strength=g.math("MULTIPLY", lit, config.SIGN_EMIT))
@@ -614,7 +627,7 @@ def street_lens(mat, colour):
     colour; lit (object `glow` x the scene's flyover_street_glow) the cold mercury-vapour
     blue-green-white of StreetLight.cs (never warm)."""
     g = G(mat)
-    lit = g.math("MULTIPLY", _obj_attr(g, "glow"), _prop(g, config.STREET_GLOW_PROP))
+    lit = _lit(g, config.STREET_GLOW_PROP)
     uv = _uv(g)
     prism = g.math("FRACT", g.math("DIVIDE", g.sep(uv)[0], 0.012))       # the prism ribs
     c = g.mix(g.math("MULTIPLY", g.step(prism, 0.5, 0.3), 0.25), rgba(colour), rgba(_light(colour, 0.3, "cream")))
@@ -622,12 +635,39 @@ def street_lens(mat, colour):
           emit_strength=g.math("MULTIPLY", lit, config.STREET_EMIT))
 
 
+def street_cone(mat, colour):
+    """LF_StreetCone_*: the mercury cone in the air under a lit head (StreetLight.cs's
+    `_cone`): additive emission over full transparency, strongest under the lens and
+    down the axis (facing the view), fading to nothing at the ground and the rim. Same
+    family + gate as the lens (flyover_street_glow)."""
+    g = G(mat)
+    lit = _lit(g, config.STREET_GLOW_PROP)
+    _x, _y, z = g.sep(_obj(g))
+    t = g.math("POWER", g.math("DIVIDE", z, config.STREET_POLE_M, clamp=True), 1.6)
+    lw = g.node("ShaderNodeLayerWeight")
+    lw.inputs["Blend"].default_value = 0.5
+    core = g.math("POWER", g.math("SUBTRACT", 1.0, lw.outputs["Facing"]), 2.0)
+    k = g.math("MULTIPLY", g.math("MULTIPLY", t, core), g.math("MULTIPLY", lit, config.STREET_CONE_EMIT))
+    em = g.node("ShaderNodeEmission")
+    em.inputs["Color"].default_value = rgba(colour)
+    g.link(k, em.inputs["Strength"])
+    tr = g.node("ShaderNodeBsdfTransparent")
+    add = g.node("ShaderNodeAddShader")
+    g.link(tr.outputs[0], add.inputs[0])
+    g.link(em.outputs[0], add.inputs[1])
+    o = g.node("ShaderNodeOutputMaterial")
+    g.link(add.outputs[0], o.inputs["Surface"])
+    mat.surface_render_method = "BLENDED"
+    mat.use_backface_culling = False
+    mat.diffuse_color = (*rgba(colour)[:3], 0.0)
+
+
 def pit_glow(mat, colour):
     """LF_Pit_*: the dark under the pit's planks. Black earth by day; lit (object
     `glow` x the scene's flyover_pit_glow) a faint ember red rising from the depth
     (brighter in patches, never a flat plate)."""
     g = G(mat)
-    lit = g.math("MULTIPLY", _obj_attr(g, "glow"), _prop(g, config.PIT_GLOW_PROP))
+    lit = _lit(g, config.PIT_GLOW_PROP)
     ob = _obj(g)
     patch = g.math("MULTIPLY", g.step(g.noise(ob, 0.8, 3.0), 0.45, 0.25), 1.3)      # brighter in patches
     c = g.mix(g.math("MULTIPLY", g.noise(ob, 4.0, 2.0), 0.4), rgba("ink-900"), rgba("earth-dark"))
@@ -852,6 +892,7 @@ KINDS = {
     "slate_ruin": (slate_ruin, "stone-dark"), "ivy": (ivy, "green-dark"),
     # Phase 7: props and signs
     "streetlens": (street_lens, "stone-pale"), "pitglow": (pit_glow, "pit-red"),
+    "streetcone": (street_cone, "mercury-cone"),
     "timber": (timber, "wood-warm"), "plank": (lambda m, c: timber(m, c, True), "wood-warm"),
     "signboard": (signboard, "earth-base"), "paper": (paper, "cream"), "carpaint": (carpaint, "stone-base"),
     "chrome": (chrome, "stone-light"), "rubber": (rubber, "ink-900"), "screen": (screen_face, "cream"),
@@ -860,7 +901,8 @@ KINDS = {
     "water": (water, "water-deep"),
 }
 LIGHT_NAMES = {"glass": "LF_Window_Glass"}
-FAMILY_PREFIX = {"neon": "LF_Neon", "signlamp": "LF_SignLamp", "streetlens": "LF_Street", "pitglow": "LF_Pit"}
+FAMILY_PREFIX = {"neon": "LF_Neon", "signlamp": "LF_SignLamp", "streetlens": "LF_Street", "pitglow": "LF_Pit",
+                 "streetcone": "LF_StreetCone"}
 
 
 class Resolver:
