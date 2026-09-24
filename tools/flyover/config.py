@@ -160,6 +160,7 @@ TRACK_RUT_M = (0.75, 0.33)  # rut offset from the centreline, width
 TRACK_FADE_M = 12.0         # a forest continuation narrows and grasses over at its end
 TRACK_ROAD_OVERLAP_M = 3.0  # the band starts this far back under the road (no gap at the kerb)
 FOREST_OPEN_MARGIN_M = 0.35 # trunks stand where the open field is below -this (exact check)
+SURF_MAX_SLOPE = 2.2        # bound on the fields' slope (m/m: the edge noise steepens them)
 
 # Drive-in ramps (rows from the dump's ramp_rows): crest height, run-up, drop.
 RAMP_H_M = 0.55
@@ -334,6 +335,48 @@ TUFT_FIELD_MAP = "drive_in" # "weeds thickest at the edges" of the drive-in's fi
 TUFT_FIELD_CELL_M = 1.0
 TUFT_FIELD_M = 2.5
 TUFT_FIELD_KEEP = 0.55
+
+# Phase 4c: the clearings' irregular treeline (treeline.py). Only the plain frame of
+# each clearing moves; everything the game uses stays open, the tree lines the game
+# draws stay wooded.
+TREELINE_SEED = 20
+TREELINE_CELL_M = 1.25      # the field grid (divides the tile)
+TREELINE_DIST_CAP_M = (45.0, 70.0)  # clearing distance exact to (inside, outside)
+TREELINE_MIN_TILES = 30     # smaller open regions are not clearings
+# The edge noise, (wavelength m, outward amp m, inward amp m) at scale 1 (the town
+# strip): broad bays tens of metres deep, narrower tongues of trees, then scallops and a
+# few-metre wobble (the surface fields add their own metre-scale wobble on top).
+TREELINE_WAVES_M = ((130.0, 50.0, 20.0), (70.0, 26.0, 24.0), (36.0, 12.0, 30.0), (16.0, 4.0, 14.0),
+                    (6.5, 1.6, 1.8))
+TREELINE_SCALE_POW = 0.3    # a clearing's scale = (area / the largest's) ** this ...
+TREELINE_SCALE_CLAMP = (0.35, 1.0)
+TREELINE_BAY_MAX_M = 40.0  # bays saturate (tanh) toward this depth past the frame (* scale)
+TREELINE_TONGUE_MAX_M = 22.0   # ... and tongues toward this depth into the clearing,
+TREELINE_TONGUE_ROOM = 0.8     # at most this share of the room before the used ground,
+TREELINE_TONGUE_WL_M = 26.0    # varying along the edge at this wavelength (fingers)
+TREELINE_SEP_M = 4.0        # two clearings' bays stay 2x this apart (woods between)
+TREELINE_SMOOTH_M = 6.0     # the used ground's smooth max (a tongue's tip rounds off)
+# Used ground: forced open to this margin (m) past it.
+TREELINE_USED_M = {"default": 4.0, "Pasture": 1.5, "Road": 9.5}   # per tile surface
+TREELINE_BUILDING_M = 6.0   # around a footprint
+TREELINE_DOOR_M = 12.0      # swept out from the door side (and toward the road) ...
+TREELINE_SWEEP_M = 4.0      # ... with this margin (also the drive-in's screen sightline)
+TREELINE_PROP_M = 3.0
+TREELINE_POST_M = 4.0       # street lights and sign posts
+TREELINE_SIGN_M = 4.0       # a sign's face: a corridor to its nearest route, this wide
+TREELINE_SIGN_REACH_M = 40.0
+TREELINE_KEEP_RING = ("drive_in",)  # maps whose whole frame ring stays wooded
+TREELINE_KEEP_PAD_M = 14.0  # the wild ground behind kept woods stays wooded this deep (noisy)
+# Lone trees and small clumps out in the open grass.
+ISLE_CELL_M = 30.0
+ISLE_KEEP = 0.75
+ISLE_CLUMP_P = 0.35
+ISLE_CLUMP_N = (2, 5)       # members of a clump (numpy integers: high exclusive)
+ISLE_CLUMP_R_M = 4.5
+ISLE_OPEN_M = 9.0           # at least this far out of the woods
+ISLE_USED_M = 3.0           # and this far past every used margin
+ISLE_ROAD_M = 20.0          # and this far from the road's centreline
+ISLE_SCALE = (0.8, 1.05)    # field-grown: full size
 
 # Named perspective stills (Phase 3 checks; Phase 9 builds the real path).
 VIEW_LENS_MM = 35.0

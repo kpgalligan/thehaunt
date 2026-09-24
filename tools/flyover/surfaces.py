@@ -26,9 +26,15 @@ U_L = (max over kinds >= L of s - max over kinds < L of s) / 2, so the top layer
 U_L > 0 IS the argmax, and U_L is the distance to that layer's edge. Channels hold
 U for Grass .. Cobble (Woods is the floor, the road rows are under the road mesh).
 
+The treeline (treeline.Treeline, Phase 4c) decides woods vs open instead of the tiles:
+Woods' field is -E, Grass takes every open point the tiles call Woods (bays, the plain
+frame ring) and gives up every wooded one (tongues); built kinds are untouched (E is
+forced open over them), and kept woods are exactly the tiles'.
+
 Extra channels: `td` (distance to the nearest track centreline, for ruts and the
 grassy crown), `fade` (a track's grass-over at its forest end), `litter` (1 on the
-forest floor and under the farm's trees, fading over config.LITTER_M onto open ground).
+forest floor and under the farm's and the field's lone trees, fading over
+config.LITTER_M onto open ground).
 
 Raster: config.SURF_PX_M pixels over the terrain's near rect (row 0 = north). The
 images store the same values; Blender's image rows run bottom-up (images() flips).
@@ -75,8 +81,9 @@ def _blur(a, sigma_px):
 
 
 class Surfaces:
-    def __init__(self, world, routes, tile_layer_src, nx0, ny0):
-        """tile_layer_src: (NTy, NTx) config.SURFACES index per near tile, -1 = wild."""
+    def __init__(self, world, routes, tile_layer_src, nx0, ny0, treeline=None):
+        """tile_layer_src: (NTy, NTx) config.SURFACES index per near tile, -1 = wild.
+        treeline: treeline.Treeline (the clearings' edge), or None for the tiles' own."""
         P = self.P = config.SURF_PX_M
         K = self.K = int(round(T / P))
         if abs(K * P - T) > 1e-9:
@@ -97,10 +104,20 @@ class Surfaces:
         band, td, fade = self._tracks()
         built = np.isin(tile_layer_src, [SURF[k] for k in config.SURF_BUILT])
         calm = smoothstep(*config.SURF_BUILT_CALM_M, -self._tile_sdf(built)).astype(np.float32)
+        E = None
+        if treeline is not None:
+            E = np.clip(treeline.at(self.X, self.Y), -config.SURF_CAP_M,
+                        config.SURF_CAP_M).astype(np.float32)
+        self.field_trees = treeline.isles if treeline is not None else (np.zeros(0), np.zeros(0))
         fields = []
         for ki, (name, sigma, amp, _soft) in enumerate(config.SURF_KINDS):
             mask = (tile_layer_src == SURF[name]) & ~track_tiles
             f = self._tile_sdf(mask)
+            if E is not None and name == "Woods":       # the treeline decides woods / open
+                f_woods, f = f, -E
+            elif E is not None and name == "Grass":     # open ground the tiles call woods is grass
+                f = np.minimum(np.maximum(f, f_woods), E)
+                del f_woods
             f = np.maximum(f, band) if name == "Dirt" else np.minimum(f, -band)
             if name == "Road":      # the rows win inside, never outside (the road mesh is there)
                 f = np.where(f > 0, f, -config.SURF_CAP_M)
@@ -205,15 +222,15 @@ class Surfaces:
     # -- litter ------------------------------------------------------------------
     def _litter(self):
         lit = 1 - smoothstep(0.0, config.LITTER_M, self.U[LAYERS[0]])
-        for m in self.world.maps.values():
-            for p in m.data["props"]:
-                if p["kind"] == "tree":
-                    cx, cy = (m.ox + p["x"] + 0.5) * T, -(m.oy + p["y"] + 0.5) * T
-                    i0 = max(0, int((cx - 8 - self.x0) / self.P))
-                    j0 = max(0, int((self.y1 - cy - 8) / self.P))
-                    sub = (slice(j0, j0 + int(16 / self.P)), slice(i0, i0 + int(16 / self.P)))
-                    d = np.hypot(self.X[sub] - cx, self.Y[sub] - cy)
-                    lit[sub] = np.maximum(lit[sub], 1 - smoothstep(1.5, config.LITTER_M, d))
+        trees = [((m.ox + p["x"] + 0.5) * T, -(m.oy + p["y"] + 0.5) * T)
+                 for m in self.world.maps.values() for p in m.data["props"] if p["kind"] == "tree"]
+        trees += list(zip(*self.field_trees))       # the treeline's lone trees and clumps
+        for cx, cy in trees:
+            i0 = max(0, int((cx - 8 - self.x0) / self.P))
+            j0 = max(0, int((self.y1 - cy - 8) / self.P))
+            sub = (slice(j0, j0 + int(16 / self.P)), slice(i0, i0 + int(16 / self.P)))
+            d = np.hypot(self.X[sub] - cx, self.Y[sub] - cy)
+            lit[sub] = np.maximum(lit[sub], 1 - smoothstep(1.5, config.LITTER_M, d))
         return lit.astype(np.float32)
 
     # -- sampling (bilinear on pixel centres, like the images' linear filter) ------

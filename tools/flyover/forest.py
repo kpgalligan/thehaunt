@@ -22,6 +22,8 @@ The density field (everything derived from the dump via world / routes / terrain
                 per-family palette weights (config.FOREST_CROWN) with a coherent pick.
   the mansion   a deep, dark band of tall hemlock (and dead snags) along the drive past
                 its chain; TALL hemlock / pine ring the clearing at its end.
+  field trees   the treeline's lone trees and small clumps on the open grass
+                (treeline.Treeline.isles; the treeline itself shapes the open ground).
   exact         the farm's fixed-seed per-save sample (dump "sample": true): trees as
                 the leafy / bare variants, stumps, rocks as boulders, at their tiles.
   dressing      grass tufts on the road verges, the drive-in's field edges and the open
@@ -80,11 +82,16 @@ class OpenRaster:
         self.x0, self.y1 = x0 - kx0 * c, y1 + ky0 * c
         self.W = kx0 + int(round((x1 - x0) / c)) + kx1
         self.H = ky0 + int(round((y1 - y0) / c)) + ky1
-        # the smooth surfaces: a cell is open if open ground may reach into it
+        # the smooth surfaces: a cell is open if open ground may reach into it (3 x 3
+        # samples; between them the field changes by at most slope * c / 4)
         I, J = np.meshgrid(np.arange(self.W), np.arange(self.H))
         cx, cy = self._centres(I, J)
-        reach = config.FOREST_OPEN_MARGIN_M + c * 0.7072
-        self.surf_open = terrain.surfaces.open_field(cx, cy) > -reach
+        reach = config.FOREST_OPEN_MARGIN_M + c * 0.25 * config.SURF_MAX_SLOPE
+        of = np.full(cx.shape, -np.inf)
+        for ox in (-c / 2, 0.0, c / 2):
+            for oy in (-c / 2, 0.0, c / 2):
+                of = np.maximum(of, terrain.surfaces.open_field(cx + ox, cy + oy))
+        self.surf_open = of > -reach
         self.keep = np.zeros((self.H, self.W), bool)   # guides, buildings, props, clearing
         for g, clear in guides:
             self._stamp(np.asarray(densify(g, 1.0)), clear + 0.9)
@@ -269,6 +276,7 @@ class Forest:
                       if drive is not None else None)
         self.table = Planting()
         self._trees()
+        self._field_trees()
         self._understorey()
         self._farm_sample()
         self._boulders()
@@ -438,6 +446,17 @@ class Forest:
             dark = self.rng.random(len(x)) < band ** 1.5
             self._add(f"trees_{tier}", x, y, fam, m, "tree", dark=dark, lo=tier == "B")
 
+    def _field_trees(self):
+        """The treeline's lone trees and small clumps out on the open grass: broad,
+        field-grown hardwoods (the odd pine), full size."""
+        x, y = self.terrain.treeline.isles
+        if not len(x):
+            return
+        fam = self._species(x, y, np.zeros(len(x)), None)
+        fam = np.where(fam == "bare", "maple", np.where(fam == "hemlock", "oak", fam)).astype(object)
+        lo, hi = config.ISLE_SCALE
+        self._add("field", x, y, fam, lo + (hi - lo) * self.rng.random(len(x)), "tree")
+
     def _clump_colours(self, x, y):
         """A far clump stands for a patch of forest: two tones from the local stand."""
         part = self.table.parts[-1]
@@ -597,7 +616,9 @@ def check(forest):
     returns a list of violation strings (empty = clean). Trunks (every group but the
     farm sample and tufts) must stand on Woods (in a map) or wild ground, at least
     clear_m from every guide, clear of building footprints + margin and the clearing, and
-    at least config.FOREST_OPEN_MARGIN_M inside the forest floor of the smooth fields."""
+    at least config.FOREST_OPEN_MARGIN_M inside the forest floor of the smooth fields;
+    the treeline's field trees instead stand on open grass clear of it and of every
+    used margin (treeline.Treeline.ok_isle)."""
     tb, bad = forest.table, []
     trunk = ~np.isin(tb.group, ["farm_sample", "tufts", "leaves"])
     x, y = tb.x[trunk], tb.y[trunk]
@@ -608,7 +629,11 @@ def check(forest):
         d = nearest_on(x[near], y[near], np.asarray(g, float))[0]
         if (d < clear).any():
             bad.append(f"{(d < clear).sum()} trunks within {clear} m of a guide (min {d.min():.2f})")
-    s = forest.terrain.surfaces.open_field(x, y)
+    field = tb.group[trunk] == "field"      # the treeline's lone trees stand on the grass ...
+    ok = forest.terrain.treeline.ok_isle(x[field], y[field])
+    if not ok.all():                        # ... well clear of the treeline and used ground
+        bad.append(f"{(~ok).sum()} field trees too near the treeline or used ground")
+    s = np.where(field, -config.SURF_CAP_M, forest.terrain.surfaces.open_field(x, y))
     if (s > -config.FOREST_OPEN_MARGIN_M).any():
         bad.append(f"{(s > -config.FOREST_OPEN_MARGIN_M).sum()} trunks on or within "
                    f"{config.FOREST_OPEN_MARGIN_M} m of open ground")

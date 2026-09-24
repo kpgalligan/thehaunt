@@ -269,8 +269,12 @@ class Terrain:
         self._road_profile()
         self._tiles()
         self._raster()
-        import surfaces     # (imports this module's helpers)
-        self.surfaces = surfaces.Surfaces(world, routes, self.tile_surf, self.nx0, self.ny0)
+        import surfaces     # (these import this module's helpers)
+        import treeline
+        self.treeline = treeline.Treeline(world, routes, self.tile_surf, self.tile_map,
+                                          self.nx0, self.ny0)
+        self.surfaces = surfaces.Surfaces(world, routes, self.tile_surf, self.nx0, self.ny0,
+                                          self.treeline)
         self._features()
         self._fine()
         self._heights()

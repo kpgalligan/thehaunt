@@ -53,9 +53,13 @@ tools/flyover/build.py`) for the reproducible build.
   them with Blender's bundled `Contents/Resources/<ver>/python/bin/python3.*`.
 - Modules: `routes` (road rows, kerb cuts, road-out curves, dirt tracks traced from
   kerb cuts, corners filleted; pure Python) -> `terrain` (relief, ruts/ramps/pit,
-  adaptive lattice + far ring, `z_at` sampler; numpy) + `surfaces` (the smooth surface
+  adaptive lattice + far ring, `z_at` sampler; numpy) + `treeline` (the clearings'
+  irregular edge E, + open: distance to each clearing + scaled bay/tongue noise, used
+  ground forced open, kept woods forced wooded; the lone field trees; numpy;
+  `treeline.py <dump> out.png` previews it) + `surfaces` (the smooth surface
   fields: per-kind signed distances from the tiles + track bands, blurred, natural
-  noise, argmax partition packed as layer fields in three float images; numpy) ->
+  noise, the treeline deciding woods vs open, argmax partition packed as layer fields
+  in three float images; numpy) ->
   `ground` (smooth-shaded meshes), `road` (swept paved road), `markings` (lot paint
   decals), `materials` (one ground look painting the fields, EEVEE), `guides`,
   `templight` (TEMPORARY sun + sky; Phase 8 replaces it), `cameras` (Cam_TopDown +
@@ -87,10 +91,21 @@ tools/flyover/build.py`) for the reproducible build.
   Named views: Cam_WestRoad, Cam_Fork, Cam_Plaza, Cam_DriveIn, Cam_EastOut,
   Cam_Overview, Cam_MansionDrive, Cam_FarmTreeline (positions derived from
   routes/dump).
+- Treeline (config "Phase 4c"): only the plain frame of a clearing moves. Forced open
+  (a smooth max, so tongue tips round off): non-grass tiles (the road rows to the road's
+  tree clearance), footprints + 6 m swept to the doors and the road, props, posts, a
+  corridor from each free-standing sign to its nearest route, the screen's sightline.
+  Kept wooded exactly as tiled: Woods inside a map's frame ring, a ring's N/S band where
+  woods lie behind it or it meets another map's woods (the farm's south treeline),
+  TREELINE_KEEP_RING maps (the drive-in), plus a noisy pad of wild ground behind them.
+  Bays and tongues saturate (tanh; tongues within 80% of the room to the used ground),
+  so no straight clip line; the farm, whose field reaches its frame, scallops outward.
+  TREELINE_SEED 20 was picked from a scan for the fewest straight runs.
 - Forest (config "Phase 4"): trunks never stand on (or within FOREST_OPEN_MARGIN_M of)
   open ground in the smooth fields, within a guide's
   `clear_m`, within FOREST_BUILDING_MARGIN_M (3 m) of a footprint, 1 m of a prop, 1.5 m
-  of a post, or in the clearing; crowns (radius up to ~8 m) DO overhang those margins,
+  of a post, or in the clearing (the treeline's field trees stand on the grass, checked
+  against its margins instead); crowns (radius up to ~8 m) DO overhang those margins,
   so Phase 5-6 buildings that back onto a treeline (the motel) meet canopy at the
   roof. Colours live on the instances (FOREST_CROWN / FOREST_BARK palette weights);
   the Workbench layout stills hide the forest. Tiers: full detail within 380 m of the
@@ -116,6 +131,16 @@ tools/flyover/build.py`) for the reproducible build.
 - The pit: a slight red glow leaks from under its plank cover.
 - The road curves out of frame at both ends, into forest (art bible Act I rule).
 - Game integration (playing the video in the intro) is a later, separate change.
+- (Review of 4b) The town clearing gets an IRREGULAR treeline — bays of field, trees
+  reaching toward the road — outside the ground the game uses; buildings, lots, paths
+  and props stay clear. The mansion band stays a quiet darker hint. Painterly crowns
+  are right: not photoreal.
+- Buildings: the game only has front art (and flat placeholders), so the film DESIGNS
+  reasonable full buildings — roofs, sides, backs, signs, trim — consistent with the
+  fronts where they exist and the building grammar everywhere. Canon lettering only.
+- Run the remaining phases through; Kevin reviews at the end (not per phase). Where
+  a phase says "Kevin picks/reviews", make the call, record it here, and list it for
+  the end review.
 
 ## Phases
 
@@ -137,6 +162,7 @@ Each phase ends in a standalone, render-verified state. Tick them off here as th
   stylized-real (full soft crowns, holds up at 4K); brighter, more varied autumn
   golds/ambers/ochres (still no saturated red mass); the mansion band stays dark but
   its edge feathers into the forest.
+- [x] 4c. Irregular treeline around the town clearing (see Decisions).
 - [ ] 5. Hero buildings (real art exists): town hall, general store, motel, farmhouse,
   barn (derelict). Five-band grammar; side-by-side renders against the handoff PNGs.
 - [ ] 6. Placeholder buildings (flat colours only in-game — Kevin reviews): gas station,

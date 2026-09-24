@@ -27,7 +27,7 @@ if PKG_DIR not in sys.path:
     sys.path.insert(0, PKG_DIR)
 
 DEFAULT_OUT = os.path.join(PKG_DIR, "out", "town.blend")
-_MODULES = ("config", "world", "routes", "terrain", "surfaces", "forest", "scene", "materials",
+_MODULES = ("config", "world", "routes", "treeline", "terrain", "surfaces", "forest", "scene", "materials",
             "diorama", "ground", "road", "markings", "guides", "templight", "placeholders", "trees",
             "scatter", "cameras", "render")
 
