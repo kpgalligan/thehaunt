@@ -638,5 +638,8 @@ Each phase ends in a standalone, render-verified state. Tick them off here as th
   (neon flicker dropped: the V is the game's one animated sign).
 - [ ] 11. Final render + encode: PNG frames -> ffmpeg -> Theora `.ogv` (Godot 4's native
   format) + an `.mp4` preview; size check; into `assets/video/`. 11a tooling ✓ (film.py,
-  encode.py); 11b: the 1080p review cut rendered 2026-09-24 (2h30m, 4.2 s/frame; out/flyover_1080.mp4 + .ogv); pending Kevin -> 4K final -> assets/video/.
+  encode.py); 11b: the 1080p review cut rendered 2026-09-24 (2h30m, 4.2 s/frame; out/flyover_1080.mp4 + .ogv), signed off by Kevin; 11c: farm_to_pit's 1080p
+  cut rendered 2026-09-24 with the breathing pit and the nose-in car (3173 frames, ~3.3 s/frame,
+  ~3 h; out/flyover_farm_to_pit_1080.mp4 91 MB + .ogv 130 MB; the hold's pit peak swings 134 -> 106
+  8-bit red, peaks 150 frames apart = the 5 s breath); pending Kevin -> 4K final (skipped for now) -> assets/video/.
 - [ ] 12. (Later, separate change) Play it in the intro, skippable, via StoryDirector.
