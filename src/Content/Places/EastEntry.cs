@@ -22,4 +22,14 @@ public static class EastEntry
     public const string PoliceSignText = "Police.";
     public const string HardwareSignText = "Hardware. Closed until further notice.";
     public const string SalonSignText = "Salon.";
+
+    /// <summary>Copy for this place's placed signs, by placement id. Null = an unpromoted
+    /// sign (a board still carrying its own map-file text).</summary>
+    public static string? SignTextFor(string placementId) => placementId switch
+    {
+        "PoliceSign" => PoliceSignText,
+        "HardwareSign" => HardwareSignText,
+        "SalonSign" => SalonSignText,
+        _ => null,
+    };
 }

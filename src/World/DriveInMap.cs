@@ -46,20 +46,10 @@ public partial class DriveInMap : ExteriorMap
         base._EnterTree();
     }
 
-    public override void _Ready()
-    {
-        BuildSurfaces();
-        TileSet tileSet = RoadsideTerrain.Get(); // the field needs the asphalt source
-        TileMapLayer ground = BuildGround(tileSet);
-        ground.AddChild(BuildFieldMarkings());
-        BuildObstacles(tileSet);
-        BuildStructures();
-        BuildSpawns();
-        BuildInteractables();
-        BuildTravel();
-    }
+    // No paved road here: the drive in is dirt, and the field is kerbless asphalt.
+    protected override bool HasRoad => false;
 
-    private void BuildSurfaces()
+    protected override void BuildDefaultSurfaces()
     {
         ResetSurfaces();
 
@@ -71,30 +61,73 @@ public partial class DriveInMap : ExteriorMap
         Fill(StandLeft, StandTop, StandRight, StandBottom + 1, Surface.Gravel);
     }
 
-    private void BuildObstacles(TileSet tileSet)
+    /// <summary>The drive-in's placements as the C# literals describe them: the seed
+    /// <c>data/maps/drive_in.tmx</c> was written from, and the fallback when it is missing.</summary>
+    protected override MapRecipe BuildDefaultRecipe()
     {
-        var obstacles = new TileMapLayer { Name = "Obstacles", TileSet = tileSet };
-        // No door gap: the stand is boarded, and the boards are the whole answer.
-        Block(obstacles, StandLeft, StandTop, StandRight, StandBottom);
-        // The screen's legs. The walkable strip behind them, under the drawn face,
-        // stays open on purpose.
-        Block(obstacles, ScreenLeft, ScreenRow - 1, ScreenRight, ScreenRow);
+        var recipe = new MapRecipe(MapIds.DriveIn);
+
+        recipe.Add(PlacementKinds.Prop, "screen", ScreenLeft, ScreenRow);
+        recipe.Add(PlacementKinds.Prop, "concession", StandLeft, StandBottom);
+        recipe.Add(PlacementKinds.Prop, "marquee", Marquee.X, Marquee.Y);
         foreach (Vector2I speaker in Speakers)
-            obstacles.SetCell(speaker, 0, TerrainTiles.Blocker);
+            recipe.Add(PlacementKinds.Prop, "speaker", speaker.X, speaker.Y);
         foreach (int x in BenchX)
-            Block(obstacles, x, BenchRow, x + 1, BenchRow);
-        AddChild(obstacles);
+            recipe.Add(PlacementKinds.Prop, x % 2 == 0 ? TownProps.BenchBId : TownProps.BenchAId, x, BenchRow);
+
+        // >= 1 tile clear of the exit area (spawn-clearance rule).
+        recipe.Add(PlacementKinds.Spawn, "from_road", 14, 3);
+        recipe.Add(PlacementKinds.Spawn, "default", 15, 5);
+
+        // The marquee's read area rides its foot tile; the art draws it. Copy lives
+        // with the place (src/Content/Places/DriveIn.cs).
+        recipe.Add(PlacementKinds.Sign, "MarqueeRead", Marquee.X, Marquee.Y)
+            .SetBool(PlacementFields.Board, false);
+
+        // 2x1, wider than deep — see the east fork's drive-in mouth.
+        MapPlacement exit = recipe.Add(PlacementKinds.Exit, MapIds.EastFork, DriveLeft, 0);
+        exit.SetText(PlacementFields.Spawn, "from_drive_in");
+        exit.SetInt(PlacementFields.Width, 2);
+        exit.SetInt(PlacementFields.Height, 1);
+
+        return recipe;
     }
 
-    private void BuildStructures()
-    {
-        AddChild(new DriveInScreen
-        {
-            Name = "Screen",
-            TilesWide = ScreenRight - ScreenLeft + 1,
-            Position = Prop.Anchor(ScreenLeft, ScreenRow, ScreenRight - ScreenLeft + 1),
-        });
+    protected override string? SignTextFor(string signId) => DriveIn.SignTextFor(signId);
 
+    protected override IReadOnlyDictionary<string, ExteriorProp> PropCatalog() =>
+        new Dictionary<string, ExteriorProp>(StringComparer.Ordinal)
+        {
+            // The screen's legs. The walkable strip behind them, under the drawn face,
+            // stays open on purpose.
+            ["screen"] = new(p => new DriveInScreen
+            {
+                Name = "Screen",
+                TilesWide = ScreenRight - ScreenLeft + 1,
+                Position = Prop.Anchor(p.X, p.Y, ScreenRight - ScreenLeft + 1),
+            }, ExteriorProp.Rows(ScreenRight - ScreenLeft + 1, 2)),
+            // No door gap: the stand is boarded, and the boards are the whole answer.
+            ["concession"] = new(BuildConcession,
+                ExteriorProp.Rows(StandRight - StandLeft + 1, StandBottom - StandTop + 1)),
+            // The marquee: the pole mount, dead. The nameplate question is Kevin's —
+            // the board carries only what the location is and the state it is in. Its
+            // read area (MarqueeRead) carries the blocker.
+            ["marquee"] = new(p => new PoleSign
+            {
+                Name = "Marquee",
+                Lines = new[] { "DRIVE-IN", "CLO ED" },
+                Face = new Color("b8b5a5"),
+                Letters = new Color("453a2e"),
+                Position = Prop.Anchor(p.X, p.Y),
+            }),
+            ["speaker"] = new(p => new DriveInSpeaker { Position = Prop.Anchor(p.X, p.Y) },
+                ExteriorProp.Rows(1, 1)),
+            [TownProps.BenchAId] = new(p => Bench(p, TownProps.BenchA), ExteriorProp.Rows(2, 1)),
+            [TownProps.BenchBId] = new(p => Bench(p, TownProps.BenchB), ExteriorProp.Rows(2, 1)),
+        };
+
+    private static Node2D BuildConcession(MapPlacement p)
+    {
         var stand = new PlaceholderBuilding
         {
             Name = "Concession",
@@ -102,7 +135,7 @@ public partial class DriveInMap : ExteriorMap
             FootprintRows = StandBottom - StandTop + 1,
             Wall = new Color("8a8578"),
             Boarded = true,
-            Position = Prop.Anchor(StandLeft, StandBottom, StandRight - StandLeft + 1),
+            Position = Prop.Anchor(p.X, p.Y, StandRight - StandLeft + 1),
         };
         stand.AddChild(new WallBandSign
         {
@@ -110,65 +143,21 @@ public partial class DriveInMap : ExteriorMap
             LitAtNight = false,
             Position = new Vector2(0, -57),
         });
-        AddChild(stand);
-
-        // The marquee: the pole mount, dead. The nameplate question is Kevin's —
-        // the board carries only what the location is and the state it is in.
-        AddChild(new PoleSign
-        {
-            Name = "Marquee",
-            Lines = new[] { "DRIVE-IN", "CLO ED" },
-            Face = new Color("b8b5a5"),
-            Letters = new Color("453a2e"),
-            Position = Prop.Anchor(Marquee.X, Marquee.Y),
-        });
-
-        foreach (Vector2I speaker in Speakers)
-        {
-            AddChild(new DriveInSpeaker
-            {
-                Position = Prop.Anchor(speaker.X, speaker.Y),
-            });
-        }
-
-        foreach (int x in BenchX)
-        {
-            AddChild(new Prop
-            {
-                Name = $"Bench{x}",
-                TexturePath = TownProps.TexturePath,
-                Source = x % 2 == 0 ? TownProps.BenchB : TownProps.BenchA,
-                Position = Prop.Anchor(x, BenchRow, 2),
-            });
-        }
+        return stand;
     }
 
-    private void BuildSpawns()
+    private static Prop Bench(MapPlacement p, Rect2 source) => new()
     {
-        var spawns = new Node2D { Name = "Spawns" };
-        // >= 1 tile clear of the exit area (spawn-clearance rule).
-        spawns.AddChild(SpawnMarker("from_road", 14, 3));
-        spawns.AddChild(SpawnMarker("default", 15, 5));
-        AddChild(spawns);
-    }
+        Name = $"Bench{p.X}",
+        TexturePath = TownProps.TexturePath,
+        Source = source,
+        Position = Prop.Anchor(p.X, p.Y, 2),
+    };
 
-    private void BuildInteractables()
+    protected override void BuildDressing(TileMapLayer ground)
     {
-        // Copy lives with the place (src/Content/Places/DriveIn.cs).
-        AddChild(new Sign
-        {
-            Name = "MarqueeRead",
-            DrawPlaceholder = false,
-            Position = new Vector2(Marquee.X * TileSize + 8, Marquee.Y * TileSize + 8),
-            Message = DriveIn.MarqueeReadText,
-        });
-    }
-
-    private void BuildTravel()
-    {
-        // 2x1, wider than deep — see EastForkMap.SouthExit.
-        AddRoadExit("NorthExit", MapIds.EastFork, "from_drive_in", DriveLeft, 0,
-            widthTiles: 2, heightTiles: 1);
+        if (FieldRamps is { } ramps)
+            ground.AddChild(BuildFieldMarkings(ramps.Field, ramps.RampRowsPx));
     }
 
     // ------------------------------------------------------------------
@@ -183,20 +172,21 @@ public partial class DriveInMap : ExteriorMap
 
     private static readonly int[] RampRowsPx = { 40, 104, 168 };
 
-    /// <summary>The asphalt field (tiles) and its three ramp rows, as field-local pixel
-    /// rows. Read-only, for the world dump.</summary>
-    internal static (Rect2I Field, IReadOnlyList<int> RampRowsPx) FieldRamps =>
-        (new Rect2I(LotLeft, LotTop, LotRight - LotLeft + 1, LotBottom - LotTop + 1), RampRowsPx);
+    /// <summary>The asphalt field (tiles — the bounding box of the map's Asphalt) and its
+    /// three ramp rows, as field-local pixel rows. Read-only, for the world dump and the
+    /// field; null before the build, or when no Asphalt is painted.</summary>
+    internal (Rect2I Field, IReadOnlyList<int> RampRowsPx)? FieldRamps =>
+        BoundsOf(Surface.Asphalt) is { } field ? (field, RampRowsPx) : null;
 
-    private Sprite2D BuildFieldMarkings()
+    private static Sprite2D BuildFieldMarkings(Rect2I field, IReadOnlyList<int> rampRowsPx)
     {
-        int w = (LotRight - LotLeft + 1) * TileSize;   // 352
-        int h = (LotBottom - LotTop + 1) * TileSize;   // 192
+        int w = field.Size.X * TileSize;   // 352
+        int h = field.Size.Y * TileSize;   // 192
         var img = Image.CreateEmpty(w, h, false, Image.Format.Rgba8);
         img.Fill(new Color(0, 0, 0, 0));
 
         // Three ramp rows, the paint nearly gone: broken dashes, not lines.
-        foreach (int y in RampRowsPx)
+        foreach (int y in rampRowsPx)
         {
             for (int x = 4; x < w - 12; x += 22)
                 img.FillRect(new Rect2I(x + Hash(x, y) % 6, y, 9, 1), RampLine);
@@ -228,7 +218,7 @@ public partial class DriveInMap : ExteriorMap
         {
             Name = "FieldMarkings",
             Centered = false,
-            Position = new Vector2(LotLeft * TileSize, LotTop * TileSize),
+            Position = new Vector2(field.Position.X * TileSize, field.Position.Y * TileSize),
             Texture = ImageTexture.CreateFromImage(img),
         };
     }

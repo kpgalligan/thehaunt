@@ -28,6 +28,14 @@ public static class MotelRules
     public const string RoomLockedLine = "Locked.";
     public const string Room3LockedLine = "Locked. A radio plays low inside.";
 
+    /// <summary>Copy for this place's placed signs, by placement id. Null = an unpromoted
+    /// sign (a board still carrying its own map-file text).</summary>
+    public static string? SignTextFor(string placementId) => placementId switch
+    {
+        "MotelSignRead" => PoleSignReadText,
+        _ => null,
+    };
+
     public static string RoomFlag(int room) => room switch
     {
         1 => StoryKeys.MotelRoom1Open,

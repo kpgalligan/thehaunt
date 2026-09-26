@@ -37,7 +37,7 @@ public static class DriveInGateTests
             t.Assert(!DriveIn.ChainDown(Clock.Instance.Now), "spring morning: chain up");
             t.Assert(!map.IsStandable(new Vector2I(33, 27)), "chain cell blocked (west)");
             t.Assert(!map.IsStandable(new Vector2I(34, 27)), "chain cell blocked (east)");
-            var exit = map.GetNodeOrNull<MapExit>("SouthExit");
+            var exit = map.GetNodeOrNull<MapExit>("Exit_" + MapIds.DriveIn);
             t.Assert(exit != null, "the south exit exists");
             t.Assert(exit!.IsEnabled != null && !exit.IsEnabled(),
                 "south exit disabled while chained");

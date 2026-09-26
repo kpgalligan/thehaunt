@@ -12,10 +12,22 @@ What lives here:
   the running game). `MapRegistry` is map id -> root-node factory; unknown ids throw
   and Main falls back to the farm, leaving the unknown map's MapState untouched
   (preservation rule).
-- Exteriors: `TestMap` (the farm) and the `ExteriorMap` base (surface grid + shared
-  town-sheet painters — a subclass owns its geometry, fills the grid, hands it to
-  `BuildGround`) carrying `TownMap` and the road strip `WestEntryMap`/`BilliesMap`/
-  `ForkMap`/`EastForkMap`/`EastEntryMap`, plus `DriveInMap`. All programmatic.
+- Exteriors: `TestMap` (the farm) and the `ExteriorMap` base carrying `TownMap` and
+  the road strip `WestEntryMap`/`BilliesMap`/`ForkMap`/`EastForkMap`/`EastEntryMap`,
+  plus `DriveInMap`. All programmatic, all Tiled. `ExteriorMap` owns the surface grid,
+  the shared town-sheet painters and THE build (`_Ready`, a template no subclass
+  overrides): load `data/maps/<MapId>.tmx` (else the code seed), resolve every
+  placement up front, then ground → dressing → road kerbs → Obstacles → props →
+  Spawns → signs → exits → doors (Y-sort ties fall back to that order). A subclass
+  supplies its code seed (`BuildDefaultSurfaces`, `BuildDefaultRecipe` — off-tree
+  safe, `CodeSeed` wraps both for `TiledSeeds`), its prop catalog (`PropCatalog`:
+  placement id → `ExteriorProp`, the node builder plus its footprint as offsets from
+  the placed cell, blocked minus door cells) and hooks: `HasRoad`, `SignTextFor` (the
+  place's copy), `ConfigureDoor` (locks and lines), `ExitGate` (a gated private
+  drive), `BuildDressing` (ground decals), `OnBuilt` (a map that keeps hold of its
+  own nodes). Views derived from the build (`WestEntryMap.MotorCourt`/`LotStalls`,
+  `DriveInMap.FieldRamps`) are instance state, null before the build or when the
+  file places nothing for them.
 - Interiors: the `InteriorMap` base with `TownHallMap`/`FarmHouseMap`/`GeneralStoreMap`/
   `BarnMap`/`MotelMap`/`GasStationMap`/`BilliesBarMap`/`SalonMap`/`MotelRoomMap` (one
   class, four registered room ids), and `GarageInteriorMap` (Kevin's 2026-08-30
@@ -56,7 +68,7 @@ What lives here:
   `CharacterSprites` + `CharacterSprite`, `DayNight` + `DayNightTint` + `GlowLight`.
 - Recipes (code side): `MapRecipe` + `MapPlacement` + `PlacementKinds`/`PlacementFields`
   + `MapRecipeFile` + `MapRecipeException`, and `MapRecipeSeeds` (the one-shot exporter
-  that seeds a map's first recipe from its C# literals). Tiled (the town):
+  that seeds a map's first recipe from its C# literals). Tiled (every exterior):
   `TiledMap` (strict TMX subset, canonical writer) + `TiledMapFile` (+ the
   `--tiled-file` dev file) + `TiledSurfaces` (the surface palette) + `TiledObstacles`
   (the obstacle palette: Fence, Bush) + `TiledSeeds` (`--seed-tiled`);

@@ -18,4 +18,12 @@ public static class GasStation
 
     // [KEVIN] placeholder copy — canon restatement only, no names.
     public const string RoadSignText = "Gas.";
+
+    /// <summary>Copy for this place's placed signs, by placement id. Null = an unpromoted
+    /// sign (a board still carrying its own map-file text).</summary>
+    public static string? SignTextFor(string placementId) => placementId switch
+    {
+        "GasSign" => RoadSignText,
+        _ => null,
+    };
 }

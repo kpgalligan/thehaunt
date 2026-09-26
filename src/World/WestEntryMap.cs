@@ -36,8 +36,6 @@ public partial class WestEntryMap : ExteriorMap
     protected override int MapWidth => Width;
     protected override int MapHeight => Height;
 
-    private const int RoadTop = 14, RoadBottom = 15;
-
     // The motor court: office wall x2-6, a grass gap at x7, room strip x8-25, all on
     // face rows 1-7 with the doors on row 7. Walkway row 8, lot rows 9-13.
     private const int FaceTop = 1, DoorRow = 7;
@@ -49,13 +47,20 @@ public partial class WestEntryMap : ExteriorMap
     private static readonly int[] RoomDoorX = { 8, 13, 17, 21 };
     private static readonly Vector2I SignFoot = new(4, 13);
 
+    // The motel's placement cell: the soda-machine column west of the office, on the
+    // door row. Every part of the court is an offset from it.
+    private static readonly Vector2I MotelCell = new(OfficeLeft - 1, DoorRow);
+
     /// <summary>The motor court's footprint — office and room strip as blocked
     /// rectangles (face rows through the door row), the office door column and the
-    /// four room door columns on <see cref="DoorRow"/>. Read-only, for the world dump.</summary>
-    internal static (Rect2I Office, Rect2I Strip, int DoorRow, int OfficeDoorX, IReadOnlyList<int> RoomDoorX) MotorCourt =>
-        (new Rect2I(OfficeLeft, FaceTop, OfficeRight - OfficeLeft + 1, DoorRow - FaceTop + 1),
-         new Rect2I(StripLeft, FaceTop, StripRight - StripLeft + 1, DoorRow - FaceTop + 1),
-         DoorRow, OfficeDoorX, RoomDoorX);
+    /// four room door columns on the door row — derived from the motel's placed cell.
+    /// Read-only, for the world dump and the lot; null before the build, or when no
+    /// motel is placed.</summary>
+    internal (Rect2I Office, Rect2I Strip, int DoorRow, int OfficeDoorX, IReadOnlyList<int> RoomDoorX)? MotorCourt
+    {
+        get;
+        private set;
+    }
 
     // Footprints south of the road: (left, top, right, bottom); faces drawn 2 rows taller.
     private const int GasLeft = 24, GasTop = 18, GasRight = 29, GasBottom = 20;
@@ -72,6 +77,7 @@ public partial class WestEntryMap : ExteriorMap
     private static readonly Vector2I WestLight = new(13, 13);
     private static readonly Vector2I EastLight = new(22, 13);
     private static readonly Vector2I StandSign = new(31, 12);
+    private static readonly Vector2I SaleSign = new(36, 21);
 
     public override void _EnterTree()
     {
@@ -89,24 +95,6 @@ public partial class WestEntryMap : ExteriorMap
     };
     private readonly Dictionary<int, GuestCar> _cars = new();
 
-    public override void _Ready()
-    {
-        BuildSurfaces();
-        TileSet tileSet = RoadsideTerrain.Get(); // the lot needs the asphalt source
-        TileMapLayer ground = BuildGround(tileSet);
-        ground.AddChild(BuildLotMarkings());
-        // Kerb cuts: the lot driveway (a cut, not an apron), the gas frontage, and
-        // the garage frontage — a repair shop lived off cars rolling in.
-        ground.AddChild(BuildRoadDressing(RoadTop,
-            new[] { (LotLeft + 2, LotLeft + 5) },
-            new[] { (GasDoorX, GasDoorX + 1), (GarageDoorX, GarageDoorX + 1) }));
-        BuildObstacles(tileSet);
-        BuildBuildings();
-        BuildSpawns();
-        BuildInteractables();
-        BuildTravel();
-    }
-
     /// <summary>
     /// The west entry's model-derived staging: the guest cars. Occupancy is story
     /// state (<see cref="MotelRules.OccupiedRooms"/>), and this runs on hydrate,
@@ -115,6 +103,9 @@ public partial class WestEntryMap : ExteriorMap
     /// </summary>
     public override void ApplyState(MapState state)
     {
+        // No court or no lot placed: nowhere to park.
+        if (MotorCourt == null || LotStalls == null)
+            return;
         IReadOnlyList<int> occupied = MotelRules.OccupiedRooms(SaveService.Instance.Current);
 
         List<int>? departed = null;
@@ -152,7 +143,7 @@ public partial class WestEntryMap : ExteriorMap
         }
     }
 
-    private void BuildSurfaces()
+    protected override void BuildDefaultSurfaces()
     {
         ResetSurfaces();
 
@@ -175,64 +166,186 @@ public partial class WestEntryMap : ExteriorMap
         Fill(StandLeft, StandTop, StandRight, StandBottom + 1, Surface.Gravel);
     }
 
-    private void BuildObstacles(TileSet tileSet)
+    /// <summary>The west entry's placements as the C# literals describe them: the seed
+    /// <c>data/maps/west_entry.tmx</c> was written from, and the fallback when it is missing.</summary>
+    protected override MapRecipe BuildDefaultRecipe()
     {
-        var obstacles = new TileMapLayer { Name = "Obstacles", TileSet = tileSet };
+        var recipe = new MapRecipe(MapIds.WestEntry);
 
-        // The full drawn face blocks — the court backs onto the treeline and nothing
-        // passes behind it. Door cells stay open; each Door carries its own blocker.
-        Block(obstacles, OfficeLeft, FaceTop, OfficeRight, DoorRow, OfficeDoorX, DoorRow);
-        Block(obstacles, StripLeft, FaceTop, StripRight, DoorRow - 1);
-        for (int x = StripLeft; x <= StripRight; x++)
+        // The motor court, its pole sign in the grass between the office and the road,
+        // the buildings south of the road and the stand, then the two cobra heads.
+        recipe.Add(PlacementKinds.Prop, "motel", MotelCell.X, MotelCell.Y);
+        recipe.Add(PlacementKinds.Prop, "motel_sign", SignFoot.X, SignFoot.Y);
+        recipe.Add(PlacementKinds.Prop, "gas_station", GasLeft, GasBottom);
+        recipe.Add(PlacementKinds.Prop, "garage", GarageLeft, GarageBottom);
+        recipe.Add(PlacementKinds.Prop, "fireworks_stand", StandLeft, StandBottom);
+        recipe.Add(PlacementKinds.Prop, "fireworks_pole", StandSign.X, StandSign.Y);
+        recipe.Add(PlacementKinds.Prop, "west_light", WestLight.X, WestLight.Y);
+        recipe.Add(PlacementKinds.Prop, "east_light_dead", EastLight.X, EastLight.Y);
+        // The garage's FOR SALE board — south of the footprint for the same Y-sort
+        // reason as the gas sign, east of the drawn doorway. A press opens the sale
+        // session; once the deed lands the same node answers SOLD.
+        recipe.Add(PlacementKinds.Prop, "garage_sale_sign", SaleSign.X, SaleSign.Y);
+
+        // >= 1 tile clear of each road-mouth exit area (spawn-clearance rule). The
+        // wrap marker is where a resident who left east finds themselves arriving.
+        recipe.Add(PlacementKinds.Spawn, "default", 24, 15);
+        recipe.Add(PlacementKinds.Spawn, RoadWrap.ArrivalSpawn, 2, 15);
+        recipe.Add(PlacementKinds.Spawn, "from_billies", 45, 15);
+        recipe.Add(PlacementKinds.Spawn, "from_motel", OfficeDoorX, WalkRow);
+        for (int room = 1; room <= MotelRules.Rooms; room++)
+            recipe.Add(PlacementKinds.Spawn, $"from_room{room}", RoomDoorX[room - 1], WalkRow);
+        recipe.Add(PlacementKinds.Spawn, "from_gas", GasDoorX, GasBottom + 1);
+        recipe.Add(PlacementKinds.Spawn, "from_garage", GarageDoorX, GarageBottom + 1);
+
+        // The pole sign's read area rides its foot tile; the art draws it, the node
+        // answers for it. The gas board stands south of the footprint (a sign north of
+        // a south-of-road building lands inside its drawn face and Y-sorts invisible),
+        // east of the doorway so the door approach stays clear. Copy lives with the
+        // places (src/Content/Places).
+        recipe.Add(PlacementKinds.Sign, "MotelSignRead", SignFoot.X, SignFoot.Y)
+            .SetBool(PlacementFields.Board, false);
+        recipe.Add(PlacementKinds.Sign, "GasSign", 28, 21);
+        recipe.Add(PlacementKinds.Sign, "FireworksSign", 36, 12);
+
+        // Every doorway is drawn into its face. The office is the only door open at
+        // first contact; rooms 1-4 are locked behind their own flags and the garage
+        // behind its deed (ConfigureDoor), and a locked handle answers with a line —
+        // never silence (motel handoff).
+        recipe.Add(PlacementKinds.Door, MapIds.Motel, OfficeDoorX, DoorRow)
+            .SetText(PlacementFields.Spawn, "entry");
+        for (int room = 1; room <= MotelRules.Rooms; room++)
         {
-            if (System.Array.IndexOf(RoomDoorX, x) < 0)
-                obstacles.SetCell(new Vector2I(x, DoorRow), 0, TerrainTiles.Blocker);
+            recipe.Add(PlacementKinds.Door, MapIds.MotelRoom(room), RoomDoorX[room - 1], DoorRow)
+                .SetText(PlacementFields.Spawn, "entry");
         }
+        recipe.Add(PlacementKinds.Door, MapIds.GasStation, GasDoorX, GasBottom)
+            .SetText(PlacementFields.Spawn, "entry");
+        recipe.Add(PlacementKinds.Door, MapIds.GarageInterior, GarageDoorX, GarageBottom)
+            .SetText(PlacementFields.Spawn, "entry");
 
-        // The drawn face bleeds past its blocked cells at both ends — the soda
-        // machine on column x1, the strip outline's sliver on x26 — and nothing
-        // passes behind this building, so both edge columns block too.
-        Block(obstacles, OfficeLeft - 1, FaceTop, OfficeLeft - 1, DoorRow);
-        Block(obstacles, StripRight + 1, FaceTop, StripRight + 1, DoorRow);
+        // The road out. It goes exactly where the story says it goes.
+        AddExit(recipe, RoadWrap.PastTheWestEdgeMap, RoadWrap.ArrivalSpawn, 0, RoadTop, 1, 2);
+        AddExit(recipe, MapIds.Billies, "from_west_entry", Width - 1, RoadTop, 1, 2);
 
-        Block(obstacles, GasLeft, GasTop, GasRight, GasBottom, GasDoorX, GasBottom);
-        // The garage's door cell gaps like the gas station's: the Door node's own
-        // blocker seals it, and the handle is deed-locked (garage.deed) — shut and
-        // silent-looking until Jane owns the place, open any hour after.
-        Block(obstacles, GarageLeft, GarageTop, GarageRight, GarageBottom, GarageDoorX, GarageBottom);
-        Block(obstacles, StandLeft, StandTop, StandRight, StandBottom);
-        obstacles.SetCell(WestLight, 0, TerrainTiles.Blocker);
-        obstacles.SetCell(EastLight, 0, TerrainTiles.Blocker);
-        obstacles.SetCell(StandSign, 0, TerrainTiles.Blocker);
-        AddChild(obstacles);
+        // Kerb cuts: the lot driveway (a cut, not an apron), the gas frontage, and the
+        // garage frontage — a repair shop lived off cars rolling in.
+        AddKerbCut(recipe, "lot_driveway", LotLeft + 2, RoadTop, 4);
+        AddKerbCut(recipe, "gas_frontage", GasDoorX, RoadBottom, 2);
+        AddKerbCut(recipe, "garage_frontage", GarageDoorX, RoadBottom, 2);
+
+        return recipe;
     }
 
-    private void BuildBuildings()
+    private static void AddExit(MapRecipe recipe, string target, string spawn, int x, int y, int w, int h)
     {
+        MapPlacement exit = recipe.Add(PlacementKinds.Exit, target, x, y);
+        exit.SetText(PlacementFields.Spawn, spawn);
+        exit.SetInt(PlacementFields.Width, w);
+        exit.SetInt(PlacementFields.Height, h);
+    }
+
+    private static void AddKerbCut(MapRecipe recipe, string id, int x, int y, int w)
+    {
+        MapPlacement cut = recipe.Add(PlacementKinds.KerbCut, id, x, y);
+        cut.SetInt(PlacementFields.Width, w);
+        cut.SetInt(PlacementFields.Height, 1);
+    }
+
+    protected override string? SignTextFor(string signId) =>
+        MotelRules.SignTextFor(signId) ?? GasStation.SignTextFor(signId) ?? FireworksStand.SignTextFor(signId);
+
+    protected override IReadOnlyDictionary<string, ExteriorProp> PropCatalog() =>
+        new Dictionary<string, ExteriorProp>(StringComparer.Ordinal)
+        {
+            // The full drawn face blocks — the court backs onto the treeline and nothing
+            // passes behind it. The door cells stay open; each Door carries its own
+            // blocker. The drawn face bleeds past its blocked cells at both ends — the
+            // soda machine on the office's west column, the strip outline's sliver past
+            // its east end — and nothing passes behind this building, so both edge
+            // columns block too.
+            ["motel"] = new(BuildMotel,
+                new Rect2I(0, FaceTop - DoorRow, OfficeRight - MotelCell.X + 1, DoorRow - FaceTop + 1),
+                new Rect2I(StripLeft - MotelCell.X, FaceTop - DoorRow, StripRight - StripLeft + 2, DoorRow - FaceTop + 1)),
+            // The pole sign, in the grass between the office and the road; its read
+            // area (MotelSignRead) carries the blocker.
+            ["motel_sign"] = new(p => new MotelSign
+            {
+                Name = "MotelSign",
+                Position = Prop.Anchor(p.X, p.Y),
+            }),
+            ["gas_station"] = new(BuildGasStation, ExteriorProp.Rows(GasRight - GasLeft + 1, GasBottom - GasTop + 1)),
+            // The garage's door cell gaps like the gas station's: the Door node's own
+            // blocker seals it, and the handle is deed-locked (garage.deed).
+            ["garage"] = new(BuildGarage, ExteriorProp.Rows(GarageRight - GarageLeft + 1, GarageBottom - GarageTop + 1)),
+            ["fireworks_stand"] = new(p => new PlaceholderBuilding
+            {
+                Name = "FireworksStand",
+                TilesWide = StandRight - StandLeft + 1,
+                FootprintRows = StandBottom - StandTop + 1,
+                Wall = new Color("8a6a45"),
+                Position = Prop.Anchor(p.X, p.Y, StandRight - StandLeft + 1),
+            }, ExteriorProp.Rows(StandRight - StandLeft + 1, StandBottom - StandTop + 1)),
+            // A stand that lives off passing traffic gets the pole mount.
+            ["fireworks_pole"] = new(p => new PoleSign
+            {
+                Name = "FireworksPole",
+                Lines = new[] { "FIREWORKS" },
+                Position = Prop.Anchor(p.X, p.Y),
+            }, ExteriorProp.Rows(1, 1)),
+            // The two cobra heads stand in the lot's kerb verge, flanking the driveway.
+            // The east one is DEAD and stays dead — not flickering, dead — which keeps
+            // the vacancy sign's V the only animated thing in the game (motel handoff).
+            ["west_light"] = new(p => new StreetLight
+            {
+                Name = "WestLight",
+                Position = Prop.Anchor(p.X, p.Y),
+            }, ExteriorProp.Rows(1, 1)),
+            ["east_light_dead"] = new(p => new StreetLight
+            {
+                Name = "EastLightDead",
+                Lit = false,
+                ArmLeft = true,
+                Position = Prop.Anchor(p.X, p.Y),
+            }, ExteriorProp.Rows(1, 1)),
+            ["garage_sale_sign"] = new(p => new GarageSaleSign
+            {
+                Name = "GarageSaleSign",
+                Position = CellCentre(p),
+            }),
+        };
+
+    private Node2D BuildMotel(MapPlacement p)
+    {
+        Vector2I m = p.Cell;
+        MotorCourt = (
+            new Rect2I(m.X + (OfficeLeft - MotelCell.X), m.Y + (FaceTop - DoorRow),
+                OfficeRight - OfficeLeft + 1, DoorRow - FaceTop + 1),
+            new Rect2I(m.X + (StripLeft - MotelCell.X), m.Y + (FaceTop - DoorRow),
+                StripRight - StripLeft + 1, DoorRow - FaceTop + 1),
+            m.Y, m.X + (OfficeDoorX - MotelCell.X),
+            RoomDoorX.Select(x => m.X + (x - MotelCell.X)).ToArray());
+
         // The face spans map px 18-418; anchored bottom-centre on the door row's
         // south edge, like every facade.
         // +2: the face's last two texture rows are the handoff's ink base band
         // below the kick plate, drawn over the walkway's top edge like ground contact.
-        AddChild(new MotelFacade
+        return new MotelFacade
         {
             Name = "MotelFacade",
-            Position = new Vector2(218, (DoorRow + 1) * TileSize + 2),
-        });
+            Position = new Vector2(m.X * TileSize + 202, (m.Y + 1) * TileSize + 2),
+        };
+    }
 
-        // The pole sign, in the grass between the office and the road.
-        AddChild(new MotelSign
-        {
-            Name = "MotelSign",
-            Position = Prop.Anchor(SignFoot.X, SignFoot.Y),
-        });
-
+    private static Node2D BuildGasStation(MapPlacement p)
+    {
         var gas = new PlaceholderBuilding
         {
             Name = "GasStation",
             TilesWide = GasRight - GasLeft + 1,
             FootprintRows = GasBottom - GasTop + 1,
             Wall = new Color("8a7a6a"),
-            Position = Prop.Anchor(GasLeft, GasBottom, GasRight - GasLeft + 1),
+            Position = Prop.Anchor(p.X, p.Y, GasRight - GasLeft + 1),
         };
         // Window mount (motel handoff §3): band over the glass, neon word inside it —
         // lit exactly while the counter is staffed, so the sign never lies about Dennis.
@@ -243,8 +356,11 @@ public partial class WestEntryMap : ExteriorMap
             OnAt = m => m is >= GasStation.OpenMinute and < GasStation.CloseMinute,
             Position = new Vector2(-24, -39),
         });
-        AddChild(gas);
+        return gas;
+    }
 
+    private static Node2D BuildGarage(MapPlacement p)
+    {
         // The repair garage, shut and for sale (src/Content/Places): Jane's route
         // back into her father's trade once the skills system lands. Same closed-
         // and-dark treatment as the hardware store — the band sign's bill is not
@@ -255,7 +371,7 @@ public partial class WestEntryMap : ExteriorMap
             TilesWide = GarageRight - GarageLeft + 1,
             FootprintRows = GarageBottom - GarageTop + 1,
             Wall = new Color("6d7a72"),
-            Position = Prop.Anchor(GarageLeft, GarageBottom, GarageRight - GarageLeft + 1),
+            Position = Prop.Anchor(p.X, p.Y, GarageRight - GarageLeft + 1),
         };
         garage.AddChild(new WallBandSign
         {
@@ -263,145 +379,36 @@ public partial class WestEntryMap : ExteriorMap
             LitAtNight = false,
             Position = new Vector2(0, -57),
         });
-        AddChild(garage);
-
-        AddChild(new PlaceholderBuilding
-        {
-            Name = "FireworksStand",
-            TilesWide = StandRight - StandLeft + 1,
-            FootprintRows = StandBottom - StandTop + 1,
-            Wall = new Color("8a6a45"),
-            Position = Prop.Anchor(StandLeft, StandBottom, StandRight - StandLeft + 1),
-        });
-        // A stand that lives off passing traffic gets the pole mount.
-        AddChild(new PoleSign
-        {
-            Name = "FireworksPole",
-            Lines = new[] { "FIREWORKS" },
-            Position = Prop.Anchor(StandSign.X, StandSign.Y),
-        });
-
-        AddChild(new StreetLight
-        {
-            Name = "WestLight",
-            Position = Prop.Anchor(WestLight.X, WestLight.Y),
-        });
-        AddChild(new StreetLight
-        {
-            Name = "EastLightDead",
-            Lit = false,
-            ArmLeft = true,
-            Position = Prop.Anchor(EastLight.X, EastLight.Y),
-        });
+        return garage;
     }
 
-    private void BuildSpawns()
+    protected override void ConfigureDoor(Door door)
     {
-        var spawns = new Node2D { Name = "Spawns" };
-        // >= 1 tile clear of each road-mouth exit area (spawn-clearance rule). The
-        // wrap marker is where a resident who left east finds themselves arriving.
-        spawns.AddChild(SpawnMarker("default", 24, 15));
-        spawns.AddChild(SpawnMarker(RoadWrap.ArrivalSpawn, 2, 15));
-        spawns.AddChild(SpawnMarker("from_billies", 45, 15));
-        spawns.AddChild(SpawnMarker("from_motel", OfficeDoorX, WalkRow));
-        for (int room = 1; room <= MotelRules.Rooms; room++)
-            spawns.AddChild(SpawnMarker($"from_room{room}", RoomDoorX[room - 1], WalkRow));
-        spawns.AddChild(SpawnMarker("from_gas", GasDoorX, GasBottom + 1));
-        spawns.AddChild(SpawnMarker("from_garage", GarageDoorX, GarageBottom + 1));
-        AddChild(spawns);
-    }
-
-    private void BuildInteractables()
-    {
-        // The pole sign's read area rides its foot tile; the art draws it, the node
-        // answers for it. Copy lives with the places (src/Content/Places).
-        AddChild(new Sign
-        {
-            Name = "MotelSignRead",
-            DrawPlaceholder = false,
-            Position = new Vector2(SignFoot.X * TileSize + 8, SignFoot.Y * TileSize + 8),
-            Message = MotelRules.PoleSignReadText,
-        });
-        AddChild(new Sign
-        {
-            Name = "GasSign",
-            // South of the footprint: a sign north of a south-of-road building lands
-            // inside its drawn face and Y-sorts invisible. East of the doorway so the
-            // door approach stays clear.
-            Position = new Vector2(28 * TileSize + 8, 21 * TileSize + 8),
-            Message = GasStation.RoadSignText,
-        });
-        AddChild(new Sign
-        {
-            Name = "FireworksSign",
-            Position = new Vector2(36 * TileSize + 8, 12 * TileSize + 8),
-            Message = FireworksStand.RoadSignText,
-        });
-        // The garage's FOR SALE board — south of the footprint for the same Y-sort
-        // reason as the gas sign, east of the drawn doorway. A press opens the sale
-        // session; once the deed lands the same node answers SOLD.
-        AddChild(new GarageSaleSign
-        {
-            Name = "GarageSaleSign",
-            Position = new Vector2(36 * TileSize + 8, 21 * TileSize + 8),
-        });
-    }
-
-    private void BuildTravel()
-    {
-        // The road out. It goes exactly where the story says it goes.
-        AddRoadExit("WestExit", RoadWrap.PastTheWestEdgeMap, RoadWrap.ArrivalSpawn, 0, RoadTop);
-        AddRoadExit("EastExit", MapIds.Billies, "from_west_entry", Width - 1, RoadTop);
-
-        // Every doorway is drawn into its face, so the Door nodes contribute their
-        // blockers and their prompts only. The office is the only door open at first
-        // contact; rooms 1-4 are locked behind their own flags, and a locked handle
-        // answers with a line — never silence (motel handoff).
-        AddChild(new Door
-        {
-            Name = "MotelDoor",
-            TargetMapId = MapIds.Motel,
-            TargetSpawnId = "entry",
-            DrawPlaceholder = false,
-            Position = new Vector2(OfficeDoorX * TileSize + 8, DoorRow * TileSize + 8),
-        });
+        // Locked-handle lines live with the motel (src/Content/Places/MotelRules.cs).
+        // Room 3 is Pell's — the radio never explains itself.
         for (int room = 1; room <= MotelRules.Rooms; room++)
         {
-            AddChild(new Door
-            {
-                Name = $"Room{room}Door",
-                TargetMapId = MapIds.MotelRoom(room),
-                TargetSpawnId = "entry",
-                RequiredFlag = MotelRules.RoomFlag(room),
-                // Locked-handle lines live with the motel (src/Content/Places/
-                // MotelRules.cs). Room 3 is Pell's — the radio never explains itself.
-                LockedMessage = room == 3 ? MotelRules.Room3LockedLine : MotelRules.RoomLockedLine,
-                DrawPlaceholder = false,
-                Position = new Vector2(RoomDoorX[room - 1] * TileSize + 8, DoorRow * TileSize + 8),
-            });
+            if (door.TargetMapId != MapIds.MotelRoom(room))
+                continue;
+            door.RequiredFlag = MotelRules.RoomFlag(room);
+            door.LockedMessage = room == 3 ? MotelRules.Room3LockedLine : MotelRules.RoomLockedLine;
         }
-        AddChild(new Door
-        {
-            Name = "GasDoor",
-            TargetMapId = MapIds.GasStation,
-            TargetSpawnId = "entry",
-            DrawPlaceholder = false,
-            Position = new Vector2(GasDoorX * TileSize + 8, GasBottom * TileSize + 8),
-        });
+
         // The garage's shut door, deed-locked (the motel-room pattern: live flag
         // check per interact, no repaint on purchase). Before the deed it answers
         // with a line; after it, Jane walks into her shop at any hour — the 9-6
         // window gates customers and Mike, never the owner.
-        AddChild(new Door
+        if (door.TargetMapId == MapIds.GarageInterior)
         {
-            Name = "GarageDoor",
-            TargetMapId = MapIds.GarageInterior,
-            TargetSpawnId = "entry",
-            RequiredFlag = StoryKeys.GarageDeed,
-            LockedMessage = Garage.DoorLockedLine,   // copy with the place (Places/Garage.cs)
-            DrawPlaceholder = false,
-            Position = new Vector2(GarageDoorX * TileSize + 8, GarageBottom * TileSize + 8),
-        });
+            door.RequiredFlag = StoryKeys.GarageDeed;
+            door.LockedMessage = Garage.DoorLockedLine;   // copy with the place (Places/Garage.cs)
+        }
+    }
+
+    protected override void BuildDressing(TileMapLayer ground)
+    {
+        if (LotStalls is { } stalls)
+            ground.AddChild(BuildLotMarkings(stalls.Lot, stalls.StripesPx));
     }
 
     // ------------------------------------------------------------------
@@ -413,14 +420,16 @@ public partial class WestEntryMap : ExteriorMap
     private static readonly Color StallStripe = new("b8b5a5");
     private static readonly Color Crack = new("3e4241");
 
-    /// <summary>The asphalt lot (tiles) and its eight faded stalls: nine stripes, 2x40,
-    /// every 36px, 8px in from the lot's west edge (handoff geometry, one row
-    /// shallower), as lot-local pixel rects. Read-only, for the world dump.</summary>
-    internal static (Rect2I Lot, IReadOnlyList<Rect2I> StripesPx) LotStalls
+    /// <summary>The asphalt lot (tiles — the bounding box of the map's Asphalt) and its
+    /// eight faded stalls: nine stripes, 2x40, every 36px, 8px in from the lot's west
+    /// edge (handoff geometry, one row shallower), as lot-local pixel rects. Read-only,
+    /// for the world dump and the lot; null before the build, or when no Asphalt is painted.</summary>
+    internal (Rect2I Lot, IReadOnlyList<Rect2I> StripesPx)? LotStalls
     {
         get
         {
-            var lot = new Rect2I(LotLeft, LotTop, LotRight - LotLeft + 1, LotBottom - LotTop + 1);
+            if (BoundsOf(Surface.Asphalt) is not { } lot)
+                return null;
             var stripes = new List<Rect2I>();
             for (int x = 8; x + 2 <= lot.Size.X * TileSize; x += 36)
                 stripes.Add(new Rect2I(x, 10, 2, 40));
@@ -431,11 +440,13 @@ public partial class WestEntryMap : ExteriorMap
     /// <summary>The stall in front of a room (map px): the paint-free asphalt between
     /// the two stripes that hold the room's door column centre, as deep as the stripes
     /// run. Where that room's guest parks.</summary>
-    internal static Rect2I RoomStallPx(int room)
+    internal Rect2I RoomStallPx(int room)
     {
-        (Rect2I lot, IReadOnlyList<Rect2I> stripes) = LotStalls;
+        if (MotorCourt is not { } court || LotStalls is not { } stalls)
+            throw new System.InvalidOperationException($"room {room}'s door has no stall in front of it");
+        (Rect2I lot, IReadOnlyList<Rect2I> stripes) = stalls;
         Vector2I origin = lot.Position * TileSize;
-        int door = RoomDoorX[room - 1] * TileSize + TileSize / 2;
+        int door = court.RoomDoorX[room - 1] * TileSize + TileSize / 2;
         for (int i = 0; i + 1 < stripes.Count; i++)
         {
             Rect2I west = stripes[i], east = stripes[i + 1];
@@ -446,14 +457,14 @@ public partial class WestEntryMap : ExteriorMap
         throw new System.InvalidOperationException($"room {room}'s door has no stall in front of it");
     }
 
-    private Sprite2D BuildLotMarkings()
+    private static Sprite2D BuildLotMarkings(Rect2I lot, IReadOnlyList<Rect2I> stripes)
     {
-        int w = (LotRight - LotLeft + 1) * TileSize;   // 320
-        int h = (LotBottom - LotTop + 1) * TileSize;   // 80
+        int w = lot.Size.X * TileSize;   // 320
+        int h = lot.Size.Y * TileSize;   // 80
         var img = Image.CreateEmpty(w, h, false, Image.Format.Rgba8);
         img.Fill(new Color(0, 0, 0, 0));
 
-        foreach (Rect2I stripe in LotStalls.StripesPx)
+        foreach (Rect2I stripe in stripes)
             img.FillRect(stripe, StallStripe);
 
         // Scattered short cracks across the south half.
@@ -469,7 +480,7 @@ public partial class WestEntryMap : ExteriorMap
         {
             Name = "LotMarkings",
             Centered = false,
-            Position = new Vector2(LotLeft * TileSize, LotTop * TileSize),
+            Position = new Vector2(lot.Position.X * TileSize, lot.Position.Y * TileSize),
             Texture = ImageTexture.CreateFromImage(img),
         };
     }

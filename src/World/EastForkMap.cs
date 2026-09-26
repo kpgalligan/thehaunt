@@ -25,8 +25,6 @@ public partial class EastForkMap : ExteriorMap
     protected override int MapWidth => Width;
     protected override int MapHeight => Height;
 
-    private const int RoadTop = 14, RoadBottom = 15;
-
     // The mansion drive: north out of the road, into the trees, chained well short of
     // wherever it goes. The chain spans exactly the drive's gap in the forest — trees
     // seal the rest of the row, so it cannot be strolled around.
@@ -45,11 +43,13 @@ public partial class EastForkMap : ExteriorMap
     // inside at close walks out north of it — never trapped. Woods seal the row
     // either side of the drive's gap.
     private const int TheaterChainRow = 27;
-    // The chain's board (BuildInteractables): its blocker returns with the chain.
+    // The chain's board: its blocker returns with the chain.
     private const int TheaterChainSignX = 32, TheaterChainSignY = 26;
+    private const string TheaterChainSignId = "TheaterChainSign";
 
     private TileMapLayer? _obstacles;
     private RoadBarrier? _theaterChain;
+    private Vector2I? _theaterChainCell;   // the chain's west cell; it spans two
     private Sign? _theaterChainSign;
     private bool? _chainDown;
 
@@ -60,24 +60,7 @@ public partial class EastForkMap : ExteriorMap
         base._EnterTree();
     }
 
-    public override void _Ready()
-    {
-        BuildSurfaces();
-        TileSet tileSet = RoadsideTerrain.Get(); // the paved road needs the roadside source
-        TileMapLayer ground = BuildGround(tileSet);
-        // Kerb cuts at the mansion drive and the drive-in's driveway.
-        ground.AddChild(BuildRoadDressing(RoadTop,
-            new[] { (DriveLeft, DriveRight) },
-            new[] { (TheaterDriveLeft, TheaterDriveRight) }));
-
-        BuildObstacles(tileSet);
-        BuildStructures();
-        BuildSpawns();
-        BuildInteractables();
-        BuildTravel();
-    }
-
-    private void BuildSurfaces()
+    protected override void BuildDefaultSurfaces()
     {
         ResetSurfaces();
 
@@ -106,108 +89,102 @@ public partial class EastForkMap : ExteriorMap
         Fill(TheaterDriveLeft, RoadBottom + 1, TheaterDriveRight, Height - 1, Surface.Dirt);
     }
 
-    private void BuildObstacles(TileSet tileSet)
+    /// <summary>The east fork's placements as the C# literals describe them: the seed
+    /// <c>data/maps/east_fork.tmx</c> was written from, and the fallback when it is
+    /// missing. The kerb cuts at the mansion drive and the drive-in's driveway derive
+    /// from their dirt.</summary>
+    protected override MapRecipe BuildDefaultRecipe()
     {
-        _obstacles = new TileMapLayer { Name = "Obstacles", TileSet = tileSet };
-        Block(_obstacles, ChainLeft, ChainRow, ChainRight, ChainRow);
-        Block(_obstacles, ShackLeft, ShackTop, ShackRight, ShackBottom);
-        // The theater chain's cells are NOT blocked here: RefreshChain paints and
-        // erases them with the clock (the farm blockade's toggle pattern).
-        AddChild(_obstacles);
-    }
+        var recipe = new MapRecipe(MapIds.EastFork);
 
-    private void BuildStructures()
-    {
-        AddChild(new RoadBarrier
-        {
-            Name = "MansionChain",
-            TilesWide = ChainRight - ChainLeft + 1,
-            Position = Prop.Anchor(ChainLeft, ChainRow, ChainRight - ChainLeft + 1),
-        });
+        recipe.Add(PlacementKinds.Prop, "mansion_chain", ChainLeft, ChainRow);
+        recipe.Add(PlacementKinds.Prop, "shack", ShackLeft, ShackBottom);
+        recipe.Add(PlacementKinds.Prop, "theater_chain", TheaterDriveLeft, TheaterChainRow);
 
-        AddChild(new PlaceholderBuilding
-        {
-            Name = "Shack",
-            TilesWide = ShackRight - ShackLeft + 1,
-            FootprintRows = ShackBottom - ShackTop + 1,
-            Wall = new Color("6b5f4a"),
-            Position = Prop.Anchor(ShackLeft, ShackBottom, ShackRight - ShackLeft + 1),
-        });
-
-        _theaterChain = new RoadBarrier
-        {
-            Name = "TheaterChain",
-            TilesWide = TheaterDriveRight - TheaterDriveLeft + 1,
-            Position = Prop.Anchor(TheaterDriveLeft, TheaterChainRow,
-                TheaterDriveRight - TheaterDriveLeft + 1),
-        };
-        AddChild(_theaterChain);
-    }
-
-    private void BuildSpawns()
-    {
-        var spawns = new Node2D { Name = "Spawns" };
         // >= 1 tile clear of each road-mouth exit area (spawn-clearance rule).
-        spawns.AddChild(SpawnMarker("default", 24, 15));
-        spawns.AddChild(SpawnMarker("from_town", 2, 15));
-        spawns.AddChild(SpawnMarker("from_east_entry", 37, 15));
+        recipe.Add(PlacementKinds.Spawn, "default", 24, 15);
+        recipe.Add(PlacementKinds.Spawn, "from_town", 2, 15);
+        recipe.Add(PlacementKinds.Spawn, "from_east_entry", 37, 15);
         // Two rows clear of the south exit (rows 28-29): the arrival frame must not
         // start inside the trigger, or the exit never re-fires and the open border
         // rows below it lead off the world. Also NORTH of the theater chain's row:
         // an arrival from the drive-in must never land trapped behind a raised
         // chain — the way out after close is always open.
-        spawns.AddChild(SpawnMarker("from_drive_in", 33, Height - 4));
-        AddChild(spawns);
-    }
+        recipe.Add(PlacementKinds.Spawn, "from_drive_in", 33, Height - 4);
 
-    private void BuildInteractables()
-    {
         // [KEVIN] placeholder copy — the chain admits nothing about the mansion, not
-        // even that anyone owns it.
-        AddChild(new Sign
-        {
-            Name = "MansionChainSign",
-            Position = new Vector2(18 * TileSize + 8, (ChainRow + 1) * TileSize + 8),
-            Message = EastFork.MansionChainSignText,
-        });
+        // even that anyone owns it. The theater chain's board is present only while
+        // the chain is up; its copy is only true then (the farm blockade sign's rule).
+        // Words with the place (src/Content/Places/EastFork.cs).
+        recipe.Add(PlacementKinds.Sign, "MansionChainSign", 18, ChainRow + 1);
+        recipe.Add(PlacementKinds.Sign, TheaterChainSignId, TheaterChainSignX, TheaterChainSignY);
 
-        // The theater chain's board — present only while the chain is up; its copy
-        // is only true then (the farm blockade sign's rule). Words with the place
-        // (src/Content/Places/EastFork.cs).
-        _theaterChainSign = new Sign
+        // 2x1, wider than deep, like every north-south mouth: the shape is how
+        // GetArrival knows which axis carries an entering player's lane. The drive-in
+        // mouth is gated on the theater chain (ExitGate).
+        foreach ((string target, string spawn, int x, int y, int w, int h) in new[]
         {
-            Name = "TheaterChainSign",
-            Position = new Vector2(TheaterChainSignX * TileSize + 8, TheaterChainSignY * TileSize + 8),
-            Message = EastFork.TheaterChainSignText,
-        };
-        AddChild(_theaterChainSign);
+            (MapIds.Town, "from_east_fork", 0, RoadTop, 1, 2),
+            (MapIds.EastEntry, "from_east_fork", Width - 1, RoadTop, 1, 2),
+            (MapIds.DriveIn, "from_road", TheaterDriveLeft, Height - 2, 2, 1),
+        })
+        {
+            MapPlacement exit = recipe.Add(PlacementKinds.Exit, target, x, y);
+            exit.SetText(PlacementFields.Spawn, spawn);
+            exit.SetInt(PlacementFields.Width, w);
+            exit.SetInt(PlacementFields.Height, h);
+        }
+
+        return recipe;
     }
 
-    private void BuildTravel()
-    {
-        AddRoadExit("WestExit", MapIds.Town, "from_east_fork", 0, RoadTop);
-        AddRoadExit("EastExit", MapIds.EastEntry, "from_east_fork", Width - 1, RoadTop);
-        // 2x1, wider than deep, like every north-south mouth: the shape is how
-        // GetArrival knows which axis carries an entering player's lane. Gated on
-        // the theater chain — belt (the blocked cells) and suspenders (the
-        // disabled exit), the farm blockade's pairing. The gate reads the chain's
-        // ACTUAL state rather than the clock: while a raise is held back (see
-        // _Process) the drive is still open, so the exit must still work. Only
-        // the TOWN-LINE mouths are never gated; a private drive may be.
-        var southExit = new MapExit
+    protected override string? SignTextFor(string signId) => EastFork.SignTextFor(signId);
+
+    protected override IReadOnlyDictionary<string, ExteriorProp> PropCatalog() =>
+        new Dictionary<string, ExteriorProp>(StringComparer.Ordinal)
         {
-            Name = "SouthExit",
-            TargetMapId = MapIds.DriveIn,
-            TargetSpawnId = "from_road",
-            Position = new Vector2(TheaterDriveLeft * TileSize, (Height - 2) * TileSize)
-                + new Vector2(2 * TileSize, TileSize) / 2f,
-            IsEnabled = () => _chainDown == true,
+            ["mansion_chain"] = new(p => new RoadBarrier
+            {
+                Name = "MansionChain",
+                TilesWide = ChainRight - ChainLeft + 1,
+                Position = Prop.Anchor(p.X, p.Y, ChainRight - ChainLeft + 1),
+            }, ExteriorProp.Rows(ChainRight - ChainLeft + 1, 1)),
+            ["shack"] = new(p => new PlaceholderBuilding
+            {
+                Name = "Shack",
+                TilesWide = ShackRight - ShackLeft + 1,
+                FootprintRows = ShackBottom - ShackTop + 1,
+                Wall = new Color("6b5f4a"),
+                Position = Prop.Anchor(p.X, p.Y, ShackRight - ShackLeft + 1),
+            }, ExteriorProp.Rows(ShackRight - ShackLeft + 1, ShackBottom - ShackTop + 1)),
+            // The theater chain's cells are NOT blocked here: RefreshChain paints and
+            // erases them with the clock (the farm blockade's toggle pattern).
+            ["theater_chain"] = new(BuildTheaterChain),
         };
-        southExit.AddChild(new CollisionShape2D
+
+    private Node2D BuildTheaterChain(MapPlacement p)
+    {
+        _theaterChainCell = p.Cell;
+        _theaterChain = new RoadBarrier
         {
-            Shape = new RectangleShape2D { Size = new Vector2(2 * TileSize, TileSize) },
-        });
-        AddChild(southExit);
+            Name = "TheaterChain",
+            TilesWide = TheaterDriveRight - TheaterDriveLeft + 1,
+            Position = Prop.Anchor(p.X, p.Y, TheaterDriveRight - TheaterDriveLeft + 1),
+        };
+        return _theaterChain;
+    }
+
+    // The gate reads the chain's ACTUAL state rather than the clock: while a raise is
+    // held back (see _Process) the drive is still open, so the exit must still work —
+    // belt (the blocked cells) and suspenders (the disabled exit), the farm blockade's
+    // pairing. Only the TOWN-LINE mouths are never gated; a private drive may be.
+    protected override Func<bool>? ExitGate(string exitId) =>
+        exitId == MapIds.DriveIn ? () => _chainDown == true : null;
+
+    protected override void OnBuilt()
+    {
+        _obstacles = GetNode<TileMapLayer>("Obstacles");
+        _theaterChainSign = GetNodeOrNull<Sign>(TheaterChainSignId);
     }
 
     // ------------------------------------------------------------------
@@ -238,22 +215,34 @@ public partial class EastForkMap : ExteriorMap
         if (GetTree().GetFirstNodeInGroup(PlayerGroup) is not Node2D player)
             return false;
         var feet = new Rect2(player.GlobalPosition + PlayerFeetBox.Position, PlayerFeetBox.Size);
-        var chainCells = new Rect2(TheaterDriveLeft * TileSize, TheaterChainRow * TileSize,
-            (TheaterDriveRight - TheaterDriveLeft + 1) * TileSize, TileSize);
-        var signCell = new Rect2(TheaterChainSignX * TileSize, TheaterChainSignY * TileSize,
-            TileSize, TileSize);
-        return feet.Intersects(chainCells.Grow(1)) || feet.Intersects(signCell.Grow(1));
+        if (_theaterChainCell is { } chain)
+        {
+            var chainCells = new Rect2(chain.X * TileSize, chain.Y * TileSize, 2 * TileSize, TileSize);
+            if (feet.Intersects(chainCells.Grow(1)))
+                return true;
+        }
+        if (_theaterChainSign != null)
+        {
+            Vector2 cell = (_theaterChainSign.Position / TileSize).Floor() * TileSize;
+            var signCell = new Rect2(cell, TileSize, TileSize);
+            if (feet.Intersects(signCell.Grow(1)))
+                return true;
+        }
+        return false;
     }
 
     private void RefreshChain(bool down)
     {
         _chainDown = down;
-        for (int x = TheaterDriveLeft; x <= TheaterDriveRight; x++)
+        if (_theaterChainCell is { } chain)
         {
-            if (down)
-                _obstacles!.EraseCell(new Vector2I(x, TheaterChainRow));
-            else
-                _obstacles!.SetCell(new Vector2I(x, TheaterChainRow), 0, TerrainTiles.Blocker);
+            for (int x = chain.X; x <= chain.X + 1; x++)
+            {
+                if (down)
+                    _obstacles!.EraseCell(new Vector2I(x, chain.Y));
+                else
+                    _obstacles!.SetCell(new Vector2I(x, chain.Y), 0, TerrainTiles.Blocker);
+            }
         }
         if (_theaterChain != null)
             _theaterChain.Visible = !down;

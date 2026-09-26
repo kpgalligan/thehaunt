@@ -13,7 +13,7 @@ public sealed class MapRecipeException : Exception
     /// <summary>The file (or label) the problem is in.</summary>
     public string FilePath { get; }
 
-    /// <param name="problem">Reads on from the path: "is not valid JSON", "placement 3 has no 'kind'".</param>
+    /// <param name="problem">Reads on from the path: "is not valid XML", "has no surface at (3,4)".</param>
     public MapRecipeException(string filePath, string problem)
         : base($"Map recipe '{filePath}' {problem}")
     {

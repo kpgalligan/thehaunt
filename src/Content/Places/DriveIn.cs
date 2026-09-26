@@ -22,6 +22,14 @@ public static class DriveIn
     // [KEVIN] placeholder copy: the marquee reads exactly what is drawn on it.
     public const string MarqueeReadText = "The letter board spells CLO ED. It has for years.";
 
+    /// <summary>Copy for this place's placed signs, by placement id. Null = an unpromoted
+    /// sign (a board still carrying its own map-file text).</summary>
+    public static string? SignTextFor(string placementId) => placementId switch
+    {
+        "MarqueeRead" => MarqueeReadText,
+        _ => null,
+    };
+
     /// <summary>True while the entry chain is open: summer, within the open window.
     /// A pure read of the clock — the east fork's barrier, its sign and its south
     /// exit all derive from this one answer.</summary>

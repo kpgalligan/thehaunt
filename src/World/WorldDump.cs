@@ -91,7 +91,7 @@ public static class WorldDump
         [(MapIds.Farm, "Exit_" + MapIds.Fork)] = "open once " + StoryKeys.RoadCleared + " is stamped",
         [(MapIds.EastFork, "TheaterChain")] = TheaterChainNote,
         [(MapIds.EastFork, "TheaterChainSign")] = TheaterChainNote,
-        [(MapIds.EastFork, "SouthExit")] = "open only while the drive-in chain is down (DriveIn.ChainDown)",
+        [(MapIds.EastFork, "Exit_" + MapIds.DriveIn)] = "open only while the drive-in chain is down (DriveIn.ChainDown)",
     };
 
     /// <summary>One legend character per surface kind, the same in every map.</summary>
@@ -535,16 +535,16 @@ public static class WorldDump
         if (map is TownMap)
             props.Add(Plain("worn_cobble", null, new Rect2I(TownMap.WornCobble, Vector2I.One)));
 
-        if (map is WestEntryMap)
+        if (map is WestEntryMap { LotStalls: { } stalls })
         {
-            (Rect2I lot, IReadOnlyList<Rect2I> stripes) = WestEntryMap.LotStalls;
+            (Rect2I lot, IReadOnlyList<Rect2I> stripes) = stalls;
             props.Add(Plain("stall_stripes", null, lot,
                 ("stripesPx", stripes.Select(r => (object?)RectJson(r)).ToList())));
         }
 
-        if (map is DriveInMap)
+        if (map is DriveInMap { FieldRamps: { } ramps })
         {
-            (Rect2I field, IReadOnlyList<int> rows) = DriveInMap.FieldRamps;
+            (Rect2I field, IReadOnlyList<int> rows) = ramps;
             props.Add(Plain("ramp_rows", null, field, ("rowsPx", rows.Select(y => (object?)y).ToList())));
         }
 
@@ -553,8 +553,12 @@ public static class WorldDump
             foreach (MapPlacement scatter in farm.Recipe.OfKind(PlacementKinds.Scatter))
                 props.Add(Plain("scatter", scatter.Id, new Rect2I(scatter.Cell, Vector2I.One)));
 
-            props.Add(Plain("fence", "pen", TestMap.Pen,
-                ("gate", Fields(("x", TestMap.PenGate.X), ("y", TestMap.PenGate.Y))), ("gateOpen", true)));
+            if (farm.Pen is { } pen)
+            {
+                props.Add(Plain("fence", "pen", pen,
+                    ("gate", farm.PenGate is { } gate ? Fields(("x", gate.X), ("y", gate.Y)) : null),
+                    ("gateOpen", farm.PenGate != null)));
+            }
 
             foreach ((Vector2I cell, Vector2I tile) in TestMap.StormDebris)
             {
@@ -580,7 +584,7 @@ public static class WorldDump
 
     private static Entry MotelEntry(MapRoot map, MotelFacade motel, List<Door> doors, List<Rect2I> footprints)
     {
-        var court = WestEntryMap.MotorCourt;
+        var court = ((WestEntryMap)map).MotorCourt!.Value;
         footprints.Add(court.Office);
         footprints.Add(court.Strip);
         Rect2I all = court.Office.Merge(court.Strip);

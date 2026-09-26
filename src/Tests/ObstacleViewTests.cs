@@ -189,4 +189,47 @@ public static class ObstacleViewTests
             SaveService.Instance.NewGame();
         }
     }
+
+    [SimTest]
+    public static async Task Farm_ReservedTilesAreTheCellsTheHoeRefuses(TestContext t)
+    {
+        SaveService.Instance.NewGame();
+        var map = new TestMap { MapId = MapIds.Farm };
+        t.Host.AddChild(map);
+        await t.WaitFrames(1);
+        try
+        {
+            IReadOnlyCollection<Vector2I> reserved = map.ReservedTiles();
+            t.Assert(reserved.Count > 0, "the farm holds cells back");
+
+            // The invariant worth pinning: the set is exactly what IsTillable consults,
+            // so nothing can be in it and still take a hoe. If someone stops filling the
+            // set, this is what says so.
+            foreach (Vector2I cell in reserved)
+            {
+                t.Assert(!map.IsTillable(cell.X, cell.Y),
+                    $"reserved {cell} refuses the hoe");
+            }
+
+            // The three reasons a cell is reserved, one example each — and all three are
+            // walkable ground that looks perfectly plantable.
+            t.Assert(reserved.Contains(new Vector2I(9, 26)),
+                "the pen's gateway is reserved (a shape's one soft cell)");
+            t.Assert(reserved.Contains(new Vector2I(36, 28)),
+                "the road corridor is reserved (generative terrain, not a placement)");
+            t.Assert(reserved.Contains(new Vector2I(7, 7)),
+                "the farmhouse doorway is reserved (its blocker belongs to the Door node)");
+
+            // Row 27 is the clear band the rest of the suite hoes across; if it ever ends
+            // up reserved, half of FarmArtTests goes with it.
+            t.Assert(!reserved.Contains(new Vector2I(20, 27)) && map.IsTillable(20, 27),
+                "open pasture is not reserved");
+        }
+        finally
+        {
+            map.Free();
+            await t.WaitFrames(1);
+            SaveService.Instance.NewGame();
+        }
+    }
 }

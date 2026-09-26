@@ -7,8 +7,9 @@ namespace TheHaunt.World;
 
 /// <summary>
 /// The dev-only exporter behind <c>--seed-tiled (mapId)</c>: turns a map's C# defaults
-/// into its first Tiled file, plus the Tiled support files beside it. The Tiled
-/// counterpart of <see cref="MapRecipeSeeds"/>.
+/// into its first Tiled file, plus the Tiled support files beside it. Every Tiled map
+/// has one: the exteriors (<see cref="ExteriorMap.CodeSeed"/>) and the farm
+/// (<see cref="TestMap.CodeSeed"/>).
 ///
 /// What it writes, and when:
 /// - the surface palette (<see cref="TiledSurfaces.TilesetPath"/> + its PNG) and the
@@ -23,17 +24,48 @@ public static class TiledSeeds
 {
     public const string ProjectPath = "res://data/maps/tiled/thehaunt.tiled-project";
 
-    /// <summary>Whether this map has C# defaults to seed a Tiled file from.</summary>
-    public static bool Has(string mapId) => mapId == MapIds.Town;
-
-    public static TiledMap For(string mapId) => mapId switch
+    /// <summary>Whether this map has C# defaults to seed a Tiled file from: it is
+    /// registered, and it is an <see cref="ExteriorMap"/> or the farm
+    /// (<see cref="TestMap"/>) — the Tiled maps.</summary>
+    public static bool Has(string mapId)
     {
-        MapIds.Town => TownMap.DefaultTiledMap(),
-        _ => throw new ArgumentException(
-            $"No Tiled seed for map '{mapId}' — only the town builds from Tiled. " +
-            "Add a case here pointing at the map's DefaultTiledMap.",
-            nameof(mapId)),
-    };
+        if (!MapRegistry.Contains(mapId))
+            return false;
+        MapRoot map = MapRegistry.Create(mapId);
+        try
+        {
+            return map is ExteriorMap or TestMap;
+        }
+        finally
+        {
+            map.Free();
+        }
+    }
+
+    /// <summary>The map's code seed as a Tiled map (<see cref="ExteriorMap.CodeSeed"/> or
+    /// <see cref="TestMap.CodeSeed"/>), built on a map that never enters the tree and is
+    /// freed after. Throws for a map that is not a registered Tiled map.</summary>
+    public static TiledMap For(string mapId)
+    {
+        if (MapRegistry.Contains(mapId))
+        {
+            MapRoot map = MapRegistry.Create(mapId);
+            try
+            {
+                if (map is ExteriorMap exterior)
+                    return exterior.CodeSeed();
+                if (map is TestMap farm)
+                    return farm.CodeSeed();
+            }
+            finally
+            {
+                map.Free();
+            }
+        }
+        throw new ArgumentException(
+            $"No Tiled seed for map '{mapId}' — only the registered exteriors (ExteriorMap) and the farm (TestMap) build from Tiled.",
+            nameof(mapId));
+    }
 
     /// <summary>
     /// A Tiled 1.11+ project over data/maps: one object class per placement kind, so the
@@ -61,7 +93,11 @@ public static class TiledSeeds
             {
                 PlacementKinds.Door or PlacementKinds.Exit =>
                     new[] { Member(PlacementFields.Spawn, "string", "\"default\"") },
-                PlacementKinds.Sign => new[] { Member(PlacementFields.Text, "string", "\"\"") },
+                PlacementKinds.Sign => new[]
+                {
+                    Member(PlacementFields.Board, "bool", "true"),
+                    Member(PlacementFields.Text, "string", "\"\""),
+                },
                 PlacementKinds.Furniture => new[] { Member(PlacementFields.Blocks, "bool", "true") },
                 _ => Array.Empty<string>(),
             };

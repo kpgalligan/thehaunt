@@ -7,7 +7,8 @@ namespace TheHaunt.World;
 /// <see cref="ExteriorMap"/> obstacle, local tile id = its index in <see cref="Names"/>.
 /// Like <see cref="TiledSurfaces"/>, a painted cell says what stands there (by name); the
 /// swatch is never the tile the game draws — fence pieces are picked by code from their
-/// neighbours (<see cref="FarmTiles.FenceFor"/>), and both obstacles block.
+/// neighbours (<see cref="FarmTiles.FenceFor"/>). Fence and Bush block; Gate is the
+/// farm's open pen gate (walkable), refused by an exterior, as the farm refuses Bush.
 ///
 /// The <c>.tsx</c> and <c>.png</c> are pure derivations of <see cref="Names"/>, rewritten
 /// on every <c>--seed-tiled</c> run and never hand-edited.
@@ -34,8 +35,9 @@ public static class TiledObstacles
     public static string ToTsx() => TiledSurfaces.TsxFor("obstacles", ObstacleProperty, Names);
 
     /// <summary>
-    /// The swatch strip, (Names.Count*16) x 16, RGBA8: a fence post for Fence and the
-    /// first bush for Bush, blitted from the atlases the game paints with.
+    /// The swatch strip, (Names.Count*16) x 16, RGBA8: a fence post for Fence, the
+    /// first bush for Bush and the open gate for Gate, blitted from the atlases the game
+    /// paints with.
     /// </summary>
     public static Image BuildSwatch()
     {
@@ -46,6 +48,7 @@ public static class TiledObstacles
             {
                 "Fence" => (RoadsideTerrain.FenceSourceId, FarmTiles.FencePost),
                 "Bush" => (RoadsideTerrain.LandscapeSourceId, LandscapeTiles.Bush[0]),
+                "Gate" => (RoadsideTerrain.FenceSourceId, FarmTiles.GateOpen),
                 _ => throw new InvalidOperationException(
                     $"No swatch for obstacle '{name}' — add its case to TiledObstacles.BuildSwatch."),
             });

@@ -70,7 +70,7 @@ public static class MotelTests
 
             var car = map.GetNodeOrNull<GuestCar>("GuestCar3");
             t.Assert(car != null, "Pell's car parks under its own name");
-            AssertParkedInStall(t, car!, 3);
+            AssertParkedInStall(t, (WestEntryMap)map, car!, 3);
 
             map.ApplyState(SaveService.Instance.Current.GetMap(MapIds.WestEntry));
             await t.WaitFrames(1);
@@ -98,21 +98,21 @@ public static class MotelTests
     /// <summary>Kevin (2026-09-24): the guest parks NOSE-IN, facing the motel, between
     /// the white lines of the stall in front of its room — squarely inside it, clear of
     /// both stripes, the drawn car as well as its footprint and blocker.</summary>
-    private static void AssertParkedInStall(TestContext t, GuestCar car, int room)
+    private static void AssertParkedInStall(TestContext t, WestEntryMap map, GuestCar car, int room)
     {
         t.Assert(car.NoseIn, "parked nose-in");
         t.AssertEqual("N", car.Facing, "facing the motel (north)");
 
         // The stall is the asphalt between two neighbouring stripes, under the door.
-        (Rect2I lot, IReadOnlyList<Rect2I> stripesLocal) = WestEntryMap.LotStalls;
+        (Rect2I lot, IReadOnlyList<Rect2I> stripesLocal) = map.LotStalls!.Value;
         var stripes = stripesLocal.Select(r => new Rect2I(r.Position + lot.Position * MapRoot.TileSize, r.Size)).ToList();
-        Rect2I stall = WestEntryMap.RoomStallPx(room);
+        Rect2I stall = map.RoomStallPx(room);
         int west = stripes.FindIndex(r => r.End.X == stall.Position.X);
         t.Assert(west >= 0 && west + 1 < stripes.Count && stripes[west + 1].Position.X == stall.End.X,
             $"room {room}'s stall is bounded by two neighbouring stripes");
         t.AssertEqual(stripes[0].Position.Y, stall.Position.Y, "the stall runs the stripes' length (top)");
         t.AssertEqual(stripes[0].End.Y, stall.End.Y, "the stall runs the stripes' length (bottom)");
-        int doorX = WestEntryMap.MotorCourt.RoomDoorX[room - 1] * MapRoot.TileSize + MapRoot.TileSize / 2;
+        int doorX = map.MotorCourt!.Value.RoomDoorX[room - 1] * MapRoot.TileSize + MapRoot.TileSize / 2;
         t.Assert(stall.Position.X <= doorX && doorX < stall.End.X, $"the stall is in front of room {room}'s door");
 
         var inStall = new Rect2(stall.Position, stall.Size);
@@ -224,12 +224,12 @@ public static class MotelTests
         await t.WaitFrames(1);
         try
         {
-            var office = map.GetNode<Door>("MotelDoor");
+            var office = map.GetNode<Door>("Door_" + MapIds.Motel);
             t.Assert(!office.IsLocked, "the office is open at first contact");
 
             for (int room = 1; room <= MotelRules.Rooms; room++)
             {
-                var door = map.GetNode<Door>($"Room{room}Door");
+                var door = map.GetNode<Door>($"Door_{MapIds.MotelRoom(room)}");
                 t.Assert(door.IsLocked, $"room {room} locked on a new game");
                 t.Assert(door.LockedMessage.Length > 0, $"room {room} answers, never silence");
                 t.Assert(MapRegistry.Contains(door.TargetMapId),
@@ -240,9 +240,9 @@ public static class MotelTests
 
             // An unlock is a flag stamp, never a repaint: the same node answers live.
             WorldSim.Instance.SetStoryFlag(StoryKeys.MotelRoom2Open);
-            t.Assert(!map.GetNode<Door>("Room2Door").IsLocked, "room 2 opens on its flag");
-            t.Assert(map.GetNode<Door>("Room1Door").IsLocked, "room 1 unmoved");
-            t.Assert(map.GetNode<Door>("Room3Door").IsLocked, "room 3 unmoved");
+            t.Assert(!map.GetNode<Door>($"Door_{MapIds.MotelRoom(2)}").IsLocked, "room 2 opens on its flag");
+            t.Assert(map.GetNode<Door>($"Door_{MapIds.MotelRoom(1)}").IsLocked, "room 1 unmoved");
+            t.Assert(map.GetNode<Door>($"Door_{MapIds.MotelRoom(3)}").IsLocked, "room 3 unmoved");
 
             // The enforcement point itself: a locked Interact answers with its line
             // and never reaches the travel bus; the unlocked one rides it.
@@ -252,9 +252,9 @@ public static class MotelTests
             WorldSim.Instance.TravelRequested += OnTravel;
             try
             {
-                map.GetNode<Door>("Room1Door").Interact(map);
+                map.GetNode<Door>($"Door_{MapIds.MotelRoom(1)}").Interact(map);
                 t.AssertEqual(0, requests.Count, "a locked handle never requests travel");
-                map.GetNode<Door>("Room2Door").Interact(map);
+                map.GetNode<Door>($"Door_{MapIds.MotelRoom(2)}").Interact(map);
                 t.AssertEqual(1, requests.Count, "the unlocked door does");
                 t.AssertEqual(MapIds.MotelRoom2, requests[0].MapId, "to its own room");
             }

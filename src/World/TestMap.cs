@@ -24,12 +24,13 @@ namespace TheHaunt.World;
 /// exception: the farmhouse door moved one tile east, to the column the drawn facade
 /// actually puts its door in.
 ///
-/// The PLACEMENTS — scatter, trees, spawns, doors, signs, the bin and the road exit —
-/// are read from <c>data/maps/test_farm.json</c> (<see cref="LoadPlacements"/>), which is
-/// what makes them draggable. Everything else is still solved in code and stays that way:
-/// the surface pass, the road and its kerbs, the pen, the two facades and their footprint
-/// blockers, the soil autotile and the scatter hash. A recipe is a build function's
-/// INPUT; this is still a build function.
+/// The farm is a Tiled map: <c>data/maps/test_farm.tmx</c> (<see cref="LoadMap"/>) holds
+/// its surfaces, its pen (the Fence and Gate cells of the obstacles layer) and its
+/// placements — scatter, trees, spawns, doors, signs, the bin, the mailbox and the road
+/// exit. It keeps its own build rather than the <see cref="ExteriorMap"/> template (its
+/// own sheet, soil, crops and reservations). What stays code: the two facades with their
+/// footprint blockers and roof reservations, the storm debris and the road corridor, the
+/// soil autotile, the scatter hash, and the field obstacles (save state, never the file).
 /// </summary>
 public partial class TestMap : MapRoot, ISurfaceGrid
 {
@@ -64,13 +65,18 @@ public partial class TestMap : MapRoot, ISurfaceGrid
     // through the south border toward the fork's north mouth.
     private const int SouthRoadLeft = 36, SouthRoadRight = 37;
 
-    // The fenced pen. Solid rails all round bar the gate, which is drawn and painted open.
-    private const int PenLeft = 4, PenRight = 15, PenTop = 23, PenBottom = 26;
-    private const int PenGateX = 9;
+    // Members ARE the Tiled palette's names (TiledSurfaces / TiledObstacles): the wagon
+    // road paints from the town sheet's dirt set (PaintRoad) — the strip's unsealed
+    // "Dirt", not its paved Road; the farm never paves.
+    private enum Surface { Pasture, Path, Dirt, Woods }
 
-    private enum Surface { Pasture, Path, Road, Woods }
+    private enum Obstacle { Fence, Gate }
+
+    private static readonly IReadOnlyList<string> SurfaceNames = Enum.GetNames<Surface>();
+    private static readonly IReadOnlyList<string> ObstacleNames = Enum.GetNames<Obstacle>();
 
     private Surface[,] _surface = new Surface[Width, Height];
+    private Obstacle?[,] _obstacle = new Obstacle?[Width, Height];   // [x,y]; null = empty
 
     /// <summary>The label <see cref="RecipeSource"/> carries when there was no recipe to read.</summary>
     public const string CodeDefaults = "<code defaults>";
@@ -81,10 +87,11 @@ public partial class TestMap : MapRoot, ISurfaceGrid
     // ------------------------------------------------------------------
     // The code seed — the placements as they shipped as C# literals
     // ------------------------------------------------------------------
-    // These are no longer WHAT the map is built from; data/maps/test_farm.json is. They
-    // are what that file was written from (MapRecipeSeeds), and the fallback for when it
-    // is not there. MapSeedTests holds the two to each other, so editing one without the
-    // other fails loudly instead of leaving a farm that disagrees with its own file.
+    // These are no longer WHAT the map is built from; data/maps/test_farm.tmx is. They
+    // are what that file was seeded from (--seed-tiled test_farm), and the fallback for
+    // when it is not there. The Tiled drift guard holds the two to each other, so editing
+    // one without the other fails loudly instead of leaving a farm that disagrees with its
+    // own file.
 
     // One decorative fallen log survives as recipe content. The trees, stumps and
     // boulders that used to sit beside it are SAVE STATE now — randomly generated
@@ -110,7 +117,7 @@ public partial class TestMap : MapRoot, ISurfaceGrid
     // not know has to fail in a single spot if it is going to fail loudly. Same SHAPES
     // the static tables had, so PaintDressing, BuildObstacles' trunk blockers and
     // BuildTrees read exactly what they always read.
-    private MapRecipe _recipe = null!;   // LoadPlacements is the first thing _Ready does
+    private MapRecipe _recipe = null!;   // LoadMap is the first thing _Ready does
     private string _recipeSource = "";
     private (Vector2I Cell, Vector2I Tile)[] _scatter = Array.Empty<(Vector2I, Vector2I)>();
     private (Vector2I Cell, Rect2 Art, Vector2 Nudge)[] _trees =
@@ -130,8 +137,9 @@ public partial class TestMap : MapRoot, ISurfaceGrid
     private MapState? _pendingState;     // ApplyState arrived before _Ready built the layers
 
     /// <summary>
-    /// Where this build's placements came from: the recipe's path, or
-    /// <see cref="CodeDefaults"/> when there was no file to read. Provenance — for the
+    /// Where this build's surfaces, pen and placements came from: the .tmx's path (or the
+    /// <c>--tiled-file</c> dev file's), or <see cref="CodeDefaults"/> when there was no
+    /// file to read. Provenance — for the
     /// tests, and for anyone looking at a farm that has lost its trees. Nothing branches
     /// on it and nothing durable lives in it.
     /// </summary>
@@ -149,8 +157,7 @@ public partial class TestMap : MapRoot, ISurfaceGrid
     {
         // First, unconditionally: PaintDressing, BuildObstacles and BuildTrees all read
         // tables this fills, and BuildSpawns/BuildInteractables read the recipe itself.
-        LoadPlacements();
-        BuildSurfaces();
+        LoadMap();
         TileSet tileSet = FarmTerrain.Get();
         BuildGround(tileSet);
         BuildFarmSoil(tileSet);
@@ -177,42 +184,77 @@ public partial class TestMap : MapRoot, ISurfaceGrid
     // ------------------------------------------------------------------
 
     /// <summary>
-    /// Where the farm's scatter, trees, spawns and interactables come from:
-    /// <c>data/maps/test_farm.json</c>, read fresh on every build, so an edited recipe
-    /// shows up the next time the map loads. Terrain is untouched by any of this — the
-    /// surfaces, the road, the pen and the soil autotile stay generative.
-    ///
-    /// A recipe with NOTHING in it falls back to the code seed. That is the case the
-    /// fallback exists for: no file at all — the repo before this one was seeded, and an
-    /// export whose non-resource filters forgot <c>data/maps/*.json</c>. It costs nothing,
-    /// because a farm with zero placements is not a state anyone means: no doors, no exit,
-    /// no spawn to arrive on. The fallback is whole-recipe rather than per-kind on
-    /// purpose: this map moved ALL of its placements at once, so a per-kind fallback could
-    /// only ever fire on a hand-broken file, where silently resurrecting nine deleted
-    /// trees is a worse answer than showing none.
+    /// Where the farm's surfaces, pen, scatter, trees, spawns and interactables come from:
+    /// <c>data/maps/test_farm.tmx</c> (or a <c>--tiled-file</c> dev file), read fresh on
+    /// every build. With no file at all the farm builds from its code seed
+    /// (<see cref="BuildDefaultSurfaces"/> + <see cref="DefaultRecipe"/>). A present file
+    /// IS the map: an empty one does not fall back — <see cref="RequirePlacements"/> names
+    /// it instead.
     /// </summary>
-    private void LoadPlacements()
+    private void LoadMap()
     {
-        MapRecipe recipe;
-        if (RecipeOverride is { } handed)
+        if (TiledMapFile.Load(MapIds.Farm) is { } tiled)
         {
-            // The placement editor is holding the live copy and the file is a drag behind
-            // it. Reading disk here would make every rebuild-per-drag undo the drag it was
-            // rebuilding for.
-            recipe = handed;
-            _recipeSource = EditedRecipe;
+            _recipeSource = tiled.SourcePath;
+            if (tiled.Width != Width || tiled.Height != Height)
+            {
+                throw new MapRecipeException(tiled.SourcePath,
+                    $"is {tiled.Width}x{tiled.Height} tiles, but the farm is {Width}x{Height}.");
+            }
+
+            _surface = new Surface[Width, Height];
+            _obstacle = new Obstacle?[Width, Height];
+            for (int y = 0; y < Height; y++)
+            {
+                for (int x = 0; x < Width; x++)
+                {
+                    string name = tiled.SurfaceAt(x, y);
+                    if (!SurfaceNames.Contains(name) || !Enum.TryParse(name, ignoreCase: false, out Surface surface))
+                    {
+                        throw new MapRecipeException(tiled.SourcePath,
+                            $"has surface '{name}' at ({x},{y}); the farm paints: {string.Join(", ", SurfaceNames)}.");
+                    }
+                    _surface[x, y] = surface;
+
+                    string? obstacleName = tiled.ObstacleAt(x, y);
+                    if (obstacleName == null)
+                        continue;
+                    if (!ObstacleNames.Contains(obstacleName) || !Enum.TryParse(obstacleName, ignoreCase: false, out Obstacle obstacle))
+                    {
+                        throw new MapRecipeException(tiled.SourcePath,
+                            $"has obstacle '{obstacleName}' at ({x},{y}); the farm paints: {string.Join(", ", ObstacleNames)}.");
+                    }
+                    _obstacle[x, y] = obstacle;
+                }
+            }
+            _recipe = tiled.Placements;
         }
         else
         {
-            recipe = MapRecipeFile.Load(MapIds.Farm);
-            _recipeSource = MapRecipeFile.PathFor(MapIds.Farm);
-        }
-        if (recipe.Placements.Count == 0)
-        {
-            recipe = DefaultRecipe();
+            BuildDefaultSurfaces();
+            _recipe = DefaultRecipe();
             _recipeSource = CodeDefaults;
         }
-        _recipe = recipe;
+
+        // The pen is whatever the fences enclose: their bounding box, and its first gate.
+        int minX = int.MaxValue, minY = int.MaxValue, maxX = -1, maxY = -1;
+        Vector2I? gate = null;
+        for (int y = 0; y < Height; y++)
+        {
+            for (int x = 0; x < Width; x++)
+            {
+                if (_obstacle[x, y] is not { } obstacle)
+                    continue;
+                minX = Math.Min(minX, x);
+                minY = Math.Min(minY, y);
+                maxX = Math.Max(maxX, x);
+                maxY = Math.Max(maxY, y);
+                if (obstacle == Obstacle.Gate && gate == null)
+                    gate = new Vector2I(x, y);
+            }
+        }
+        Pen = maxX < 0 ? null : new Rect2I(minX, minY, maxX - minX + 1, maxY - minY + 1);
+        PenGate = gate;
 
         // Ids resolve to art HERE and nowhere else, and an id this build does not know
         // throws — naming the id and the ones it does know. An unknown KIND is a newer
@@ -227,11 +269,30 @@ public partial class TestMap : MapRoot, ISurfaceGrid
             .ToArray();
     }
 
+    /// <summary>The whole code seed as a Tiled map: the default surfaces and pen
+    /// (<see cref="BuildDefaultSurfaces"/>) plus <see cref="DefaultRecipe"/>. Safe off the
+    /// tree — the caller frees the map.</summary>
+    internal TiledMap CodeSeed()
+    {
+        BuildDefaultSurfaces();
+        MapRecipe recipe = DefaultRecipe();
+        var surfaces = new string[Width, Height];
+        var obstacles = new string?[Width, Height];
+        for (int y = 0; y < Height; y++)
+        {
+            for (int x = 0; x < Width; x++)
+            {
+                surfaces[x, y] = _surface[x, y].ToString();
+                obstacles[x, y] = _obstacle[x, y]?.ToString();
+            }
+        }
+        return new TiledMap(MapIds.Farm, surfaces, obstacles, recipe, CodeDefaults);
+    }
+
     /// <summary>
-    /// The farm's placements as the C# literals above describe them: the seed
-    /// <c>data/maps/test_farm.json</c> was written from, and the fallback when it is
-    /// missing. <see cref="MapRecipeSeeds"/> is the door onto it; MapSeedTests pins the
-    /// shipped file to it.
+    /// The farm's placements as the C# literals above describe them: what
+    /// <c>data/maps/test_farm.tmx</c> was seeded from (<see cref="CodeSeed"/>), and the
+    /// fallback when it is missing. The Tiled drift guard pins the shipped file to it.
     /// </summary>
     public static MapRecipe DefaultRecipe()
     {
@@ -310,9 +371,12 @@ public partial class TestMap : MapRoot, ISurfaceGrid
     // Surfaces — what each cell IS, before it is any particular tile
     // ------------------------------------------------------------------
 
-    private void BuildSurfaces()
+    /// <summary>The farm's ground and pen as the code seed paints them: what
+    /// <c>test_farm.tmx</c> was seeded from, and the fallback when the file is missing.</summary>
+    private void BuildDefaultSurfaces()
     {
         _surface = new Surface[Width, Height];
+        _obstacle = new Obstacle?[Width, Height];
 
         for (int y = 0; y < Height; y++)
         {
@@ -333,10 +397,10 @@ public partial class TestMap : MapRoot, ISurfaceGrid
         // north mouth. The map now shows the curve the story always described.
         for (int x = RoadWest; x <= SouthRoadRight; x++)
         {
-            _surface[x, RoadTop] = Surface.Road;
-            _surface[x, RoadBottom] = Surface.Road;
+            _surface[x, RoadTop] = Surface.Dirt;
+            _surface[x, RoadBottom] = Surface.Dirt;
         }
-        Fill(SouthRoadLeft, RoadBottom + 1, SouthRoadRight, Height - 1, Surface.Road);
+        Fill(SouthRoadLeft, RoadBottom + 1, SouthRoadRight, Height - 1, Surface.Dirt);
 
         // The farm's own track: out of the front door, south to the road line, then east
         // until it meets the road. The player crosses their own yard on every trip to town.
@@ -350,6 +414,20 @@ public partial class TestMap : MapRoot, ISurfaceGrid
 
         // Barn approach, two tiles wide under the drawn double door, down to the road.
         Fill(BarnDoorX, BarnBottom + 1, BarnDoorX + 1, RoadTop - 1, Surface.Path);
+
+        // The fenced pen in the south-west: solid rails all round bar the gate, which is
+        // drawn and painted open.
+        const int penLeft = 4, penRight = 15, penTop = 23, penBottom = 26, penGateX = 9;
+        for (int x = penLeft; x <= penRight; x++)
+        {
+            _obstacle[x, penTop] = Obstacle.Fence;
+            _obstacle[x, penBottom] = x == penGateX ? Obstacle.Gate : Obstacle.Fence;
+        }
+        for (int y = penTop + 1; y < penBottom; y++)
+        {
+            _obstacle[penLeft, y] = Obstacle.Fence;
+            _obstacle[penRight, y] = Obstacle.Fence;
+        }
     }
 
     private void Fill(int x0, int y0, int x1, int y1, Surface surface)
@@ -365,24 +443,23 @@ public partial class TestMap : MapRoot, ISurfaceGrid
     public int GridWidth => Width;
     public int GridHeight => Height;
 
-    // The wagon road paints from the town sheet's dirt set (PaintRoad): it is the
-    // strip's unsealed "Dirt", not its paved Road — the farm never paves.
-    public string SurfaceName(int x, int y) =>
-        _surface[x, y] == Surface.Road ? "Dirt" : _surface[x, y].ToString();
+    public string SurfaceName(int x, int y) => _surface[x, y].ToString();
 
     // ------------------------------------------------------------------
     // Read-only views for the world dump (WorldDump) — the solved-in-code geometry
     // a 3D rebuild needs that no node or recipe carries.
     // ------------------------------------------------------------------
 
-    /// <summary>The recipe this build placed from (file, override or code seed).</summary>
+    /// <summary>The recipe this build placed from (file or code seed).</summary>
     internal MapRecipe Recipe => _recipe;
 
-    /// <summary>The pen's rail rectangle, corners inclusive.</summary>
-    internal static Rect2I Pen => new(PenLeft, PenTop, PenRight - PenLeft + 1, PenBottom - PenTop + 1);
+    /// <summary>The pen's rail rectangle, corners inclusive: the bounding box of every
+    /// Fence and Gate cell. Null when the map has none.</summary>
+    internal Rect2I? Pen { get; private set; }
 
-    /// <summary>The pen's one open cell, drawn and painted open.</summary>
-    internal static Vector2I PenGate => new(PenGateX, PenBottom);
+    /// <summary>The pen's open cell, drawn and painted open: the first Gate cell in (y, x)
+    /// order. Null when the map has none.</summary>
+    internal Vector2I? PenGate { get; private set; }
 
     /// <summary>The storm blockade's cells and farm-sheet tiles (present until
     /// intro.road_cleared).</summary>
@@ -402,10 +479,10 @@ public partial class TestMap : MapRoot, ISurfaceGrid
         {
             for (int x = 0; x < Width; x++)
             {
-                if (_surface[x, y] == Surface.Road || _surface[x, y] == Surface.Woods)
+                if (_surface[x, y] == Surface.Dirt || _surface[x, y] == Surface.Woods)
                 {
                     // Both come from the town atlas: one road, one forest, one palette.
-                    Vector2I town = _surface[x, y] == Surface.Road ? PaintRoad(x, y) : PaintWoods(x, y);
+                    Vector2I town = _surface[x, y] == Surface.Dirt ? PaintRoad(x, y) : PaintWoods(x, y);
                     ground.SetCell(new Vector2I(x, y), FarmTerrain.TownSource,
                         TerrainTiles.ForAct(town, TerrainTiles.Act.One));
                     continue;
@@ -445,8 +522,8 @@ public partial class TestMap : MapRoot, ISurfaceGrid
     // path and pasture both count, so the track reads as the softer surface of the two.
     private Vector2I PaintRoad(int x, int y)
     {
-        bool n = At(x, y - 1) != Surface.Road, e = At(x + 1, y) != Surface.Road;
-        bool s = At(x, y + 1) != Surface.Road, w = At(x - 1, y) != Surface.Road;
+        bool n = At(x, y - 1) != Surface.Dirt, e = At(x + 1, y) != Surface.Dirt;
+        bool s = At(x, y + 1) != Surface.Dirt, w = At(x - 1, y) != Surface.Dirt;
         return n || e || s || w
             ? TerrainTiles.DirtEdge(n, e, s, w)
             : Pick(TerrainTiles.Dirt, x, y);
@@ -467,38 +544,43 @@ public partial class TestMap : MapRoot, ISurfaceGrid
     /// refuse tilling — nothing here is hand-listed as unwalkable.
     ///
     /// A scatter placement is a painted CELL, so it lands on the grid and its nudge is
-    /// not read: there is no sub-tile position for a tilemap cell to be at. The pen is
-    /// not scatter — it is a shape, solved from its corners, and it stays in code.
+    /// not read: there is no sub-tile position for a tilemap cell to be at. The fences
+    /// are the map's obstacle grid, painted here on Ground (not Obstacles): the rails
+    /// block through the sheet's collision, the open gate stays standable, and the hoe
+    /// and the obstacle sync read the same layers they always have.
     /// </summary>
     private void PaintDressing(TileMapLayer ground)
     {
         foreach (var (cell, tile) in _scatter)
             ground.SetCell(cell, FarmTerrain.FarmSource, FarmTiles.ForAct(tile, CurrentAct));
 
-        PaintPen(ground);
+        PaintFences(ground);
     }
 
-    private void PaintPen(TileMapLayer ground)
+    /// <summary>
+    /// Every Fence and Gate cell: a fence takes the piece <see cref="FarmTiles.FenceFor"/>
+    /// picks from which in-bounds neighbours are fence or gate (the gate is part of the
+    /// run it sits in); a gate is drawn open.
+    /// </summary>
+    private void PaintFences(TileMapLayer ground)
     {
-        void Rail(int x, int y, Vector2I tile) =>
-            ground.SetCell(new Vector2I(x, y), FarmTerrain.FarmSource, FarmTiles.ForAct(tile, CurrentAct));
+        bool Joins(int x, int y) =>
+            x >= 0 && y >= 0 && x < Width && y < Height && _obstacle[x, y] != null;
 
-        for (int x = PenLeft + 1; x < PenRight; x++)
+        for (int y = 0; y < Height; y++)
         {
-            Rail(x, PenTop, FarmTiles.FenceH);
-            // The gate is the one cell of the pen that is not solid.
-            Rail(x, PenBottom, x == PenGateX ? FarmTiles.GateOpen : FarmTiles.FenceH);
+            for (int x = 0; x < Width; x++)
+            {
+                Vector2I? piece = _obstacle[x, y] switch
+                {
+                    Obstacle.Fence => FarmTiles.FenceFor(Joins(x, y - 1), Joins(x + 1, y), Joins(x, y + 1), Joins(x - 1, y)),
+                    Obstacle.Gate => FarmTiles.GateOpen,
+                    _ => null,
+                };
+                if (piece is { } tile)
+                    ground.SetCell(new Vector2I(x, y), FarmTerrain.FarmSource, FarmTiles.ForAct(tile, CurrentAct));
+            }
         }
-        for (int y = PenTop + 1; y < PenBottom; y++)
-        {
-            Rail(PenLeft, y, FarmTiles.FenceV);
-            Rail(PenRight, y, FarmTiles.FenceV);
-        }
-        // Corners are named for the two directions their rails run.
-        Rail(PenLeft, PenTop, FarmTiles.FenceCornerSe);
-        Rail(PenRight, PenTop, FarmTiles.FenceCornerSw);
-        Rail(PenLeft, PenBottom, FarmTiles.FenceCornerNe);
-        Rail(PenRight, PenBottom, FarmTiles.FenceCornerNw);
     }
 
     // ------------------------------------------------------------------
@@ -851,7 +933,7 @@ public partial class TestMap : MapRoot, ISurfaceGrid
                 // ring, because the strip between its south rail and the woods is one
                 // tile wide: a single rock there could seal the gate or box a walker
                 // in, the exact wall the generator promises never to build.
-                if (x >= PenLeft - 1 && x <= PenRight + 1 && y >= PenTop - 1 && y <= PenBottom + 1)
+                if (Pen is { } pen && pen.Grow(1).HasPoint(cell))
                     continue;
                 candidates.Add(cell);
             }
@@ -1025,7 +1107,7 @@ public partial class TestMap : MapRoot, ISurfaceGrid
 
     /// <summary>
     /// Cells a sprite is drawn over but does not block: the two rows of roof each facade
-    /// overhangs, and the pen's gateway. The player walks behind them, which is the point
+    /// overhangs, and every pen gateway. The player walks behind them, which is the point
     /// of the Y-sort — but soil hoed there would be painted under the roof and never seen
     /// again, and a mud square in the gate would be the one hole in an otherwise solid
     /// fence. Tree canopies are deliberately NOT reserved: a tree stands south of what it
@@ -1036,7 +1118,10 @@ public partial class TestMap : MapRoot, ISurfaceGrid
     {
         Reserve(HouseLeft, HouseTop - RoofRows, HouseRight, HouseTop - 1);
         Reserve(BarnLeft, BarnTop - RoofRows, BarnRight, BarnTop - 1);
-        _reservedTiles.Add(new Vector2I(PenGateX, PenBottom));
+        for (int y = 0; y < Height; y++)
+            for (int x = 0; x < Width; x++)
+                if (_obstacle[x, y] == Obstacle.Gate)
+                    _reservedTiles.Add(new Vector2I(x, y));
     }
 
     private void Reserve(int x0, int y0, int x1, int y1)

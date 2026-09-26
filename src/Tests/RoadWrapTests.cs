@@ -29,8 +29,10 @@ public static class RoadWrapTests
         await t.WaitFrames(1);
         try
         {
-            var westOut = west.GetNodeOrNull<MapExit>("WestExit");
-            var eastOut = east.GetNodeOrNull<MapExit>("EastExit");
+            // Found by EDGE, not by name: an exit's name encodes its target, which is
+            // the very thing under test here.
+            MapExit? westOut = EdgeExit(west, westEdge: true);
+            MapExit? eastOut = EdgeExit(east, westEdge: false);
             t.Assert(westOut != null, "the west entry has its outward west exit");
             t.Assert(eastOut != null, "the east entry has its outward east exit");
             t.AssertEqual(MapIds.EastEntry, westOut!.TargetMapId, "leaving west lands at the east entry");
@@ -328,6 +330,14 @@ public static class RoadWrapTests
             map.Free();
             await t.WaitFrames(1);
         }
+    }
+
+    /// <summary>The one MapExit whose mouth sits on the map's west (or east) edge column.</summary>
+    private static MapExit? EdgeExit(MapRoot map, bool westEdge)
+    {
+        float east = ((ExteriorMap)map).GridWidth * MapRoot.TileSize;
+        return map.GetChildren().OfType<MapExit>().SingleOrDefault(exit =>
+            westEdge ? exit.Position.X < MapRoot.TileSize : exit.Position.X > east - MapRoot.TileSize);
     }
 
     // Same DFS the travel tests use — the graph must not depend on where in a map's

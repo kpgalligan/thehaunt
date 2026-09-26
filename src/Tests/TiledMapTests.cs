@@ -9,11 +9,12 @@ using FileAccess = Godot.FileAccess;
 namespace TheHaunt.Tests;
 
 /// <summary>
-/// The town's Tiled file: the TMX subset reads and writes canonically, a broken file
-/// fails loudly naming itself, the optional obstacles layer reads by name, the shipped
-/// file's placements still say what the code seed says (the MapSeedTests tripwire,
-/// semantic this time — Tiled owns the bytes), the town really builds from it — water,
-/// bushes and fences included — and the palettes on disk are the palettes the loader uses.
+/// The Tiled files: the TMX subset reads and writes canonically, a broken file fails
+/// loudly naming itself, the optional obstacles layer reads by name, every shipped file
+/// still says what its code seed says (the drift tripwire, semantic — Tiled owns the
+/// bytes), the town, the road strip and the farm really build from theirs — water,
+/// bushes, fences and the pen included — the farm and the exteriors each refuse the
+/// other's palette entries, and the palettes on disk are the palettes the loader uses.
 /// </summary>
 public static class TiledMapTests
 {
@@ -277,6 +278,307 @@ public static class TiledMapTests
             map.Free();
             await t.WaitFrames(1);
             SaveService.Instance.NewGame();
+        }
+    }
+
+    /// <summary>Every Tiled map with a code seed but the town (whose ground Kevin has
+    /// hand-edited — see <see cref="Town_ShippedTmxPlacementsMatchTheCodeSeed"/>): the road
+    /// strip and the farm.</summary>
+    private static List<string> SeededExteriors() =>
+        WorldDump.ExteriorIds().Where(id => id != MapIds.Town && TiledSeeds.Has(id)).ToList();
+
+    /// <summary>
+    /// The road strip's and the farm's shipped files still say, cell for cell and
+    /// placement for placement, what their code seeds say — the full drift guard the town
+    /// had before its hand edit. SEMANTIC, not byte-for-byte: Tiled owns the bytes.
+    /// </summary>
+    [SimTest]
+    public static void Exteriors_ShippedTmxMatchTheirCodeSeeds(TestContext t)
+    {
+        List<string> ids = SeededExteriors();
+        t.Assert(ids.Count >= 7, $"the road strip's six exteriors and the farm are Tiled maps (found {ids.Count})");
+
+        foreach (string id in ids)
+        {
+            string path = TiledMapFile.PathFor(id);
+            string decide =
+                $"If this fails, DECIDE which one is right: a code change to {id}'s defaults " +
+                $"(BuildDefaultSurfaces / BuildDefaultRecipe) means the file must follow — delete it " +
+                $"and re-run --seed-tiled {id}; a deliberate edit in Tiled means the map has left its " +
+                "seed behind, and this guard should say so for it. Never quietly re-seed over a hand-edited map.";
+            t.Assert(FileAccess.FileExists(path), $"{path} ships with the game. {decide}");
+            if (!FileAccess.FileExists(path))
+                continue;
+
+            TiledMap shipped = TiledMapFile.ReadFrom(path, id);
+            TiledMap seed = TiledSeeds.For(id);
+
+            t.AssertEqual(seed.Width, shipped.Width, $"{path} is {id}'s width. {decide}");
+            t.AssertEqual(seed.Height, shipped.Height, $"{path} is {id}'s height. {decide}");
+            if (seed.Width == shipped.Width && seed.Height == shipped.Height)
+            {
+                string? surface = null, obstacle = null;
+                for (int y = 0; y < seed.Height; y++)
+                {
+                    for (int x = 0; x < seed.Width; x++)
+                    {
+                        if (surface == null && seed.SurfaceAt(x, y) != shipped.SurfaceAt(x, y))
+                            surface = $"({x},{y}): seed {seed.SurfaceAt(x, y)}, file {shipped.SurfaceAt(x, y)}";
+                        if (obstacle == null && seed.ObstacleAt(x, y) != shipped.ObstacleAt(x, y))
+                            obstacle = $"({x},{y}): seed {seed.ObstacleAt(x, y) ?? "none"}, file {shipped.ObstacleAt(x, y) ?? "none"}";
+                    }
+                }
+                t.Assert(surface == null, $"{path} surfaces match the seed — first difference {surface}. {decide}");
+                t.Assert(obstacle == null, $"{path} obstacles match the seed — first difference {obstacle}. {decide}");
+            }
+            t.AssertEqual(seed.Placements.ToJson(), shipped.Placements.ToJson(),
+                $"{path} placements still match the code seed. {decide}");
+
+            string tmx = seed.ToTmx();
+            t.AssertEqual(tmx, TiledMap.Parse(tmx, $"<{id} round trip>").ToTmx(),
+                $"{id}'s seed: ToTmx -> Parse -> ToTmx is byte-identical");
+        }
+    }
+
+    /// <summary>The road strip builds from its shipped files: provenance, every placed
+    /// spawn, sign, door and exit a node, and the kerb cuts the files ask for.</summary>
+    [SimTest]
+    public static async Task Exteriors_BuildFromTheirShippedTmx(TestContext t)
+    {
+        SaveService.Instance.NewGame();
+        var kerbs = new Dictionary<string, ((int, int)[] North, (int, int)[] South)?>
+        {
+            [MapIds.WestEntry] = (new[] { (9, 12) }, new[] { (26, 27), (34, 35) }),
+            [MapIds.EastEntry] = (Array.Empty<(int, int)>(), new[] { (33, 34) }),
+            [MapIds.DriveIn] = null,
+        };
+
+        foreach (string id in SeededExteriors())
+        {
+            if (id == MapIds.Farm)
+                continue;   // its own build — Farm_BuildsFromItsShippedTmx
+            string path = TiledMapFile.PathFor(id);
+            MapRecipe recipe = TiledMapFile.ReadFrom(path, id).Placements;
+            MapRoot root = MapRegistry.Create(id);
+            t.Host.AddChild(root);
+            await t.WaitFrames(1);
+            try
+            {
+                var map = (ExteriorMap)root;
+                t.AssertEqual(path, map.RecipeSource, $"{id} built itself from the shipped tmx");
+
+                foreach (MapPlacement spawn in recipe.OfKind(PlacementKinds.Spawn))
+                {
+                    t.Assert(map.GetNodeOrNull<Marker2D>($"Spawns/{spawn.Id}") != null,
+                        $"{id}: spawn '{spawn.Id}' is a marker travel can ask for");
+                }
+                foreach (MapPlacement sign in recipe.OfKind(PlacementKinds.Sign))
+                {
+                    var post = map.GetNodeOrNull<Sign>(sign.Id);
+                    t.Assert(post != null, $"{id}: sign '{sign.Id}' is in the scene under its own name");
+                    t.Assert(post is { Message.Length: > 0 }, $"{id}: sign '{sign.Id}' has words");
+                }
+                foreach (MapPlacement door in recipe.OfKind(PlacementKinds.Door))
+                {
+                    t.AssertEqual(door.Id, map.GetNodeOrNull<Door>($"Door_{door.Id}")?.TargetMapId,
+                        $"{id}: door '{door.Id}' is a Door leading there");
+                }
+                foreach (MapPlacement exit in recipe.OfKind(PlacementKinds.Exit))
+                {
+                    t.AssertEqual(exit.Id, map.GetNodeOrNull<MapExit>($"Exit_{exit.Id}")?.TargetMapId,
+                        $"{id}: exit '{exit.Id}' is a MapExit leading there");
+                }
+
+                if (kerbs.TryGetValue(id, out var expected))
+                {
+                    if (expected is not { } cuts)
+                    {
+                        t.Assert(map.KerbCuts == null, $"{id} has no road, so no kerb cuts");
+                    }
+                    else
+                    {
+                        t.Assert(map.KerbCuts is { } drawn
+                                && drawn.RoadTop == 14
+                                && drawn.North.SequenceEqual(cuts.North)
+                                && drawn.South.SequenceEqual(cuts.South),
+                            $"{id}: kerb cuts are the file's kerb_cuts plus the made ground at the gutter");
+                    }
+                }
+            }
+            finally
+            {
+                root.Free();
+                await t.WaitFrames(1);
+            }
+        }
+        SaveService.Instance.NewGame();
+    }
+
+    /// <summary>The farm builds from its shipped file: provenance, every placed spawn,
+    /// sign, door and its one exit a node, and the pen — its box, its gate, and every
+    /// rail piece — from the file's fences.</summary>
+    [SimTest]
+    public static async Task Farm_BuildsFromItsShippedTmx(TestContext t)
+    {
+        SaveService.Instance.NewGame();
+        string path = TiledMapFile.PathFor(MapIds.Farm);
+        MapRecipe recipe = TiledMapFile.ReadFrom(path, MapIds.Farm).Placements;
+
+        var map = new TestMap { MapId = MapIds.Farm };
+        t.Host.AddChild(map);
+        await t.WaitFrames(1);
+        try
+        {
+            t.AssertEqual(path, map.RecipeSource, "the farm built itself from the shipped tmx");
+
+            foreach (MapPlacement spawn in recipe.OfKind(PlacementKinds.Spawn))
+            {
+                t.Assert(map.GetNodeOrNull<Marker2D>($"Spawns/{spawn.Id}") != null,
+                    $"spawn '{spawn.Id}' is a marker travel can ask for");
+            }
+            foreach (MapPlacement sign in recipe.OfKind(PlacementKinds.Sign))
+            {
+                var post = map.GetNodeOrNull<Sign>($"Interactables/{sign.Id}");
+                t.Assert(post != null, $"sign '{sign.Id}' is in the scene under its own name");
+                t.AssertEqual(Farm.SignTextFor(sign.Id) ?? sign.Text(PlacementFields.Text), post!.Message,
+                    $"sign '{sign.Id}' carries the place's copy (or the file's, unpromoted)");
+            }
+
+            var doors = new List<Door>();
+            var exits = new List<MapExit>();
+            CollectFarm(map, doors, exits);
+            t.AssertEqual(recipe.OfKind(PlacementKinds.Door).Count(), doors.Count,
+                "every door in the file is a door in the scene");
+            foreach (MapPlacement door in recipe.OfKind(PlacementKinds.Door))
+            {
+                t.Assert(
+                    doors.Any(node => node.TargetMapId == door.Id
+                        && node.TargetSpawnId == door.Text(PlacementFields.Spawn, "default")
+                        && node.Position == new Vector2(
+                            door.X * MapRoot.TileSize + 8, door.Y * MapRoot.TileSize + 8)),
+                    $"the door to '{door.Id}' leads where the file says, from the cell it says");
+            }
+            t.AssertEqual(1, exits.Count, "the farm has one exit");
+            t.AssertEqual(MapIds.Fork, exits.FirstOrDefault()?.TargetMapId, "leading south to the fork");
+
+            t.AssertEqual(new Rect2I(4, 23, 12, 4), map.Pen, "the pen is the box the file's fences draw");
+            t.AssertEqual(new Vector2I(9, 26), map.PenGate, "and its gate is the file's gate cell");
+
+            Vector2I Expected(int x, int y) => (x, y) switch
+            {
+                (4, 23) => FarmTiles.FenceCornerSe,
+                (15, 23) => FarmTiles.FenceCornerSw,
+                (4, 26) => FarmTiles.FenceCornerNe,
+                (15, 26) => FarmTiles.FenceCornerNw,
+                (9, 26) => FarmTiles.GateOpen,
+                (_, 23 or 26) => FarmTiles.FenceH,
+                _ => FarmTiles.FenceV,
+            };
+            var ground = map.GetNode<TileMapLayer>("Ground");
+            for (int y = 23; y <= 26; y++)
+            {
+                for (int x = 4; x <= 15; x++)
+                {
+                    if (y is not (23 or 26) && x is not (4 or 15))
+                        continue;   // the pen's inside
+                    var cell = new Vector2I(x, y);
+                    t.AssertEqual(FarmTerrain.FarmSource, ground.GetCellSourceId(cell),
+                        $"the pen cell {cell} paints from the farm sheet");
+                    t.AssertEqual(FarmTiles.ForAct(Expected(x, y), FarmTiles.Act.One), ground.GetCellAtlasCoords(cell),
+                        $"the pen cell {cell} is the piece its neighbours pick");
+                }
+            }
+        }
+        finally
+        {
+            map.Free();
+            await t.WaitFrames(1);
+            SaveService.Instance.NewGame();
+        }
+    }
+
+    private static void CollectFarm(Node node, List<Door> doors, List<MapExit> exits)
+    {
+        if (node is Door door)
+            doors.Add(door);
+        if (node is MapExit exit)
+            exits.Add(exit);
+        foreach (Node child in node.GetChildren())
+            CollectFarm(child, doors, exits);
+    }
+
+    /// <summary>
+    /// The shared palette carries both sides' entries; each side refuses the other's, by
+    /// file. The cases run one at a time: a dev file is keyed by the map id it names
+    /// (<see cref="TiledMapFile.UseDevFile"/>), so a second file for the same id would
+    /// replace the first.
+    /// </summary>
+    [SimTest]
+    public static void Tiled_FarmAndExteriorsRefuseEachOthersPaletteEntries(TestContext t)
+    {
+        var cases = new (string Label, string MapId, Vector2I Cell, string? Surface, string? Obstacle, Func<MapRoot> Create)[]
+        {
+            ("the farm with Grass", MapIds.Farm, new Vector2I(20, 20), "Grass", null,
+                () => new TestMap { MapId = MapIds.Farm }),
+            ("the farm with a Bush", MapIds.Farm, new Vector2I(20, 20), null, "Bush",
+                () => new TestMap { MapId = MapIds.Farm }),
+            ("the fork with Pasture", MapIds.Fork, new Vector2I(5, 5), "Pasture", null,
+                () => new ForkMap { MapId = MapIds.Fork }),
+            ("the fork with a Gate", MapIds.Fork, new Vector2I(5, 5), null, "Gate",
+                () => new ForkMap { MapId = MapIds.Fork }),
+        };
+
+        try
+        {
+            for (int i = 0; i < cases.Length; i++)
+            {
+                (string label, string mapId, Vector2I at, string? surface, string? obstacle, Func<MapRoot> create) = cases[i];
+                string path = $"{DevFolder}refuse_{i}.tmx";
+                MapRoot? map = null;
+                try
+                {
+                    TiledMap seed = TiledSeeds.For(mapId);
+                    var surfaces = new string[seed.Width, seed.Height];
+                    var obstacles = new string?[seed.Width, seed.Height];
+                    for (int y = 0; y < seed.Height; y++)
+                    {
+                        for (int x = 0; x < seed.Width; x++)
+                        {
+                            surfaces[x, y] = seed.SurfaceAt(x, y);
+                            obstacles[x, y] = seed.ObstacleAt(x, y);
+                        }
+                    }
+                    if (surface != null)
+                        surfaces[at.X, at.Y] = surface;
+                    if (obstacle != null)
+                        obstacles[at.X, at.Y] = obstacle;
+
+                    TiledMapFile.WriteText(path, new TiledMap(mapId, surfaces, obstacles, seed.Placements, path).ToTmx());
+                    TiledMapFile.UseDevFile(path);
+
+                    map = create();
+                    try
+                    {
+                        map._Ready();
+                        t.Assert(false, $"{label}: should have thrown");
+                    }
+                    catch (MapRecipeException e)
+                    {
+                        t.AssertEqual(path, e.FilePath, $"{label}: refused, naming the file");
+                    }
+                }
+                finally
+                {
+                    TiledMapFile.ClearDevFiles();
+                    if (FileAccess.FileExists(path))
+                        DirAccess.RemoveAbsolute(path);
+                    map?.Free();
+                }
+            }
+        }
+        finally
+        {
+            DirAccess.RemoveAbsolute(DevFolder);
         }
     }
 

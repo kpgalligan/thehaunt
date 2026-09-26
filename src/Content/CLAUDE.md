@@ -64,8 +64,9 @@ number (D1–D12) are logged at the bottom of this file.
 - **Place copy lives on the place class** as public const strings — `...Text` for
   boards the player reads, `...Line` for what a handle or fixture answers. Maps
   reference the consts (compile-checked); recipe-driven signs resolve by placement
-  id through the place's `SignTextFor` (`Farm.SignTextFor`, `Town.SignTextFor` for
-  the town's Tiled map) — the map file's `text` field survives only as the editor's
+  id through the place's `SignTextFor` (`Farm.SignTextFor`; for the Tiled exteriors
+  `Town`, `Billies`, `Fork`, `EastFork`, `EastEntry`, `DriveIn`, and the west entry's
+  `MotelRules`/`GasStation`/`FireworksStand`) — the map file's `text` field survives only as the editor's
   scratch for boards not yet promoted. `Places.All` +
   `Places.CopyOf` enumerate every string for the tests and the dump — a new const
   needs no registration.

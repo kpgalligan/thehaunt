@@ -19,8 +19,6 @@ public partial class ForkMap : ExteriorMap
     protected override int MapWidth => Width;
     protected override int MapHeight => Height;
 
-    private const int RoadTop = 14, RoadBottom = 15;
-
     // The north-south road's columns. North runs out of the frame to the farm; south
     // dead-ends into the trees behind the chain.
     private const int CrossLeft = 19, CrossRight = 20;
@@ -37,23 +35,7 @@ public partial class ForkMap : ExteriorMap
         base._EnterTree();
     }
 
-    public override void _Ready()
-    {
-        BuildSurfaces();
-        TileSet tileSet = RoadsideTerrain.Get(); // the paved road needs the roadside source
-        TileMapLayer ground = BuildGround(tileSet);
-        // Kerb cuts where the unsealed farm road and the chained south stub cross.
-        ground.AddChild(BuildRoadDressing(RoadTop,
-            new[] { (CrossLeft, CrossRight) }, new[] { (CrossLeft, CrossRight) }));
-
-        BuildObstacles(tileSet);
-        BuildStructures();
-        BuildSpawns();
-        BuildInteractables();
-        BuildTravel();
-    }
-
-    private void BuildSurfaces()
+    protected override void BuildDefaultSurfaces()
     {
         ResetSurfaces();
 
@@ -73,55 +55,52 @@ public partial class ForkMap : ExteriorMap
         Fill(CrossLeft, RoadBottom + 1, CrossRight, SouthStubEnd, Surface.Dirt);
     }
 
-    private void BuildObstacles(TileSet tileSet)
+    /// <summary>The fork's placements as the C# literals describe them: the seed
+    /// <c>data/maps/fork.tmx</c> was written from, and the fallback when it is missing.
+    /// The kerb cuts where the unsealed farm road and the chained south stub cross
+    /// derive from their dirt.</summary>
+    protected override MapRecipe BuildDefaultRecipe()
     {
-        var obstacles = new TileMapLayer { Name = "Obstacles", TileSet = tileSet };
-        Block(obstacles, ChainLeft, ChainRow, ChainRight, ChainRow);
-        AddChild(obstacles);
-    }
+        var recipe = new MapRecipe(MapIds.Fork);
 
-    private void BuildStructures()
-    {
-        AddChild(new RoadBarrier
-        {
-            Name = "SouthChain",
-            TilesWide = ChainRight - ChainLeft + 1,
-            Position = Prop.Anchor(ChainLeft, ChainRow, ChainRight - ChainLeft + 1),
-        });
-    }
+        recipe.Add(PlacementKinds.Prop, "south_chain", ChainLeft, ChainRow);
 
-    private void BuildSpawns()
-    {
-        var spawns = new Node2D { Name = "Spawns" };
         // >= 1 tile clear of each road-mouth exit area (spawn-clearance rule).
-        spawns.AddChild(SpawnMarker("default", 24, 15));
-        spawns.AddChild(SpawnMarker("from_billies", 2, 15));
-        spawns.AddChild(SpawnMarker("from_town", 37, 15));
-        spawns.AddChild(SpawnMarker("from_farm", 19, 2));
-        AddChild(spawns);
-    }
+        recipe.Add(PlacementKinds.Spawn, "default", 24, 15);
+        recipe.Add(PlacementKinds.Spawn, "from_billies", 2, 15);
+        recipe.Add(PlacementKinds.Spawn, "from_town", 37, 15);
+        recipe.Add(PlacementKinds.Spawn, "from_farm", 19, 2);
 
-    private void BuildInteractables()
-    {
         // Copy lives with the place (src/Content/Places/Fork.cs).
-        AddChild(new Sign
+        recipe.Add(PlacementKinds.Sign, "FingerPost", 22, 13);
+        recipe.Add(PlacementKinds.Sign, "SouthChainSign", 18, ChainRow - 1);
+
+        foreach ((string target, string spawn, int x, int y, int w, int h) in new[]
         {
-            Name = "FingerPost",
-            Position = new Vector2(22 * TileSize + 8, 13 * TileSize + 8),
-            Message = Fork.FingerPostText,
-        });
-        AddChild(new Sign
+            (MapIds.Billies, "from_fork", 0, RoadTop, 1, 2),
+            (MapIds.Town, "from_fork", Width - 1, RoadTop, 1, 2),
+            (MapIds.Farm, "road", CrossLeft, 0, 2, 1),
+        })
         {
-            Name = "SouthChainSign",
-            Position = new Vector2(18 * TileSize + 8, (ChainRow - 1) * TileSize + 8),
-            Message = Fork.SouthChainSignText,
-        });
+            MapPlacement exit = recipe.Add(PlacementKinds.Exit, target, x, y);
+            exit.SetText(PlacementFields.Spawn, spawn);
+            exit.SetInt(PlacementFields.Width, w);
+            exit.SetInt(PlacementFields.Height, h);
+        }
+
+        return recipe;
     }
 
-    private void BuildTravel()
-    {
-        AddRoadExit("WestExit", MapIds.Billies, "from_fork", 0, RoadTop);
-        AddRoadExit("EastExit", MapIds.Town, "from_fork", Width - 1, RoadTop);
-        AddRoadExit("NorthExit", MapIds.Farm, "road", CrossLeft, 0, widthTiles: 2, heightTiles: 1);
-    }
+    protected override string? SignTextFor(string signId) => Fork.SignTextFor(signId);
+
+    protected override IReadOnlyDictionary<string, ExteriorProp> PropCatalog() =>
+        new Dictionary<string, ExteriorProp>(StringComparer.Ordinal)
+        {
+            ["south_chain"] = new(p => new RoadBarrier
+            {
+                Name = "SouthChain",
+                TilesWide = ChainRight - ChainLeft + 1,
+                Position = Prop.Anchor(p.X, p.Y, ChainRight - ChainLeft + 1),
+            }, ExteriorProp.Rows(ChainRight - ChainLeft + 1, 1)),
+        };
 }

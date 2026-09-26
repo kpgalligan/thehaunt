@@ -10,13 +10,21 @@ namespace TheHaunt.World;
 /// off the same sheet with the same neighbour rules — a map that painted its own dirt
 /// edges would disagree with the road one frame over.
 ///
-/// A subclass owns its geometry: fill the grid (starting from
-/// <see cref="ResetSurfaces"/>), then hand it to <see cref="BuildGround"/>. Everything
-/// painted goes through <see cref="TerrainTiles.ForAct"/> — the act swap is a flag
-/// check, never a re-lay.
+/// Every exterior is a Tiled map, and this class owns the one build (<see cref="_Ready"/>):
+/// read <c>data/maps/(MapId).tmx</c> — or, when there is none, the code seed
+/// (<see cref="BuildDefaultSurfaces"/> + <see cref="BuildDefaultRecipe"/>) — resolve
+/// every placement up front, then paint the ground, block, and place. A subclass
+/// supplies only its seed, its prop catalog (<see cref="PropCatalog"/>: placement id →
+/// <see cref="ExteriorProp"/>, the node builder plus the cells it blocks) and a few
+/// hooks (<see cref="SignTextFor"/>, <see cref="ConfigureDoor"/>, <see cref="ExitGate"/>,
+/// <see cref="BuildDressing"/>, <see cref="OnBuilt"/>). Everything painted goes through
+/// <see cref="TerrainTiles.ForAct"/> — the act swap is a flag check, never a re-lay.
 /// </summary>
 public abstract partial class ExteriorMap : MapRoot, ISurfaceGrid
 {
+    /// <summary>The paved road's two rows, the same in every frame of the strip.</summary>
+    protected const int RoadTop = 14, RoadBottom = 15;
+
     /// <summary>
     /// Asphalt, Concrete and Road paint from the generated roadside source, so a map
     /// that uses them must build its ground with <see cref="RoadsideTerrain.Get"/> —
@@ -30,8 +38,12 @@ public abstract partial class ExteriorMap : MapRoot, ISurfaceGrid
     /// (<see cref="RoadsideTerrain.LandscapeSourceId"/>), so they too need
     /// <see cref="RoadsideTerrain.Get"/>; both are impassable, blocking through their
     /// tiles' own collision. Depth is visual only today — a later fishing hook.
+    ///
+    /// Pasture and Path are the FARM's (TestMap paints them from its own sheet); they sit
+    /// here only because the Tiled palette is one list for every map. An exterior refuses
+    /// them on load (<see cref="LoadSurfaces"/>).
     /// </summary>
-    protected enum Surface { Grass, Dirt, Gravel, Cobble, Woods, Asphalt, Concrete, Road, Water, DeepWater }
+    protected enum Surface { Grass, Dirt, Gravel, Cobble, Woods, Asphalt, Concrete, Road, Water, DeepWater, Pasture, Path }
 
     /// <summary>
     /// Every <see cref="Surface"/> by name, in declaration order — the Tiled palette
@@ -40,13 +52,18 @@ public abstract partial class ExteriorMap : MapRoot, ISurfaceGrid
     /// </summary>
     internal static readonly IReadOnlyList<string> SurfaceNames = Enum.GetNames<Surface>();
 
+    /// <summary>The surfaces an exterior paints: every one but the farm's Pasture and Path.</summary>
+    private static readonly IReadOnlyList<string> ExteriorSurfaceNames =
+        SurfaceNames.Where(name => name is not (nameof(Surface.Pasture) or nameof(Surface.Path))).ToList();
+
     /// <summary>
     /// What stands on a cell over its ground, painted on the Obstacles layer: a fence
     /// (the farm sheet's own pieces, picked from its fence neighbours) or a bush. Both
     /// block. APPEND-ONLY, like <see cref="Surface"/>: the Tiled obstacle palette
-    /// (<see cref="TiledObstacles"/>) indexes it.
+    /// (<see cref="TiledObstacles"/>) indexes it. Gate is the FARM's (its pen's open
+    /// gate); an exterior refuses it on load (<see cref="LoadObstacles"/>).
     /// </summary>
-    protected enum Obstacle { Fence, Bush }
+    protected enum Obstacle { Fence, Bush, Gate }
 
     /// <summary>Every <see cref="Obstacle"/> by name, in declaration order — the Tiled
     /// obstacle palette's tile order.</summary>
@@ -59,6 +76,278 @@ public abstract partial class ExteriorMap : MapRoot, ISurfaceGrid
 
     private Surface[,] _surface = new Surface[0, 0];
     private Obstacle?[,] _obstacle = new Obstacle?[0, 0];
+
+    /// <summary>
+    /// Where this build's surfaces and placements came from: the Tiled file's path, or
+    /// <see cref="TestMap.CodeDefaults"/> when there was no file to read. Provenance only.
+    /// </summary>
+    public string RecipeSource { get; private set; } = "";
+
+    // ------------------------------------------------------------------
+    // The build — one template for every exterior
+    // ------------------------------------------------------------------
+
+    /// <summary>The map's ground as the code seed paints it (from <see cref="ResetSurfaces"/>):
+    /// what its .tmx was seeded from, and the fallback when the file is missing.</summary>
+    protected abstract void BuildDefaultSurfaces();
+
+    /// <summary>The map's placements as the code seed describes them. Must not depend on
+    /// being in the tree (<see cref="CodeSeed"/> calls it on a map that never enters it).</summary>
+    protected abstract MapRecipe BuildDefaultRecipe();
+
+    /// <summary>Every prop id this map builds: its node builder and the cells it blocks.</summary>
+    protected abstract IReadOnlyDictionary<string, ExteriorProp> PropCatalog();
+
+    /// <summary>False for a map with no paved road: no road dressing, and a kerb_cut
+    /// placement is refused.</summary>
+    protected virtual bool HasRoad => true;
+
+    /// <summary>A promoted sign's copy, by placement id (the place's own
+    /// <c>SignTextFor</c>); null leaves the file's <c>text</c>.</summary>
+    protected virtual string? SignTextFor(string signId) => null;
+
+    /// <summary>Last word on a door before it enters the tree (a flag lock, a line).</summary>
+    protected virtual void ConfigureDoor(Door door) { }
+
+    /// <summary>The gate on an exit, by its id (the target map); null = always open.</summary>
+    protected virtual Func<bool>? ExitGate(string exitId) => null;
+
+    /// <summary>Flat ground decals, as children of <paramref name="ground"/>, before the road dressing.</summary>
+    protected virtual void BuildDressing(TileMapLayer ground) { }
+
+    /// <summary>After everything is built — for a map that keeps hold of its own nodes.</summary>
+    protected virtual void OnBuilt() { }
+
+    public override void _Ready()
+    {
+        MapRecipe recipe;
+        if (TiledMapFile.Load(MapId) is { } tiled)
+        {
+            RecipeSource = tiled.SourcePath;
+            LoadSurfaces(tiled);
+            LoadObstacles(tiled);
+            recipe = tiled.Placements;
+        }
+        else
+        {
+            RecipeSource = TestMap.CodeDefaults;
+            BuildDefaultSurfaces();
+            recipe = BuildDefaultRecipe();
+        }
+
+        // Resolve everything up front: a placement this build cannot honour throws here,
+        // in one place, naming the file it came from.
+        IReadOnlyDictionary<string, ExteriorProp> catalog = PropCatalog();
+        var props = new List<(MapPlacement Placement, ExteriorProp Prop)>();
+        var spawns = new List<MapPlacement>();
+        var signs = new List<MapPlacement>();
+        var doors = new List<MapPlacement>();
+        var exits = new List<MapPlacement>();
+        var kerbCuts = new List<MapPlacement>();
+        foreach (MapPlacement placement in recipe.Placements)
+        {
+            if (!placement.IsKnown)
+                continue;   // a newer build's kind rides through untouched
+            switch (placement.Kind)
+            {
+                case PlacementKinds.Prop:
+                    if (!catalog.TryGetValue(placement.Id, out ExteriorProp? prop))
+                    {
+                        string known = string.Join(", ", catalog.Keys.OrderBy(k => k, StringComparer.Ordinal));
+                        throw new MapRecipeException(RecipeSource,
+                            $"places prop '{placement.Id}' at {placement.X},{placement.Y}, which map '{MapId}' does not know. Known: {known}.");
+                    }
+                    props.Add((placement, prop));
+                    break;
+                case PlacementKinds.Spawn:
+                    spawns.Add(placement);
+                    break;
+                case PlacementKinds.Sign:
+                    signs.Add(placement);
+                    break;
+                case PlacementKinds.Door:
+                    doors.Add(placement);
+                    break;
+                case PlacementKinds.Exit:
+                    exits.Add(placement);
+                    break;
+                case PlacementKinds.KerbCut:
+                    if (!HasRoad)
+                    {
+                        throw new MapRecipeException(RecipeSource,
+                            $"places a kerb cut ('{placement.Id}' at {placement.X},{placement.Y}), but map '{MapId}' has no road.");
+                    }
+                    if (placement.Y is not (RoadTop or RoadBottom))
+                    {
+                        throw new MapRecipeException(RecipeSource,
+                            $"places kerb cut '{placement.Id}' at {placement.X},{placement.Y}; a kerb cut sits on row {RoadTop} (north kerb) or {RoadBottom} (south kerb).");
+                    }
+                    kerbCuts.Add(placement);
+                    break;
+                default:
+                    throw new MapRecipeException(RecipeSource,
+                        $"places a '{placement.Kind}' ('{placement.Id}' at {placement.X},{placement.Y}), which map '{MapId}' does not build.");
+            }
+        }
+
+        // Ground, its decals, then the road's kerbs — cut wherever made ground meets the
+        // gutter, and wherever the file says a driveway does.
+        TileSet tileSet = RoadsideTerrain.Get(); // the road, lot and water need the generated sources
+        TileMapLayer ground = BuildGround(tileSet);
+        BuildDressing(ground);
+        if (HasRoad)
+        {
+            ground.AddChild(BuildRoadDressing(RoadTop,
+                KerbCutRuns(RoadTop - 1, kerbCuts.Where(c => c.Y == RoadTop)),
+                KerbCutRuns(RoadBottom + 1, kerbCuts.Where(c => c.Y == RoadBottom))));
+        }
+
+        // Obstacles: painted fences and bushes first, so a prop footprint overwrites a
+        // painted cell; a doorway's Door node carries its own blocker.
+        var obstacles = new TileMapLayer { Name = "Obstacles", TileSet = tileSet };
+        PaintObstacles(obstacles);
+        var doorCells = new HashSet<Vector2I>(doors.Select(door => door.Cell));
+        foreach ((MapPlacement placement, ExteriorProp prop) in props)
+        {
+            foreach (Rect2I rect in prop.Footprint)
+            {
+                for (int y = rect.Position.Y; y < rect.End.Y; y++)
+                {
+                    for (int x = rect.Position.X; x < rect.End.X; x++)
+                    {
+                        var cell = new Vector2I(placement.X + x, placement.Y + y);
+                        if (!doorCells.Contains(cell))
+                            obstacles.SetCell(cell, 0, TerrainTiles.Blocker);
+                    }
+                }
+            }
+        }
+        AddChild(obstacles);
+
+        foreach ((MapPlacement placement, ExteriorProp prop) in props)
+            AddChild(prop.Build(placement));
+
+        var spawnHost = new Node2D { Name = "Spawns" };
+        foreach (MapPlacement spawn in spawns)
+            spawnHost.AddChild(SpawnMarker(spawn.Id, spawn.X, spawn.Y));
+        AddChild(spawnHost);
+
+        foreach (MapPlacement sign in signs)
+        {
+            AddChild(new Sign
+            {
+                Name = sign.Id,
+                Position = CellCentre(sign),
+                // False where the art already draws the board (a pole sign's foot).
+                DrawPlaceholder = sign.Bool(PlacementFields.Board, true),
+                // Words with the place (src/Content/Places); the file's text only for a
+                // board that has not been promoted there.
+                Message = SignTextFor(sign.Id) ?? sign.Text(PlacementFields.Text),
+            });
+        }
+
+        foreach (MapPlacement exit in exits)
+        {
+            AddRoadExit($"Exit_{exit.Id}", exit.Id, exit.Text(PlacementFields.Spawn, "default"),
+                exit.X, exit.Y, exit.Int(PlacementFields.Width, 1), exit.Int(PlacementFields.Height, 1),
+                ExitGate(exit.Id));
+        }
+
+        // Every doorway is drawn into its facade, so the Door nodes contribute their
+        // blocker and their prompt only.
+        foreach (MapPlacement placement in doors)
+        {
+            var door = new Door
+            {
+                Name = $"Door_{placement.Id}",
+                TargetMapId = placement.Id,
+                TargetSpawnId = placement.Text(PlacementFields.Spawn, "default"),
+                DrawPlaceholder = false,
+                Position = CellCentre(placement),
+            };
+            ConfigureDoor(door);
+            AddChild(door);
+        }
+
+        OnBuilt();
+    }
+
+    /// <summary>The centre of a placement's cell, in map px.</summary>
+    protected static Vector2 CellCentre(MapPlacement placement) =>
+        new(placement.X * TileSize + 8, placement.Y * TileSize + 8);
+
+    /// <summary>
+    /// The maximal column runs where the kerb breaks along one side of the road: cells in
+    /// <paramref name="row"/> (the verge row beside the gutter) whose surface is made
+    /// ground — Dirt, Gravel or Cobble — plus every kerb_cut's columns. A paved lot
+    /// (Asphalt, Concrete) keeps its kerb; its driveway is a kerb_cut.
+    /// </summary>
+    private (int First, int Last)[] KerbCutRuns(int row, IEnumerable<MapPlacement> cuts)
+    {
+        var cut = new bool[MapWidth];
+        for (int x = 0; x < MapWidth; x++)
+            cut[x] = At(x, row) is Surface.Dirt or Surface.Gravel or Surface.Cobble;
+        foreach (MapPlacement placement in cuts)
+        {
+            int width = placement.Int(PlacementFields.Width, 1);
+            for (int x = Math.Max(0, placement.X); x < Math.Min(MapWidth, placement.X + width); x++)
+                cut[x] = true;
+        }
+
+        var runs = new List<(int, int)>();
+        int start = -1;
+        for (int x = 0; x <= MapWidth; x++)
+        {
+            bool on = x < MapWidth && cut[x];
+            if (on && start < 0)
+                start = x;
+            else if (!on && start >= 0)
+            {
+                runs.Add((start, x - 1));
+                start = -1;
+            }
+        }
+        return runs.ToArray();
+    }
+
+    /// <summary>The whole code seed as a Tiled map: the default surfaces (and their empty
+    /// obstacles) plus <see cref="BuildDefaultRecipe"/>. Safe off the tree — the caller
+    /// frees the map.</summary>
+    internal TiledMap CodeSeed()
+    {
+        BuildDefaultSurfaces();
+        MapRecipe recipe = BuildDefaultRecipe();
+        var surfaces = new string[MapWidth, MapHeight];
+        var obstacles = new string?[MapWidth, MapHeight];
+        for (int y = 0; y < MapHeight; y++)
+        {
+            for (int x = 0; x < MapWidth; x++)
+            {
+                surfaces[x, y] = _surface[x, y].ToString();
+                obstacles[x, y] = _obstacle[x, y]?.ToString();
+            }
+        }
+        return new TiledMap(recipe.MapId, surfaces, obstacles, recipe, TestMap.CodeDefaults);
+    }
+
+    /// <summary>The bounding box (tiles) of every cell of <paramref name="surface"/>; null if none.</summary>
+    protected Rect2I? BoundsOf(Surface surface)
+    {
+        int minX = int.MaxValue, minY = int.MaxValue, maxX = -1, maxY = -1;
+        for (int y = 0; y < _surface.GetLength(1); y++)
+        {
+            for (int x = 0; x < _surface.GetLength(0); x++)
+            {
+                if (_surface[x, y] != surface)
+                    continue;
+                minX = Math.Min(minX, x);
+                minY = Math.Min(minY, y);
+                maxX = Math.Max(maxX, x);
+                maxY = Math.Max(maxY, y);
+            }
+        }
+        return maxX < 0 ? null : new Rect2I(minX, minY, maxX - minX + 1, maxY - minY + 1);
+    }
 
     // ------------------------------------------------------------------
     // Surfaces — what each cell IS, before it is any particular tile
@@ -104,6 +393,11 @@ public abstract partial class ExteriorMap : MapRoot, ISurfaceGrid
                     throw new MapRecipeException(tiled.SourcePath,
                         $"has surface '{name}' at ({x},{y}); known: {string.Join(", ", SurfaceNames)}.");
                 }
+                if (surface is Surface.Pasture or Surface.Path)
+                {
+                    throw new MapRecipeException(tiled.SourcePath,
+                        $"has farm-only surface '{name}' at ({x},{y}); an exterior paints: {string.Join(", ", ExteriorSurfaceNames)}.");
+                }
                 _surface[x, y] = surface;
             }
         }
@@ -128,6 +422,11 @@ public abstract partial class ExteriorMap : MapRoot, ISurfaceGrid
                 {
                     throw new MapRecipeException(tiled.SourcePath,
                         $"has obstacle '{name}' at ({x},{y}); known: {string.Join(", ", ObstacleNames)}.");
+                }
+                if (obstacle == Obstacle.Gate)
+                {
+                    throw new MapRecipeException(tiled.SourcePath,
+                        $"has farm-only obstacle '{name}' at ({x},{y}); an exterior paints: {Obstacle.Fence}, {Obstacle.Bush}.");
                 }
                 _obstacle[x, y] = obstacle;
             }
@@ -416,11 +715,12 @@ public abstract partial class ExteriorMap : MapRoot, ISurfaceGrid
     protected static Marker2D SpawnMarker(string name, int x, int y) =>
         new() { Name = name, Position = new Vector2(x * TileSize + 8, y * TileSize + 8) };
 
-    /// <summary>A walk-on exit covering a road mouth's cells, top-left cell (x, y).
-    /// Always enabled — the TOWN-LINE mouths are never gated. A private drive may be
-    /// (EastForkMap builds its chained south exit by hand).</summary>
+    /// <summary>A walk-on exit covering a road mouth's cells, top-left cell (x, y),
+    /// enabled while <paramref name="isEnabled"/> says so (null = always). The TOWN-LINE
+    /// mouths are never gated; a private drive may be (the east fork's drive-in exit,
+    /// through <see cref="ExitGate"/>).</summary>
     protected void AddRoadExit(string name, string targetMapId, string targetSpawnId,
-        int x, int y, int widthTiles = 1, int heightTiles = 2)
+        int x, int y, int widthTiles = 1, int heightTiles = 2, Func<bool>? isEnabled = null)
     {
         var size = new Vector2(widthTiles * TileSize, heightTiles * TileSize);
         var exit = new MapExit
@@ -429,6 +729,7 @@ public abstract partial class ExteriorMap : MapRoot, ISurfaceGrid
             TargetMapId = targetMapId,
             TargetSpawnId = targetSpawnId,
             Position = new Vector2(x * TileSize, y * TileSize) + size / 2f,
+            IsEnabled = isEnabled,
         };
         exit.AddChild(new CollisionShape2D
         {

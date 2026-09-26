@@ -103,6 +103,11 @@
             "id": 7,
             "members": [
                 {
+                    "name": "board",
+                    "type": "bool",
+                    "value": true
+                },
+                {
                     "name": "text",
                     "type": "string",
                     "value": ""
@@ -169,6 +174,18 @@
             "members": [
             ],
             "name": "mailbox",
+            "type": "class",
+            "useAs": [
+                "object"
+            ]
+        },
+        {
+            "color": "#ffa0a0a4",
+            "drawFill": true,
+            "id": 13,
+            "members": [
+            ],
+            "name": "kerb_cut",
             "type": "class",
             "useAs": [
                 "object"

@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<tileset version="1.10" tiledversion="1.12.0" name="surfaces" tilewidth="16" tileheight="16" tilecount="10" columns="10">
- <image source="surfaces.png" width="160" height="16"/>
+<tileset version="1.10" tiledversion="1.12.0" name="surfaces" tilewidth="16" tileheight="16" tilecount="12" columns="12">
+ <image source="surfaces.png" width="192" height="16"/>
  <tile id="0">
   <properties>
    <property name="surface" value="Grass"/>
@@ -49,6 +49,16 @@
  <tile id="9">
   <properties>
    <property name="surface" value="DeepWater"/>
+  </properties>
+ </tile>
+ <tile id="10">
+  <properties>
+   <property name="surface" value="Pasture"/>
+  </properties>
+ </tile>
+ <tile id="11">
+  <properties>
+   <property name="surface" value="Path"/>
   </properties>
  </tile>
 </tileset>

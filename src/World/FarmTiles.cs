@@ -95,7 +95,7 @@ public static class FarmTiles
 
     /// <summary>
     /// The fence piece for a fence cell, from which of its four neighbours are fence.
-    /// Corners are named for the two directions their rails run (TestMap.PaintPen's
+    /// Corners are named for the two directions their rails run (the farm pen's
     /// rule): S+E is CornerSe, S+W CornerSw, N+W CornerNw, N+E CornerNe. A lone cell,
     /// and any cell with three or four neighbours, is a post — the sheet has no tee or
     /// cross piece.

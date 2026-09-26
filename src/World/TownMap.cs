@@ -45,7 +45,6 @@ public partial class TownMap : ExteriorMap
     /// read-only, for the world dump.</summary>
     internal static Vector2I WornCobble => PlazaCentre;
 
-    private const int RoadTop = 14, RoadBottom = 15;
     private const int ApronRow = 12;
 
     internal const string TownHallPath = "res://assets/sprites/town/building_townhall.png";
@@ -76,21 +75,6 @@ public partial class TownMap : ExteriorMap
 
     private const string StoreSignId = "StoreSign";
 
-    // The placements this build is reading, resolved once, up front: an id this build
-    // does not know throws here, in one place, naming the file it came from.
-    private string _recipeSource = "";
-    private readonly List<(MapPlacement Placement, Rect2? Sheet, int Tiles, int Rows)> _props = new();
-    private MapPlacement[] _spawns = Array.Empty<MapPlacement>();
-    private MapPlacement[] _signs = Array.Empty<MapPlacement>();
-    private MapPlacement[] _doors = Array.Empty<MapPlacement>();
-    private MapPlacement[] _exits = Array.Empty<MapPlacement>();
-
-    /// <summary>
-    /// Where this build's surfaces and placements came from: the Tiled file's path, or
-    /// <see cref="TestMap.CodeDefaults"/> when there was no file to read. Provenance only.
-    /// </summary>
-    public string RecipeSource => _recipeSource;
-
     public override void _EnterTree()
     {
         // Default the id before registration so WorldSim never sees a nameless map.
@@ -99,40 +83,8 @@ public partial class TownMap : ExteriorMap
         base._EnterTree();
     }
 
-    public override void _Ready()
-    {
-        // RecipeOverride is ignored: the town is not a JSON-recipe map, and the editor
-        // stage hands every map an (empty) one. The preview reads the tmx, read-only.
-        MapRecipe recipe;
-        if (TiledMapFile.Load(MapIds.Town) is { } tiled)
-        {
-            _recipeSource = tiled.SourcePath;
-            LoadSurfaces(tiled);
-            LoadObstacles(tiled);
-            recipe = tiled.Placements;
-        }
-        else
-        {
-            _recipeSource = TestMap.CodeDefaults;
-            BuildDefaultSurfaces();
-            recipe = DefaultRecipe();
-        }
-        ResolvePlacements(recipe);
-
-        TileSet tileSet = RoadsideTerrain.Get(); // the paved road needs the roadside source
-        TileMapLayer ground = BuildGround(tileSet);
-        // Kerb cuts wherever made ground (a door path, the plaza path) meets the gutter.
-        ground.AddChild(BuildRoadDressing(RoadTop, KerbCutRuns(RoadTop - 1), KerbCutRuns(RoadBottom + 1)));
-
-        BuildObstacles(tileSet);
-        BuildProps();
-        BuildSpawns();
-        BuildInteractables();
-        BuildTravel();
-    }
-
     // ------------------------------------------------------------------
-    // Placements — the code seed, and resolving whichever recipe was read
+    // Placements — the code seed and the prop catalog
     // ------------------------------------------------------------------
 
     /// <summary>
@@ -178,97 +130,50 @@ public partial class TownMap : ExteriorMap
         return recipe;
     }
 
+    protected override MapRecipe BuildDefaultRecipe() => DefaultRecipe();
+
     /// <summary>The whole code seed as a Tiled map: the default surfaces plus <see cref="DefaultRecipe"/>.</summary>
-    public static TiledMap DefaultTiledMap()
+    public static TiledMap DefaultTiledMap() => TiledSeeds.For(MapIds.Town);
+
+    protected override string? SignTextFor(string signId) => Town.SignTextFor(signId);
+
+    /// <summary>
+    /// The town's props: the two facades, the cobra heads, and the plaza dressing off the
+    /// prop sheet — every one blocks its base row, the 2x2 well its whole footprint.
+    /// </summary>
+    protected override IReadOnlyDictionary<string, ExteriorProp> PropCatalog()
     {
-        var map = new TownMap();
-        try
+        int hallTiles = (int)TownHallSource.Size.X / TileSize;
+        int storeTiles = (int)StoreFacade.OpenVariant.Size.X / TileSize;
+        var catalog = new Dictionary<string, ExteriorProp>(StringComparer.Ordinal)
         {
-            map.BuildDefaultSurfaces();
-            var surfaces = new string[Width, Height];
-            for (int y = 0; y < Height; y++)
-                for (int x = 0; x < Width; x++)
-                    surfaces[x, y] = map.SurfaceName(x, y);
-            return new TiledMap(MapIds.Town, surfaces, DefaultRecipe(), TestMap.CodeDefaults);
-        }
-        finally
-        {
-            map.Free();
-        }
-    }
-
-    private void ResolvePlacements(MapRecipe recipe)
-    {
-        foreach (MapPlacement placement in recipe.Placements)
-        {
-            if (!placement.IsKnown)
-                continue;   // a newer build's kind rides through untouched
-            if (placement.Kind is not (PlacementKinds.Prop or PlacementKinds.Spawn or PlacementKinds.Door
-                or PlacementKinds.Exit or PlacementKinds.Sign))
+            [TownProps.TownHallId] = new(p => BuildTownHall(Prop.Anchor(p.X, p.Y, hallTiles)),
+                ExteriorProp.Rows(hallTiles, 6)),
+            [TownProps.GeneralStoreId] = new(p => new StoreFacade
             {
-                throw new MapRecipeException(_recipeSource,
-                    $"places a '{placement.Kind}' ('{placement.Id}' at {placement.X},{placement.Y}), which the town does not build.");
-            }
-        }
-
-        _props.Clear();
-        foreach (MapPlacement prop in recipe.OfKind(PlacementKinds.Prop))
-        {
-            switch (prop.Id)
+                Name = "GeneralStore",
+                TexturePath = StoreFacade.StorePath,
+                Source = StoreFacade.OpenVariant,
+                Position = Prop.Anchor(p.X, p.Y, storeTiles),
+            }, ExteriorProp.Rows(storeTiles, 4)),
+            [TownProps.StreetLightId] = new(p => new StreetLight
             {
-                case TownProps.TownHallId:
-                    _props.Add((prop, null, (int)TownHallSource.Size.X / TileSize, 6));
-                    break;
-                case TownProps.GeneralStoreId:
-                    _props.Add((prop, null, (int)StoreFacade.OpenVariant.Size.X / TileSize, 4));
-                    break;
-                case TownProps.StreetLightId:
-                    _props.Add((prop, null, 1, 1));
-                    break;
-                default:
-                    Rect2 sheet;
-                    try
-                    {
-                        sheet = TownProps.ByName(prop.Id);
-                    }
-                    catch (ArgumentException)
-                    {
-                        string known = string.Join(", ", new[]
-                            { TownProps.TownHallId, TownProps.GeneralStoreId, TownProps.StreetLightId }
-                            .Concat(TownProps.SheetIds));
-                        throw new MapRecipeException(_recipeSource,
-                            $"places prop '{prop.Id}' at {prop.X},{prop.Y}, which the town does not know. Known: {known}.");
-                    }
-                    // The 2x2 well is solid for its whole footprint, not just its base row.
-                    _props.Add((prop, sheet, (int)sheet.Size.X / TileSize, prop.Id == TownProps.WellId ? 2 : 1));
-                    break;
-            }
-        }
-
-        _spawns = recipe.OfKind(PlacementKinds.Spawn).ToArray();
-        _signs = recipe.OfKind(PlacementKinds.Sign).ToArray();
-        _doors = recipe.OfKind(PlacementKinds.Door).ToArray();
-        _exits = recipe.OfKind(PlacementKinds.Exit).ToArray();
-    }
-
-    /// <summary>Column runs in one row where made ground (not grass, woods, road or water) meets the kerb.</summary>
-    private (int First, int Last)[] KerbCutRuns(int row)
-    {
-        var runs = new List<(int, int)>();
-        int start = -1;
-        for (int x = 0; x <= Width; x++)
+                ArmLeft = p.X > PlazaCentre.X,  // the pair faces the plaza
+                Position = Prop.Anchor(p.X, p.Y),
+            }, ExteriorProp.Rows(1, 1)),
+        };
+        foreach (string id in TownProps.SheetIds)
         {
-            bool cut = x < Width && At(x, row) is not (Surface.Grass or Surface.Woods or Surface.Road
-                or Surface.Water or Surface.DeepWater);
-            if (cut && start < 0)
-                start = x;
-            else if (!cut && start >= 0)
+            Rect2 sheet = TownProps.ByName(id);
+            int tiles = (int)sheet.Size.X / TileSize;
+            catalog[id] = new ExteriorProp(p => new Prop
             {
-                runs.Add((start, x - 1));
-                start = -1;
-            }
+                TexturePath = TownProps.TexturePath,
+                Source = sheet,
+                Position = Prop.Anchor(p.X, p.Y, tiles),
+            }, ExteriorProp.Rows(tiles, id == TownProps.WellId ? 2 : 1));  // the 2x2 well is solid throughout
         }
-        return runs.ToArray();
+        return catalog;
     }
 
     // ------------------------------------------------------------------
@@ -278,7 +183,7 @@ public partial class TownMap : ExteriorMap
     // No longer the shipped ground: Kevin reshaped the woods in Tiled (2026-09-26), so
     // data/maps/town.tmx has left this behind. It is still the fallback when the file is
     // missing, and the seed --seed-tiled writes a fresh file from.
-    private void BuildDefaultSurfaces()
+    protected override void BuildDefaultSurfaces()
     {
         ResetSurfaces();
 
@@ -320,73 +225,8 @@ public partial class TownMap : ExteriorMap
             : base.CobbleField(x, y);
 
     // ------------------------------------------------------------------
-    // Obstacles
+    // Facades (drawn in elevation, anchored on their base row)
     // ------------------------------------------------------------------
-
-    private void BuildObstacles(TileSet tileSet)
-    {
-        var obstacles = new TileMapLayer { Name = "Obstacles", TileSet = tileSet };
-        // Painted fences and bushes first, so a prop footprint overwrites a painted cell.
-        PaintObstacles(obstacles);
-        var doorCells = new HashSet<Vector2I>(_doors.Select(door => door.Cell));
-
-        foreach (var (prop, _, tiles, rows) in _props)
-        {
-            for (int row = 0; row < rows; row++)
-            {
-                for (int i = 0; i < tiles; i++)
-                {
-                    var cell = new Vector2I(prop.X + i, prop.Y - row);
-                    if (!doorCells.Contains(cell))   // a doorway's Door node carries its blocker
-                        obstacles.SetCell(cell, 0, TerrainTiles.Blocker);
-                }
-            }
-        }
-
-        AddChild(obstacles);
-    }
-
-    // ------------------------------------------------------------------
-    // Facades and props (drawn in elevation, anchored on their base row)
-    // ------------------------------------------------------------------
-
-    private void BuildProps()
-    {
-        foreach (var (prop, sheet, tiles, _) in _props)
-        {
-            Vector2 anchor = Prop.Anchor(prop.X, prop.Y, tiles);
-            switch (prop.Id)
-            {
-                case TownProps.TownHallId:
-                    AddChild(BuildTownHall(anchor));
-                    break;
-                case TownProps.GeneralStoreId:
-                    AddChild(new StoreFacade
-                    {
-                        Name = "GeneralStore",
-                        TexturePath = StoreFacade.StorePath,
-                        Source = StoreFacade.OpenVariant,
-                        Position = anchor,
-                    });
-                    break;
-                case TownProps.StreetLightId:
-                    AddChild(new StreetLight
-                    {
-                        ArmLeft = prop.X > PlazaCentre.X,  // the pair faces the plaza
-                        Position = anchor,
-                    });
-                    break;
-                default:
-                    AddChild(new Prop
-                    {
-                        TexturePath = TownProps.TexturePath,
-                        Source = sheet!.Value,
-                        Position = anchor,
-                    });
-                    break;
-            }
-        }
-    }
 
     private static Prop BuildTownHall(Vector2 anchor)
     {
@@ -422,56 +262,5 @@ public partial class TownMap : ExteriorMap
             Strength = 0.5f,
         });
         return hall;
-    }
-
-    // ------------------------------------------------------------------
-    // Spawns / interactables / travel
-    // ------------------------------------------------------------------
-
-    private void BuildSpawns()
-    {
-        var spawns = new Node2D { Name = "Spawns" };
-        foreach (MapPlacement spawn in _spawns)
-            spawns.AddChild(SpawnMarker(spawn.Id, spawn.X, spawn.Y));
-        AddChild(spawns);
-    }
-
-    private void BuildInteractables()
-    {
-        foreach (MapPlacement sign in _signs)
-        {
-            AddChild(new Sign
-            {
-                Name = sign.Id,
-                Position = new Vector2(sign.X * TileSize + 8, sign.Y * TileSize + 8),
-                // Words with the place (src/Content/Places/Town.cs); the file's text only
-                // for a board that has not been promoted there.
-                Message = Town.SignTextFor(sign.Id) ?? sign.Text(PlacementFields.Text),
-            });
-        }
-    }
-
-    private void BuildTravel()
-    {
-        // Road mouths — always enabled (IsEnabled null): leaving town is never gated.
-        foreach (MapPlacement exit in _exits)
-        {
-            AddRoadExit($"Exit_{exit.Id}", exit.Id, exit.Text(PlacementFields.Spawn, "default"),
-                exit.X, exit.Y, exit.Int(PlacementFields.Width, 1), exit.Int(PlacementFields.Height, 1));
-        }
-
-        // Both doorways are drawn into their facade, so the Door nodes contribute
-        // their blocker and their prompt only.
-        foreach (MapPlacement door in _doors)
-        {
-            AddChild(new Door
-            {
-                Name = $"Door_{door.Id}",
-                TargetMapId = door.Id,
-                TargetSpawnId = door.Text(PlacementFields.Spawn, "default"),
-                DrawPlaceholder = false,
-                Position = new Vector2(door.X * TileSize + 8, door.Y * TileSize + 8),
-            });
-        }
     }
 }

@@ -26,4 +26,13 @@ public static class Billies
     // sign may say DANGER; the people never say pit — the writing rule).
     public const string BarSignText = "Billie's.";
     public const string PitSignText = "DANGER. KEEP OUT.";
+
+    /// <summary>Copy for this place's placed signs, by placement id. Null = an unpromoted
+    /// sign (a board still carrying its own map-file text).</summary>
+    public static string? SignTextFor(string placementId) => placementId switch
+    {
+        "BarSign" => BarSignText,
+        "PitSign" => PitSignText,
+        _ => null,
+    };
 }

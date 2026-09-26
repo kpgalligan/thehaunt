@@ -21,4 +21,13 @@ public static class EastFork
     // canon words and stands only while the chain is up (its copy is only true then).
     public const string MansionChainSignText = "KEEP OUT.";
     public const string TheaterChainSignText = "PRIVATE PROPERTY. CLOSED.";
+
+    /// <summary>Copy for this place's placed signs, by placement id. Null = an unpromoted
+    /// sign (a board still carrying its own map-file text).</summary>
+    public static string? SignTextFor(string placementId) => placementId switch
+    {
+        "MansionChainSign" => MansionChainSignText,
+        "TheaterChainSign" => TheaterChainSignText,
+        _ => null,
+    };
 }

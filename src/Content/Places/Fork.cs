@@ -17,4 +17,13 @@ public static class Fork
     // chain's sign says nothing about what is behind it, which is the point.
     public const string FingerPostText = "North: the farm. East: town. West: the west road.";
     public const string SouthChainSignText = "Road closed.";
+
+    /// <summary>Copy for this place's placed signs, by placement id. Null = an unpromoted
+    /// sign (a board still carrying its own map-file text).</summary>
+    public static string? SignTextFor(string placementId) => placementId switch
+    {
+        "FingerPost" => FingerPostText,
+        "SouthChainSign" => SouthChainSignText,
+        _ => null,
+    };
 }

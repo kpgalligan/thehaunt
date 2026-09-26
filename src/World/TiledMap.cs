@@ -11,7 +11,9 @@ namespace TheHaunt.World;
 /// person paints with in Tiled is only a swatch from <see cref="TiledSurfaces"/>), an
 /// optional obstacle grid BY NAME (what stands on a cell — swatches from
 /// <see cref="TiledObstacles"/>; null = empty), and the map's placements as rectangle
-/// objects. The map's C# build function reads all three; tile painting stays generative.
+/// objects. Every exterior's build (<see cref="ExteriorMap"/>) reads all three; tile
+/// painting stays generative. Span kinds (exit, shop_counter, kerb_cut) carry their
+/// "w"/"h" as the rectangle's size, not as properties.
 ///
 /// The reader is a STRICT subset of TMX — the shape the writer emits and Tiled saves back:
 /// orthogonal, 16px, finite; one or two external tilesets (surfaces.tsx, required, and
@@ -82,9 +84,10 @@ public sealed class TiledMap
     /// <summary>The obstacle on a cell by name, or null when it is empty.</summary>
     public string? ObstacleAt(int x, int y) => _obstacles[x, y];
 
-    /// <summary>Whether a kind takes its tile span from the object's rectangle.</summary>
+    /// <summary>Whether a kind takes its tile span from the object's rectangle (a kerb
+    /// cut's "w" is the columns it breaks; its "h" is always one row).</summary>
     private static bool IsSpanKind(string kind) =>
-        kind is PlacementKinds.Exit or PlacementKinds.ShopCounter;
+        kind is PlacementKinds.Exit or PlacementKinds.ShopCounter or PlacementKinds.KerbCut;
 
     // ------------------------------------------------------------------
     // Writer

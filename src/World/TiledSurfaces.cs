@@ -4,10 +4,12 @@ using Godot;
 namespace TheHaunt.World;
 
 /// <summary>
-/// The Tiled palette for a surface layer: one tile per <see cref="ExteriorMap"/> surface,
-/// local tile id = its index in <see cref="Names"/>. A cell in a Tiled map says what the
-/// ground IS (by name); the tile you paint it with in Tiled is only a swatch, never the
-/// tile the game draws — painting stays generative C# (BuildGround + ForAct).
+/// The Tiled palette for a surface layer, shared by every Tiled map (the exteriors and
+/// the farm): one tile per <see cref="ExteriorMap"/> surface, local tile id = its index in
+/// <see cref="Names"/>. Pasture and Path are the farm's; each side refuses the other's
+/// entries on load. A cell in a Tiled map says what the ground IS (by name); the tile you
+/// paint it with in Tiled is only a swatch, never the tile the game draws — painting
+/// stays generative C# (BuildGround + ForAct).
 ///
 /// The <c>.tsx</c> and <c>.png</c> are pure derivations of <see cref="Names"/>, rewritten
 /// on every <c>--seed-tiled</c> run and never hand-edited. The loader maps gids through
@@ -65,8 +67,8 @@ public static class TiledSurfaces
 
     /// <summary>
     /// The swatch strip, (Names.Count*16) x 16, RGBA8: each surface's plain tile, blitted
-    /// from the atlases the game paints with (source 0, the roadside source, and the
-    /// landscape source).
+    /// from the atlases the game paints with (source 0, the roadside source, the
+    /// landscape source, and the farm atlas copy for the farm's Pasture and Path).
     /// </summary>
     public static Image BuildSwatch()
     {
@@ -85,6 +87,8 @@ public static class TiledSurfaces
                 "Road" => (RoadsideTerrain.SourceId, RoadsideTiles.Road[0]),
                 "Water" => (RoadsideTerrain.LandscapeSourceId, LandscapeTiles.Water[0]),
                 "DeepWater" => (RoadsideTerrain.LandscapeSourceId, LandscapeTiles.DeepWater[0]),
+                "Pasture" => (RoadsideTerrain.FenceSourceId, FarmTiles.Pasture[0]),
+                "Path" => (RoadsideTerrain.FenceSourceId, FarmTiles.Path[0]),
                 _ => throw new InvalidOperationException(
                     $"No swatch for surface '{name}' — add its case to TiledSurfaces.BuildSwatch."),
             });

@@ -26,4 +26,7 @@ public static class PlacementFields
 
     /// <summary>False for a piece the player walks over or an NPC stands on (the store's till). Default true.</summary>
     public const string Blocks = "blocks";
+
+    /// <summary>False for a sign whose board the art already draws (a pole's foot): the node reads, it draws nothing. Default true.</summary>
+    public const string Board = "board";
 }

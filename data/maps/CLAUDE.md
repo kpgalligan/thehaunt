@@ -2,8 +2,9 @@
 
 One file per map id, read by that map's build function: a JSON recipe
 (`data/maps/<mapId>.json` — the farm's `test_farm.json`) or a Tiled map
-(`data/maps/<mapId>.tmx` — the town's `town.tmx`; see "Tiled maps" below). Every other
-map still holds its placements as C# literals. The reader/writer code lives in
+(`data/maps/<mapId>.tmx` — every `ExteriorMap`: the town and the road strip,
+`west_entry`/`billies`/`fork`/`east_fork`/`east_entry`/`drive_in`; see "Tiled maps"
+below). The interiors still hold their placements as C# literals. The reader/writer code lives in
 `src/World/` (MapRecipe, MapPlacement, PlacementKinds/PlacementFields, MapRecipeFile,
 MapRecipeException, MapRecipeSeeds; TiledMap, TiledMapFile, TiledSurfaces,
 TiledObstacles, TiledSeeds);
@@ -48,11 +49,13 @@ the graphical editor for JSON recipes is the Haunt Mapper (`scenes/editor/MapSta
   `MapSeedTests` is the drift guard — once someone drags a placement in the editor,
   file and seed part company on purpose and the guard says so.
 
-## Tiled maps (the town pilot)
+## Tiled maps (every exterior)
 
-`data/maps/town.tmx` is read by our own C# loader (`TiledMap`/`TiledMapFile`,
-src/World) — no Tiled importer addon. TownMap builds from it; its C# literals
-(`TownMap.DefaultRecipe`, `BuildDefaultSurfaces`) stay as the missing-file fallback.
+Every `ExteriorMap` is a Tiled map: `data/maps/<mapId>.tmx`, read by our own C# loader
+(`TiledMap`/`TiledMapFile`, src/World) — no Tiled importer addon. `ExteriorMap` owns
+the one build; each map's C# literals (`BuildDefaultSurfaces`, `BuildDefaultRecipe`)
+stay as the missing-file fallback and the seed. `town.tmx` is Kevin's hand edit; the
+six road-strip files are still exactly their seeds.
 
 - TMX, not TMJ: Tiled writes a TMX CSV layer one map row per line, so a repainted cell
   is a one-line diff. In Map Properties keep Tile Layer Format = CSV; the reader
@@ -65,15 +68,24 @@ src/World) — no Tiled importer addon. TownMap builds from it; its C# literals
   below it, so a file saved before a surface was appended still reads.
 - The `surface` tile layer is the map's `ExteriorMap.Surface` grid BY NAME: each
   palette tile stands for one surface (Grass, Dirt, Road...) and the game still paints
-  every cell itself (BuildGround + ForAct, kerb cuts derived from the grid). The
-  swatch you paint with is never the tile the game draws. Water and DeepWater are
+  every cell itself (BuildGround + ForAct). The swatch you paint with is never the
+  tile the game draws.
+- Kerb cuts (where a driveway breaks the road's kerb) are derived AND placed: every
+  verge cell beside the gutter (row 13 above the road, row 16 below) that is Dirt,
+  Gravel or Cobble cuts the kerb by itself; Asphalt and Concrete do NOT — a paved lot
+  is kerbed, and its driveway is a `kerb_cut` placement (row 14 = north kerb, row 15 =
+  south; its rectangle's width is the columns). The two sources merge into maximal
+  runs. A map with no road (the drive-in) refuses a kerb_cut.
+- A lot's stall stripes (the west entry) and a field's ramp rows (the drive-in) are
+  drawn over the bounding box of the map's Asphalt — repaint the Asphalt and the
+  markings follow it. Water and DeepWater are
   impassable (placeholder art; depth is visual only).
 - The optional `obstacles` tile layer is the map's `ExteriorMap.Obstacle` grid BY
   NAME, painted from the `tiled/obstacles.tsx` palette (Fence, Bush); 0 = empty. Both
   block. Code picks each fence's piece from its fence neighbours
   (`FarmTiles.FenceFor`) — paint "fence here", never a particular piece. No layer
   means no obstacles, and the layer needs no obstacles.tsx while it is all empty.
-- Adding the layer to an existing map: rerun `--seed-tiled town` (it writes the
+- Adding the layer to an existing map: rerun `--seed-tiled <mapId>` (it writes the
   obstacles palette), then in Tiled use Map > Add External Tileset… and pick
   `tiled/obstacles.tsx`, and Layer > New > Tile Layer, named exactly `obstacles`,
   above `surface`. Paint, then save.
@@ -83,20 +95,30 @@ src/World) — no Tiled importer addon. TownMap builds from it; its C# literals
   /tmp/town.png`).
 - The `placements` object layer: one rectangle object per placement — Class
   (`type`) = kind, Name = id, cell = (x/16, y/16), custom properties = the record's
-  fields (string/int/bool only; reserved keys refused). `exit`/`shop_counter` take
-  their `w`/`h` from the rectangle's size; every other kind is a 16x16 box whose size
-  is ignored. No nudges. Enable Snap to Grid: an off-grid object is an error.
+  fields (string/int/bool only; reserved keys refused). `exit`/`shop_counter`/`kerb_cut`
+  take their `w`/`h` from the rectangle's size; every other kind is a 16x16 box whose
+  size is ignored. No nudges. Enable Snap to Grid: an off-grid object is an error.
+- Kinds an exterior builds: `prop` (the id must be in that map's prop catalog — an
+  unknown one throws, listing the known ids), `spawn`, `sign`, `door`, `exit`,
+  `kerb_cut`. Any other known kind throws; an unknown kind rides through. A sign's
+  `board` (bool, default true) is false where the art already draws the board (the
+  motel's pole sign, the drive-in marquee): the node reads, it draws nothing.
+  A door or exit's id is its target map; the node is `Door_<id>` / `Exit_<id>`.
 - `tiled/` holds Tiled's support files and carries a `.gdignore` (Godot must not
   import them). Open `tiled/thehaunt.tiled-project` in Tiled 1.11+ to get one object
   class per placement kind, with its fields' defaults.
 - The palettes (`tiled/surfaces.tsx` + `.png`, `tiled/obstacles.tsx` + `.png`) are
   DERIVED from `TiledSurfaces.Names` / `TiledObstacles.Names` (= the `Surface` and
   `Obstacle` enums, both APPEND-ONLY — gids index them) and never hand-edited:
-  `godot-mono --headless --path . -- --seed-tiled town` rewrites all four on every run.
-  The same run writes `thehaunt.tiled-project` only if it is missing (delete it to
-  regenerate) and the `.tmx` only if it is missing — an existing `.tmx` is never
-  overwritten.
-- Drift guard: `Town_ShippedTmxPlacementsMatchTheCodeSeed` compares SEMANTICALLY (size
-  and placements, not bytes — Tiled owns the bytes). It is placements-only since
-  Kevin reshaped the woods in Tiled (2026-09-26): the ground has left its code seed
-  behind on purpose. When a Tiled edit makes it fail, DECIDE, as with MapSeedTests.
+  `godot-mono --headless --path . -- --seed-tiled <mapId>` (any exterior) rewrites all
+  four on every run. The same run writes `thehaunt.tiled-project` only if it is
+  missing and the `.tmx` only if it is missing — an existing `.tmx` is never
+  overwritten. The project carries one class per placement kind, so after a kind or a
+  class member is added (e.g. `kerb_cut`, the sign's `board`), delete the project file
+  and re-run a seed to pick them up.
+- Drift guards compare SEMANTICALLY (not bytes — Tiled owns the bytes):
+  `Town_ShippedTmxPlacementsMatchTheCodeSeed` is size + placements only, since Kevin
+  reshaped the town's woods in Tiled (2026-09-26) and its ground left its seed behind
+  on purpose; `Exteriors_ShippedTmxMatchTheirCodeSeeds` holds the six road-strip files
+  to their seeds in full (size, every surface, every obstacle, placements). When a
+  Tiled edit makes one fail, DECIDE, as with MapSeedTests.

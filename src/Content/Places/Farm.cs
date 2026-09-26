@@ -4,7 +4,7 @@ namespace TheHaunt.Content;
 
 /// <summary>
 /// The farm, on the town's north outskirts (TestMap is its view;
-/// data/maps/test_farm.json its recipe; the id rename to "farm" stays deferred —
+/// data/maps/test_farm.tmx its Tiled map; the id rename to "farm" stays deferred —
 /// MapIds).
 /// CANON (Kevin, 2026-08-26): it has seen better days. The land is certainly
 /// fertile, but the barn is run down and empty (Places/BarnRules) and the house is
@@ -23,7 +23,7 @@ public static class Farm
 {
     public const string MapId = MapIds.Farm;
 
-    // [KEVIN] placeholder copy. The recipe (data/maps/test_farm.json) holds the sign
+    // [KEVIN] placeholder copy. The map (data/maps/test_farm.tmx) holds the sign
     // PLACEMENTS; the words live here and are resolved by placement id at build time
     // (the promotion PlacementFields.Text always promised).
     public const string YardSignText = "Placeholder sign. Real text comes later.";
