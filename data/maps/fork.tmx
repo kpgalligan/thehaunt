@@ -74,7 +74,7 @@
 </data>
  </layer>
  <objectgroup id="2" name="placements">
-  <object id="1" name="test_farm" type="exit" x="304" y="0" width="32" height="16">
+  <object id="1" name="farm" type="exit" x="304" y="0" width="32" height="16">
    <properties>
     <property name="spawn" value="road"/>
    </properties>

@@ -27,7 +27,7 @@ What lives here:
   drive), `BuildDressing` (ground decals), `OnBuilt` (a map that keeps hold of its
   own nodes). Views derived from the build (`WestEntryMap.MotorCourt`/`LotStalls`,
   `DriveInMap.FieldRamps`) are instance state, null before the build or when the
-  file places nothing for them. `TestMap` is on Tiled too (`data/maps/test_farm.tmx`)
+  file places nothing for them. `TestMap` is on Tiled too (`data/maps/farm.tmx`)
   but keeps its OWN build (`LoadMap`, then its farm-sheet layers, facades, soil and
   crops): surfaces Pasture/Path/Dirt/Woods, its pen from the file's Fence/Gate cells
   (`Pen`/`PenGate`, painted on Ground by `PaintFences`), its code seed

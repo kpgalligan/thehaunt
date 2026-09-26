@@ -11,6 +11,12 @@ tools/flyover/build.py`) for the reproducible build.
   --dump-world <path>` exports every exterior map (surfaces per tile, building
   footprints, props, lights, sign text, exits); the generator reads that file. Never
   transcribe coordinates by hand. The dump is GENERATED: never commit it.
+- The flyover is NOT kept in sync with every game change. Game changes need no
+  flyover edits when they land — a new surface (Water, DeepWater), a renamed map id
+  (the farm: test_farm -> farm, save v8). The flyover catches up only when we decide
+  to rebuild it, and that rebuild starts by reconciling the generator with a fresh
+  dump; known debts today: config.TRACK_INTO_MAP and world.NORTH_OF still key the
+  farm as "test_farm", and config.SURFACE_COLOURS has no Water/DeepWater.
 - The exporter and its schema (version 1, doc comment) are `src/World/WorldDump.cs`;
   `WorldDumpTests` pins full coverage, road-mouth pairing and determinism. Ground
   paint the maps solve in code comes through read-only views (kerb cuts, worn cobble,

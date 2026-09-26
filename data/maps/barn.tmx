@@ -69,7 +69,7 @@
   <object id="12" name="bucket" type="furniture" x="112" y="144" width="16" height="16"/>
   <object id="13" name="entry" type="spawn" x="128" y="160" width="16" height="16"/>
   <object id="14" name="cart" type="furniture" x="192" y="160" width="16" height="16"/>
-  <object id="15" name="test_farm" type="door" x="128" y="176" width="16" height="16">
+  <object id="15" name="farm" type="door" x="128" y="176" width="16" height="16">
    <properties>
     <property name="spawn" value="barn_door"/>
    </properties>

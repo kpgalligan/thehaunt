@@ -3,7 +3,7 @@
 Every map is a Tiled map, one `.tmx` per map id, read by that map's build function:
 `data/maps/<mapId>.tmx` — every `ExteriorMap` (the town and the road strip,
 `west_entry`/`billies`/`fork`/`east_fork`/`east_entry`/`drive_in`), the farm
-(`test_farm.tmx`) and every `InteriorMap` (the thirteen interiors); see "Tiled maps",
+(`farm.tmx`) and every `InteriorMap` (the thirteen interiors); see "Tiled maps",
 "The farm" and "Interiors" below. The reader/writer code lives in `src/World/`
 (MapRecipe, MapPlacement, PlacementKinds/PlacementFields, MapRecipeException; TiledMap,
 TiledFormat, TiledPalette, TiledMapFile, TiledSurfaces, TiledObstacles, TiledSeeds).
@@ -44,7 +44,7 @@ Every map is a Tiled map: `data/maps/<mapId>.tmx`, read by our own C# loader
 the exteriors' one build and `InteriorMap` the interiors' (see "Interiors"); the farm
 (`TestMap`) keeps its own (see "The farm"). Each map's C# literals stay as the
 missing-file fallback and the seed. `town.tmx` is Kevin's hand edit; the six
-road-strip files, `test_farm.tmx` and the thirteen interior files are still exactly
+road-strip files, `farm.tmx` and the thirteen interior files are still exactly
 their seeds.
 
 - TMX, not TMJ: Tiled writes a TMX CSV layer one map row per line, so a repainted cell
@@ -118,7 +118,7 @@ their seeds.
   `Town_ShippedTmxPlacementsMatchTheCodeSeed` is size + placements only, since Kevin
   reshaped the town's woods in Tiled (2026-09-26) and its ground left its seed behind
   on purpose; `Exteriors_ShippedTmxMatchTheirCodeSeeds` holds the six road-strip files
-  and `test_farm.tmx` to their seeds in full (size, every surface, every obstacle,
+  and `farm.tmx` to their seeds in full (size, every surface, every obstacle,
   placements), and `Interiors_ShippedTmxMatchTheirCodeSeeds` holds all thirteen
   interior files in full (size, every floor, wall and dressing cell, placements).
   When a Tiled edit makes one fail, DECIDE: a code change to the seed means the file
@@ -126,10 +126,9 @@ their seeds.
   seed behind, and the guard should say so for it. Never quietly re-seed over a
   hand-edited map.
 
-## The farm (`test_farm.tmx`)
+## The farm (`farm.tmx`)
 
-The id stays `test_farm` (its rename is a separate save migration). `TestMap` reads the
-file through its own load (`LoadMap`), not the `ExteriorMap` template.
+`TestMap` reads the file through its own load (`LoadMap`), not the `ExteriorMap` template.
 
 - Surfaces: `Pasture`, `Path`, `Dirt` (the wagon road — unsealed, the farm never
   paves) and `Woods`. Obstacles: `Fence` and `Gate` (the gate is open and walkable).

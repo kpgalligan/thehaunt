@@ -46,7 +46,7 @@ code rules are in `src/CLAUDE.md`; the art contract (six binding handoffs) is in
   generator — schema on `src/World/WorldDump.cs`): `godot-mono --headless --path . --
   --dump-world /tmp/world.json` (GENERATED: never commit it)
 - Seed a Tiled map's file: `godot-mono --headless --path . -- --seed-tiled <mapId>`
-  (any map id — every map is a Tiled map: the exteriors, test_farm and the thirteen
+  (any map id — every map is a Tiled map: the exteriors, the farm and the thirteen
   interiors) — always rewrites all five derived palettes (`data/maps/tiled/` surfaces,
   obstacles, floors, walls, dressing: each `.tsx` + `.png`); writes
   `<mapId>.tmx` and `thehaunt.tiled-project` only where missing, never over them.

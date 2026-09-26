@@ -25,7 +25,7 @@ public static class IntegrationTests
         // by tool use or the overnight repaint, must crash a later cycle.
         try
         {
-            SaveService.Instance.NewGame(); // clock -> 0, MapId "test_farm"
+            SaveService.Instance.NewGame(); // clock -> 0, MapId "farm"
             TestKit.Fetch(SaveService.Instance.Current); // kit in hand, not in the barn chest
             // Crew staging pre-stamped once: with the road cleared and the arrival beat
             // pending, every cycle's NPC sync must spawn crew views on the fresh map — a
@@ -35,7 +35,7 @@ public static class IntegrationTests
             WorldSim.Instance.SetStoryFlag(StoryKeys.RoadCleared);
             for (int i = 0; i < 50; i++)
             {
-                var map = new TestMap { MapId = "test_farm" };
+                var map = new TestMap { MapId = MapIds.Farm };
                 t.Host.AddChild(map);
                 await t.WaitFrames(1);
                 WorldSim.Instance.SyncNpcsNow(); // between instance and free: stale references crash here
@@ -74,8 +74,8 @@ public static class IntegrationTests
         {
             service.NewGame(); // clock -> day 0
             TestKit.Fetch(service.Current); // kit in hand, not in the barn chest
-            service.Current.Player.MapId = "test_farm";
-            map = new TestMap { MapId = "test_farm" };
+            service.Current.Player.MapId = MapIds.Farm;
+            map = new TestMap { MapId = MapIds.Farm };
             t.Host.AddChild(map);
             await t.WaitFrames(1);
 
@@ -83,7 +83,7 @@ public static class IntegrationTests
             var binTile = new Vector2I(10, 8); // shipping-bin footprint
             t.AssertEqual(ActionOutcome.InvalidTarget, WorldSim.Instance.UseSelectedItem(binTile),
                 "hoe on the shipping-bin tile refused as InvalidTarget");
-            t.Assert(service.Current.GetMap("test_farm").GetTile(binTile.X, binTile.Y) == null,
+            t.Assert(service.Current.GetMap(MapIds.Farm).GetTile(binTile.X, binTile.Y) == null,
                 "no TileRecord created at the shipping-bin tile");
 
             // The bed moved indoors with the 3b farmhouse: its vacated tiles are plain
@@ -206,8 +206,8 @@ public static class IntegrationTests
         {
             service.NewGame(); // clock -> day 0
             TestKit.Fetch(service.Current); // kit in hand, not in the barn chest
-            service.Current.Player.MapId = "test_farm";
-            map = new TestMap { MapId = "test_farm" };
+            service.Current.Player.MapId = MapIds.Farm;
+            map = new TestMap { MapId = MapIds.Farm };
             t.Host.AddChild(map);
             await t.WaitFrames(1);
 
@@ -234,10 +234,10 @@ public static class IntegrationTests
             map.Free();
             map = null;
             await t.WaitFrames(1);
-            map = new TestMap { MapId = "test_farm" };
+            map = new TestMap { MapId = MapIds.Farm };
             t.Host.AddChild(map);
             await t.WaitFrames(1);
-            map.ApplyState(service.Current.GetMap("test_farm"));
+            map.ApplyState(service.Current.GetMap(MapIds.Farm));
             t.AssertEqual(soilIncremental, CellOf(t, map, "FarmSoil", tile, "rebuild"),
                 "rebuilt FarmSoil equals incremental");
             t.AssertEqual(cropIncremental, CellOf(t, map, "Crops", tile, "rebuild"),
@@ -246,7 +246,7 @@ public static class IntegrationTests
 
             // Sleep: growth applies and the overnight repaint flips wet soil to dry.
             Clock.Instance.AdvanceToDayStart();
-            TileRecord record = service.Current.GetMap("test_farm").GetTile(tile.X, tile.Y)!;
+            TileRecord record = service.Current.GetMap(MapIds.Farm).GetTile(tile.X, tile.Y)!;
             t.AssertEqual(1, record.GrowthDay, "crop grew overnight");
             t.AssertEqual(SoilDry, CellOf(t, map, "FarmSoil", tile, "post-sleep"),
                 "wet flipped to dry after sleep");
@@ -311,7 +311,7 @@ public static class IntegrationTests
                     $"water before night {night}");
                 await SleepOneNight(t, $"night {night}");
             }
-            TileRecord record = SaveService.Instance.Current.GetMap("test_farm").GetTile(tile.X, tile.Y)!;
+            TileRecord record = SaveService.Instance.Current.GetMap(MapIds.Farm).GetTile(tile.X, tile.Y)!;
             t.AssertEqual(turnip.TotalDays, record.GrowthDay, "crop mature after watered nights");
 
             // The road still cleared mid-test (planting day 0 => dawn 1) — harmlessly:
@@ -1497,7 +1497,7 @@ public static class IntegrationTests
 
     private static void AssertCells(TestContext t, TestMap map, Vector2I tile, string label)
     {
-        TileRecord? record = SaveService.Instance.Current.GetMap("test_farm").GetTile(tile.X, tile.Y);
+        TileRecord? record = SaveService.Instance.Current.GetMap(MapIds.Farm).GetTile(tile.X, tile.Y);
         t.AssertEqual(ExpectedSoilCell(record), CellOf(t, map, "FarmSoil", tile, label),
             $"{label}: FarmSoil cell matches the pure cell-state function");
         t.AssertEqual(ExpectedCropCell(record), CellOf(t, map, "Crops", tile, label),

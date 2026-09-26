@@ -62,7 +62,7 @@ public sealed class GameData
         return true;
     }
 
-    // Defaults: time 0, player MapId "test_farm", HasPosition false, full
+    // Defaults: time 0, player MapId "farm", HasPosition false, full
     // stamina, empty hands — the starter kit waits in the barn chest. Money
     // starts at the TEMPORARY DevScaffold floor (was 500g) so day 1 can buy the
     // garage; the scaffold's own doc says how to unwind it. Seed 0 (tests stay

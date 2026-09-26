@@ -222,7 +222,7 @@ public static class StoryTests
         t.Assert(IntroRules.PendingBeat(crewPending, morning, "general_store") == null,
             "nothing pends inside the store");
         t.AssertEqual((StoryBeatId?)StoryBeatId.CrewArrival,
-            IntroRules.PendingBeat(crewPending, morning, "test_farm"),
+            IntroRules.PendingBeat(crewPending, morning, MapIds.Farm),
             "the crew beat pends on the farm exterior");
     }
 
@@ -334,7 +334,7 @@ public static class StoryTests
         TestMap? map = null;
         try
         {
-            service.NewGame(); // clock -> day 0, MapId "test_farm"
+            service.NewGame(); // clock -> day 0, MapId "farm"
             TestKit.Fetch(service.Current); // kit in hand, not in the barn chest
             map = new TestMap { MapId = MapIds.Farm };
             t.Host.AddChild(map);

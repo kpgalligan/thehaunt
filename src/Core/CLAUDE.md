@@ -3,7 +3,7 @@
 PURE C# — no `using Godot`, test-enforced (SourceRulesTests); this is what keeps the
 model testable without a scene tree. What lives here: GameTime/calendar, ClockModel,
 GameData + save DTOs (PlayerData/MapState/TileRecord/ItemStackRecord/PlacedObjectRecord/
-GarageJobRecord, SaveJsonContext), migrations (SaveMigrations.CurrentVersion = 7),
+GarageJobRecord, SaveJsonContext), migrations (SaveMigrations.CurrentVersion = 8),
 item/crop/obstacle defs (code
 registries ItemDefs/CropDefs/ObstacleDefs), InventoryData, FarmActions, ObstacleGen
 (seeded one-shot field generation — WorldSim owns the trigger and the randomness),

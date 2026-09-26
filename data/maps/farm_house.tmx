@@ -65,7 +65,7 @@
   <object id="10" name="bucket" type="furniture" x="16" y="112" width="16" height="16"/>
   <object id="11" name="sack" type="furniture" x="192" y="112" width="16" height="16"/>
   <object id="12" name="entry" type="spawn" x="112" y="128" width="16" height="16"/>
-  <object id="13" name="test_farm" type="door" x="112" y="144" width="16" height="16">
+  <object id="13" name="farm" type="door" x="112" y="144" width="16" height="16">
    <properties>
     <property name="spawn" value="house_door"/>
    </properties>

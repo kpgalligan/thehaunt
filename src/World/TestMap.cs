@@ -24,7 +24,7 @@ namespace TheHaunt.World;
 /// exception: the farmhouse door moved one tile east, to the column the drawn facade
 /// actually puts its door in.
 ///
-/// The farm is a Tiled map: <c>data/maps/test_farm.tmx</c> (<see cref="LoadMap"/>) holds
+/// The farm is a Tiled map: <c>data/maps/farm.tmx</c> (<see cref="LoadMap"/>) holds
 /// its surfaces, its pen (the Fence and Gate cells of the obstacles layer) and its
 /// placements — scatter, trees, spawns, doors, signs, the bin, the mailbox and the road
 /// exit. It keeps its own build rather than the <see cref="ExteriorMap"/> template (its
@@ -87,8 +87,8 @@ public partial class TestMap : MapRoot, ISurfaceGrid
     // ------------------------------------------------------------------
     // The code seed — the placements as they shipped as C# literals
     // ------------------------------------------------------------------
-    // These are no longer WHAT the map is built from; data/maps/test_farm.tmx is. They
-    // are what that file was seeded from (--seed-tiled test_farm), and the fallback for
+    // These are no longer WHAT the map is built from; data/maps/farm.tmx is. They
+    // are what that file was seeded from (--seed-tiled farm), and the fallback for
     // when it is not there. The Tiled drift guard holds the two to each other, so editing
     // one without the other fails loudly instead of leaving a farm that disagrees with its
     // own file.
@@ -185,7 +185,7 @@ public partial class TestMap : MapRoot, ISurfaceGrid
 
     /// <summary>
     /// Where the farm's surfaces, pen, scatter, trees, spawns and interactables come from:
-    /// <c>data/maps/test_farm.tmx</c> (or a <c>--tiled-file</c> dev file), read fresh on
+    /// <c>data/maps/farm.tmx</c> (or a <c>--tiled-file</c> dev file), read fresh on
     /// every build. With no file at all the farm builds from its code seed
     /// (<see cref="BuildDefaultSurfaces"/> + <see cref="DefaultRecipe"/>). A present file
     /// IS the map: an empty one does not fall back — <see cref="RequirePlacements"/> names
@@ -292,7 +292,7 @@ public partial class TestMap : MapRoot, ISurfaceGrid
 
     /// <summary>
     /// The farm's placements as the C# literals above describe them: what
-    /// <c>data/maps/test_farm.tmx</c> was seeded from (<see cref="CodeSeed"/>), and the
+    /// <c>data/maps/farm.tmx</c> was seeded from (<see cref="CodeSeed"/>), and the
     /// fallback when it is missing. The Tiled drift guard pins the shipped file to it.
     /// </summary>
     public static MapRecipe DefaultRecipe()
@@ -373,7 +373,7 @@ public partial class TestMap : MapRoot, ISurfaceGrid
     // ------------------------------------------------------------------
 
     /// <summary>The farm's ground and pen as the code seed paints them: what
-    /// <c>test_farm.tmx</c> was seeded from, and the fallback when the file is missing.</summary>
+    /// <c>farm.tmx</c> was seeded from, and the fallback when the file is missing.</summary>
     private void BuildDefaultSurfaces()
     {
         _surface = new Surface[Width, Height];

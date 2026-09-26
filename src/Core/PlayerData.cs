@@ -2,7 +2,7 @@ namespace TheHaunt.Core;
 
 public sealed class PlayerData
 {
-    public string MapId { get; set; } = "test_farm";
+    public string MapId { get; set; } = MapIds.Farm;
     public float X { get; set; }
     public float Y { get; set; }
     public int Facing { get; set; }              // 0=down 1=left 2=right 3=up

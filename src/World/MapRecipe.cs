@@ -41,10 +41,7 @@ public sealed class MapRecipe
     }
 
     /// <summary>
-    /// The map this recipe builds. NOTE the farm's is literally "test_farm"
-    /// (<c>MapIds.Farm</c>): the rename is deferred to its own save migration, so the file
-    /// is <c>data/maps/test_farm.tmx</c> and will be renamed by that same migration.
-    /// Deliberate oddity, not a typo.
+    /// The map this recipe builds.
     /// </summary>
     public string MapId { get; }
 

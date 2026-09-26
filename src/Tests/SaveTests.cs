@@ -144,8 +144,8 @@ public static class SaveTests
             t.AssertEqual(100f, loaded.Player.X, "player X");
             t.AssertEqual(120f, loaded.Player.Y, "player Y");
             t.AssertEqual(2, loaded.Player.Facing, "player facing");
-            t.Assert(loaded.Maps.ContainsKey("test_farm"), "map 'test_farm' present");
-            TileRecord? tile = loaded.Maps["test_farm"].GetTile(3, 4);
+            t.Assert(loaded.Maps.ContainsKey(MapIds.Farm), "map 'farm' present");
+            TileRecord? tile = loaded.Maps[MapIds.Farm].GetTile(3, 4);
             t.Assert(tile != null, "tile (3,4) survived");
             t.AssertEqual("tilled", tile!.Kind, "tile kind");
         }
@@ -184,7 +184,7 @@ public static class SaveTests
             t.AssertEqual(1, loaded.ShippingBin.Count, "bin stack count");
             AssertStack(t, loaded.ShippingBin[0], "turnip", 3, "bin[0]");
 
-            TileRecord? tile = loaded.Maps["test_farm"].GetTile(5, 6);
+            TileRecord? tile = loaded.Maps[MapIds.Farm].GetTile(5, 6);
             t.Assert(tile != null, "tile (5,6) present");
             t.AssertEqual("turnip", tile!.CropId, "tile crop id");
             t.AssertEqual(2, tile.GrowthDay, "tile growth day");
@@ -233,7 +233,7 @@ public static class SaveTests
             t.AssertEqual(100f, loaded.Player.X, "v1 player X survives");
             t.AssertEqual(120f, loaded.Player.Y, "v1 player Y survives");
             t.AssertEqual(2, loaded.Player.Facing, "v1 facing survives");
-            TileRecord? tile = loaded.Maps["test_farm"].GetTile(3, 4);
+            TileRecord? tile = loaded.Maps[MapIds.Farm].GetTile(3, 4);
             t.Assert(tile != null, "v1 tile (3,4) survives");
             t.AssertEqual("tilled", tile!.Kind, "v1 tile kind survives");
             t.AssertEqual(-1L, tile.LastWateredDay, "v1 tile LastWateredDay survives");
@@ -383,7 +383,7 @@ public static class SaveTests
         try
         {
             service.DeserializeFrom(json);
-            MapState farm = service.Current.GetMap("test_farm");
+            MapState farm = service.Current.GetMap(MapIds.Farm);
             t.AssertEqual(2, farm.Objects.Count, "exactly the two well-formed records survive");
             t.AssertEqual("tree", farm.Objects[0].ObjectId, "the tree survives");
             t.AssertEqual(0, farm.Objects[0].HitsTaken, "with its damage clamped to zero");
@@ -554,7 +554,7 @@ public static class SaveTests
             AssertStack(t, inv.SlotAt(2), "turnip_seeds", 7, "v2 slot 2");
             t.AssertEqual(1, loaded.ShippingBin.Count, "v2 bin stack count survives");
             AssertStack(t, loaded.ShippingBin[0], "turnip", 3, "v2 bin[0]");
-            TileRecord? tile = loaded.Maps["test_farm"].GetTile(5, 6);
+            TileRecord? tile = loaded.Maps[MapIds.Farm].GetTile(5, 6);
             t.Assert(tile != null, "v2 tile (5,6) survives");
             t.AssertEqual("turnip", tile!.CropId, "v2 tile crop survives");
             t.AssertEqual(2, tile.GrowthDay, "v2 tile growth day survives");
@@ -607,7 +607,7 @@ public static class SaveTests
             t.AssertEqual(100f, loaded.Player.X, "v1 player X survives the chain");
             t.AssertEqual(120f, loaded.Player.Y, "v1 player Y survives the chain");
             t.AssertEqual(2, loaded.Player.Facing, "v1 facing survives the chain");
-            TileRecord? tile = loaded.Maps["test_farm"].GetTile(3, 4);
+            TileRecord? tile = loaded.Maps[MapIds.Farm].GetTile(3, 4);
             t.Assert(tile != null, "v1 tile (3,4) survives the chain");
             t.AssertEqual("tilled", tile!.Kind, "v1 tile kind survives the chain");
             t.AssertEqual(-1L, tile.LastWateredDay, "v1 tile LastWateredDay survives the chain");
@@ -781,7 +781,7 @@ public static class SaveTests
             t.AssertEqual(80, loaded.Player.Stamina, "v3 stamina survives");
             t.AssertEqual(100, loaded.Player.MaxStamina, "v3 max stamina survives");
             AssertStack(t, loaded.Player.Inventory.SlotAt(0), "hoe", 1, "v3 slot 0");
-            TileRecord? tile = loaded.Maps["test_farm"].GetTile(5, 6);
+            TileRecord? tile = loaded.Maps[MapIds.Farm].GetTile(5, 6);
             t.Assert(tile != null, "v3 tile (5,6) survives");
             t.AssertEqual("turnip", tile!.CropId, "v3 tile crop survives");
             t.AssertEqual(3, tile.GrowthDay, "v3 tile growth day survives");
@@ -818,7 +818,7 @@ public static class SaveTests
         {
             service.DeserializeFrom(json);
             t.AssertEqual(SaveMigrations.CurrentVersion, service.Current.SaveVersion, "version bumped");
-            MapState farm = service.Current.GetMap("test_farm");
+            MapState farm = service.Current.GetMap(MapIds.Farm);
             t.Assert(!farm.ObstaclesSeeded, "a v5 farm has never been seeded");
             t.AssertEqual(1, farm.Objects.Count, "the v5 object survives");
             t.AssertEqual("future.relic", farm.Objects[0].ObjectId, "with its unknown id preserved");
@@ -829,6 +829,75 @@ public static class SaveTests
             service.DeserializeFrom(firstPass);
             t.AssertEqual(firstPass, service.SerializeToString(),
                 "second migration pass serializes byte-identically");
+        }
+        finally
+        {
+            service.NewGame();
+        }
+    }
+
+    [SimTest]
+    public static void Save_MigrationV7ToV8(TestContext t)
+    {
+        // v8 renames the farm's map id "test_farm" -> "farm" at the three places a v7
+        // save holds a map id: Player.MapId, the Maps key, Scooter.MapId.
+        string json = ReadFixture(t, "v7_minimal.json");
+        SaveService service = SaveService.Instance;
+        try
+        {
+            service.DeserializeFrom(json);
+            GameData loaded = service.Current;
+            t.AssertEqual(SaveMigrations.CurrentVersion, loaded.SaveVersion, "SaveVersion");
+            t.AssertEqual(MapIds.Farm, loaded.Player.MapId, "player map renamed");
+            t.Assert(loaded.Maps.ContainsKey(MapIds.Farm), "farm map under the new key");
+            t.Assert(!loaded.Maps.ContainsKey("test_farm"), "old key gone");
+            MapState farm = loaded.Maps[MapIds.Farm];
+            t.Assert(farm.GetTile(5, 5)?.Kind == "tilled", "the tilled plot moved with the key");
+            t.AssertEqual(1, farm.Objects.Count, "the object moved with the key");
+            t.AssertEqual("future.relic", farm.Objects[0].ObjectId, "with its unknown id preserved");
+            t.AssertEqual(1, farm.Objects[0].HitsTaken, "and its damage intact");
+            t.Assert(farm.ObstaclesSeeded, "the farm stays seeded");
+            t.Assert(loaded.Maps.ContainsKey(MapIds.Town), "the town key survives");
+            t.AssertEqual(MapIds.Farm, loaded.Scooter.MapId, "scooter map renamed");
+            t.AssertEqual(9, loaded.Scooter.TileX, "scooter tile X");
+            t.AssertEqual(8, loaded.Scooter.TileY, "scooter tile Y");
+            t.AssertEqual(42, loaded.Seed, "seed survives");
+            t.Assert(loaded.HasFlag("garage.deed"), "garage.deed survives");
+            t.AssertEqual(3L, loaded.Player.SkillXp.GetValueOrDefault("farming"), "farming XP survives");
+
+            string firstPass = service.SerializeToString();
+            service.DeserializeFrom(firstPass);
+            t.AssertEqual(firstPass, service.SerializeToString(),
+                "second migration pass serializes byte-identically");
+
+            // Both keys present: only-if-absent touches neither.
+            const string both = """
+                {"SaveVersion":7,"TotalMinutes":0,"Maps":{
+                 "test_farm":{"Tiles":[{"X":1,"Y":1,"Kind":"tilled"}],"Objects":[]},
+                 "farm":{"Tiles":[{"X":2,"Y":2,"Kind":"tilled"}],"Objects":[]}}}
+                """;
+            service.DeserializeFrom(both);
+            t.Assert(service.Current.Maps.ContainsKey("test_farm"), "both keys: test_farm kept");
+            t.Assert(service.Current.Maps.ContainsKey(MapIds.Farm), "both keys: farm kept");
+            t.Assert(service.Current.Maps["test_farm"].GetTile(1, 1)?.Kind == "tilled", "both keys: test_farm keeps its tile");
+            t.Assert(service.Current.Maps["test_farm"].GetTile(2, 2) == null, "both keys: test_farm gains nothing");
+            t.Assert(service.Current.Maps[MapIds.Farm].GetTile(2, 2)?.Kind == "tilled", "both keys: farm keeps its tile");
+            t.Assert(service.Current.Maps[MapIds.Farm].GetTile(1, 1) == null, "both keys: farm gains nothing");
+
+            // Other map ids are left alone.
+            const string onTown = """
+                {"SaveVersion":7,"TotalMinutes":0,
+                 "Player":{"MapId":"town"},
+                 "Scooter":{"MapId":"town","TileX":3,"TileY":4,"Facing":0,"Mounted":false}}
+                """;
+            service.DeserializeFrom(onTown);
+            t.AssertEqual(MapIds.Town, service.Current.Player.MapId, "player on town stays on town");
+            t.AssertEqual(MapIds.Town, service.Current.Scooter.MapId, "scooter on town stays on town");
+
+            // No Player, Maps or Scooter: the migration skips, defaults land on the farm.
+            service.DeserializeFrom("""{"SaveVersion":7,"TotalMinutes":0}""");
+            t.AssertEqual(MapIds.Farm, service.Current.Player.MapId, "absent player defaults to the farm");
+            t.AssertEqual(MapIds.Farm, service.Current.Scooter.MapId, "absent scooter defaults to the farm");
         }
         finally
         {
@@ -965,7 +1034,7 @@ public static class SaveTests
             GameData loaded = service.Current;
             t.AssertEqual(SaveMigrations.CurrentVersion, loaded.SaveVersion, "SaveVersion");
             t.AssertEqual(480L, loaded.TotalMinutes, "TotalMinutes");
-            t.AssertEqual("test_farm", loaded.Player.MapId, "player map");
+            t.AssertEqual(MapIds.Farm, loaded.Player.MapId, "player map");
             t.AssertEqual(100L, loaded.Player.Money, "money");
             AssertV4Storages(t, loaded, "after load");
 

@@ -5,7 +5,7 @@ discovers every static method tagged `[SimTest]` in the assembly, runs them sequ
 in name-sorted order, prints one PASS/FAIL line per test plus a RESULT summary, and
 quits with exit code 0/1. Each test takes a `TestContext` (Assert/AssertEqual,
 WaitFrames, frame-polling WaitUntil with a 5 s default timeout; `Host` is the runner
-node for adding test scene instances). `fixtures/` holds frozen v1–v6 minimal save
+node for adding test scene instances). `fixtures/` holds frozen v1–v7 minimal save
 JSONs for the migration tests.
 
 - Run: `godot-mono --headless res://scenes/tests/TestRunner.tscn` (exit code 0/1). Run
