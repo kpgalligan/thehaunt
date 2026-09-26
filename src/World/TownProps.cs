@@ -25,4 +25,31 @@ public static class TownProps
     public static readonly Rect2 WindowLit = new(208, 0, 16, 16);
     public static readonly Rect2 WindowDark = new(224, 0, 16, 16);
     public static readonly Rect2 WindowShuttered = new(240, 0, 16, 16);
+
+    // The town's placement ids — what a "prop" record names. The first three are not
+    // sheet props (TownMap builds them itself); the rest resolve through ByName.
+    public const string TownHallId = "town_hall", GeneralStoreId = "general_store", StreetLightId = "street_light",
+        WellId = "well", BenchAId = "bench_a", BenchBId = "bench_b", NoticeBoardId = "notice_board";
+    public static readonly string[] PlanterIds = { "planter_0", "planter_1", "planter_2" };
+
+    /// <summary>A sheet prop's source rect by placement id. Throws, listing the known ids, for any other name.</summary>
+    public static Rect2 ByName(string id)
+    {
+        switch (id)
+        {
+            case WellId: return Well;
+            case BenchAId: return BenchA;
+            case BenchBId: return BenchB;
+            case NoticeBoardId: return NoticeBoard;
+        }
+        int planter = Array.IndexOf(PlanterIds, id);
+        if (planter >= 0)
+            return Planters[planter];
+        throw new ArgumentException(
+            $"Unknown town prop '{id}'. Known: {string.Join(", ", SheetIds)}.", nameof(id));
+    }
+
+    /// <summary>Every id <see cref="ByName"/> resolves.</summary>
+    internal static IEnumerable<string> SheetIds =>
+        new[] { WellId, BenchAId, BenchBId, NoticeBoardId }.Concat(PlanterIds);
 }

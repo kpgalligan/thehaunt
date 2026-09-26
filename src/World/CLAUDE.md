@@ -46,16 +46,23 @@ What lives here:
   `MotelFacade`/`MotelSign` (the blinking V), `WallBandSign`/`BracketSign`/
   `NeonWordSign`/`PoleSign`, `RoadsideTiles`/`RoadsideTerrain` (generated
   lot/concrete/road source beside the town atlas; ExteriorMap's Asphalt/Concrete/Road
-  surfaces need `RoadsideTerrain.Get()`), `StreetLight` (the cobra heads).
-- Art layer: `TileSetTools` (walkable derivation + blockers), the four named-coordinate
-  tables `TerrainTiles`/`FarmTiles`/`InteriorTiles`/`RoadsideTiles` with the TileSets
-  `TownTerrain`/`FarmTerrain`/`InteriorTerrain`/`CropTiles`, `Prop` + the sheets
+  surfaces need `RoadsideTerrain.Get()`. Source 2 is the generated `LandscapeTiles`
+  sheet — placeholder water, deep water and bush, every tile a blocker — and source 3
+  a private copy of the farm atlas, for fences), `StreetLight` (the cobra heads).
+- Art layer: `TileSetTools` (walkable derivation + blockers), the five named-coordinate
+  tables `TerrainTiles`/`FarmTiles`/`InteriorTiles`/`RoadsideTiles`/`LandscapeTiles`
+  with the TileSets `TownTerrain`/`FarmTerrain`/`InteriorTerrain`/`CropTiles`, `Prop` + the sheets
   `TownProps`/`FarmBuildings`/`Furniture`, `StoreFacade`/`BarnFacade`/`LampPost`,
   `CharacterSprites` + `CharacterSprite`, `DayNight` + `DayNightTint` + `GlowLight`.
 - Recipes (code side): `MapRecipe` + `MapPlacement` + `PlacementKinds`/`PlacementFields`
   + `MapRecipeFile` + `MapRecipeException`, and `MapRecipeSeeds` (the one-shot exporter
-  that seeds a map's first recipe from its C# literals). The recipe FILES and their
-  contract live in `data/maps/` — see `data/maps/CLAUDE.md`.
+  that seeds a map's first recipe from its C# literals). Tiled (the town):
+  `TiledMap` (strict TMX subset, canonical writer) + `TiledMapFile` (+ the
+  `--tiled-file` dev file) + `TiledSurfaces` (the surface palette) + `TiledObstacles`
+  (the obstacle palette: Fence, Bush) + `TiledSeeds` (`--seed-tiled`);
+  `ExteriorMap.LoadSurfaces` reads the surface layer by name, `LoadObstacles` the
+  optional obstacles layer, and `PaintObstacles` paints it onto the Obstacles layer.
+  The recipe FILES and their contract live in `data/maps/` — see `data/maps/CLAUDE.md`.
 - `WorldDump` (+ `WorldDumpEntry`, `ISurfaceGrid`): the `--dump-world` exporter for
   the intro flyover (tools/flyover) — builds each exterior headless and reads it back;
   schema on the class. The `internal` read-only views on the map classes exist for it.
@@ -139,8 +146,16 @@ What lives here:
   its art exists.
 - Every sheet gets its `walkable` data and its blocker from `TileSetTools`. Only the
   town atlas has a spare transparent cell; the farm borrows it (`FarmTerrain` merges a
-  private copy of the town atlas, which is also where the shared woods edge comes from)
+  private copy of the town atlas, which is also where the shared woods edge comes from),
+  and the exterior set borrows the farm atlas for fences (`RoadsideTerrain` source 3),
   and the interiors add a one-tile transparent source of their own.
+- Water is GROUND (`Surface.Water`/`DeepWater`, blocking through its tiles); fences
+  and bushes are the Obstacles layer (`ExteriorMap.Obstacle`, painted by
+  `PaintObstacles` before the prop blockers). Fence pieces are DERIVED from their
+  fence neighbours by `FarmTiles.FenceFor`, never stored. The generated water and bush
+  tiles are placeholders whose `LandscapeTiles.ForAct` is the identity in every act.
+  The farm fence tiles are opaque, so a town fence cell shows farm pasture around its
+  rails.
 - Interiors are `InteriorMap` subclasses: a room is a layout function — size, wall set,
   floor variants indexed `(x+y) % n`, a door column, and a `Decorate()`. Walls and
   fixtures paint on Obstacles (visual AND collision); furniture is a `Prop` plus a

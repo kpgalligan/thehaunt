@@ -284,13 +284,40 @@ public partial class Main : Node2D
             // never commit a dump.
             if (args[i] == "--dump-world")
                 CallDeferred(nameof(DumpWorldAndQuit), args[i + 1]);
+
+            // Dev-only: seed a map's Tiled file from its C# defaults (TiledSeeds), then
+            // quit. Always rewrites the derived surface palette; never overwrites an
+            // existing .tmx or .tiled-project.
+            if (args[i] == "--seed-tiled")
+                CallDeferred(nameof(SeedTiledAndQuit), args[i + 1]);
+
+            // Dev-only: build a map from this .tmx instead of its shipped file (the map
+            // its `map` property names), so a painted copy can be checked without
+            // touching data/maps. Synchronous: it must land before LoadMap.
+            if (args[i] == "--tiled-file")
+            {
+                try
+                {
+                    TiledMapFile.UseDevFile(args[i + 1]);
+                }
+                catch (Exception e)
+                {
+                    GD.PushError($"--tiled-file failed: {e.Message}");
+                    GetTree().Quit(1);
+                }
+            }
         }
 
         // A trailing dump flag has no path: fail loudly. Ignoring it would boot a
         // headless run that never quits.
-        if (args.Length > 0 && args[^1] is "--dump-content" or "--dump-world")
+        if (args.Length > 0 && args[^1] is "--dump-content" or "--dump-world" or "--seed-tiled" or "--tiled-file")
         {
-            GD.PushError($"{args[^1]} needs an output path, e.g. {args[^1]} /tmp/out");
+            GD.PushError(args[^1] switch
+            {
+                "--seed-tiled" => "--seed-tiled needs a map id, e.g. --seed-tiled town",
+                "--tiled-file" => "--tiled-file needs a path to a .tmx",
+                _ => $"{args[^1]} needs an output path, e.g. {args[^1]} /tmp/out",
+            });
             GetTree().Quit(1);
         }
 
@@ -342,6 +369,28 @@ public partial class Main : Node2D
         finally
         {
             host.Free();
+        }
+        GetTree().Quit();
+    }
+
+    // Deferred so the boot has settled. Dev-only content write: the palette always,
+    // the project and the map only where missing. Quits (1 on any failure).
+    private void SeedTiledAndQuit(string mapId)
+    {
+        try
+        {
+            IReadOnlyList<string> written = TiledSeeds.Export(mapId);
+            foreach (string path in written)
+                GD.Print($"wrote {path}");
+            string tmx = TiledMapFile.PathFor(mapId);
+            if (!written.Contains(tmx))
+                GD.Print($"kept {tmx} (exists; never overwritten)");
+        }
+        catch (Exception e)
+        {
+            GD.PushError($"--seed-tiled failed: {e}");
+            GetTree().Quit(1);
+            return;
         }
         GetTree().Quit();
     }

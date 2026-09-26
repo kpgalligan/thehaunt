@@ -37,6 +37,8 @@ public static class TileSetReloadTests
                 set => Atlas(set, InteriorTerrain.BlockerSource).HasTile(InteriorTerrain.Blocker)),
             ("RoadsideTerrain", typeof(RoadsideTerrain), RoadsideTerrain.Get,
                 set => set.HasSource(RoadsideTerrain.SourceId)
+                    && set.HasSource(RoadsideTerrain.LandscapeSourceId)
+                    && set.HasSource(RoadsideTerrain.FenceSourceId)
                     && Atlas(set, 0).HasTile(TerrainTiles.Blocker)),
         };
 

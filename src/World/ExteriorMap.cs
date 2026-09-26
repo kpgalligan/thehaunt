@@ -25,8 +25,32 @@ public abstract partial class ExteriorMap : MapRoot, ISurfaceGrid
     /// Asphalt; kerbs, centre line and cracks come from
     /// <see cref="BuildRoadDressing"/>, not the tiles. Dirt remains for the unsealed
     /// roads past the town line (the fork's farm branch, drives, paths).
+    ///
+    /// Water and DeepWater paint from the generated landscape source
+    /// (<see cref="RoadsideTerrain.LandscapeSourceId"/>), so they too need
+    /// <see cref="RoadsideTerrain.Get"/>; both are impassable, blocking through their
+    /// tiles' own collision. Depth is visual only today — a later fishing hook.
     /// </summary>
-    protected enum Surface { Grass, Dirt, Gravel, Cobble, Woods, Asphalt, Concrete, Road }
+    protected enum Surface { Grass, Dirt, Gravel, Cobble, Woods, Asphalt, Concrete, Road, Water, DeepWater }
+
+    /// <summary>
+    /// Every <see cref="Surface"/> by name, in declaration order — the Tiled palette
+    /// (<see cref="TiledSurfaces"/>) indexes tiles by position in this list, so the enum
+    /// is APPEND-ONLY: reordering or removing a member would repaint every Tiled map.
+    /// </summary>
+    internal static readonly IReadOnlyList<string> SurfaceNames = Enum.GetNames<Surface>();
+
+    /// <summary>
+    /// What stands on a cell over its ground, painted on the Obstacles layer: a fence
+    /// (the farm sheet's own pieces, picked from its fence neighbours) or a bush. Both
+    /// block. APPEND-ONLY, like <see cref="Surface"/>: the Tiled obstacle palette
+    /// (<see cref="TiledObstacles"/>) indexes it.
+    /// </summary>
+    protected enum Obstacle { Fence, Bush }
+
+    /// <summary>Every <see cref="Obstacle"/> by name, in declaration order — the Tiled
+    /// obstacle palette's tile order.</summary>
+    internal static readonly IReadOnlyList<string> ObstacleNames = Enum.GetNames<Obstacle>();
 
     protected abstract int MapWidth { get; }
     protected abstract int MapHeight { get; }
@@ -34,6 +58,7 @@ public abstract partial class ExteriorMap : MapRoot, ISurfaceGrid
     protected virtual TerrainTiles.Act CurrentAct => TerrainTiles.Act.One;
 
     private Surface[,] _surface = new Surface[0, 0];
+    private Obstacle?[,] _obstacle = new Obstacle?[0, 0];
 
     // ------------------------------------------------------------------
     // Surfaces — what each cell IS, before it is any particular tile
@@ -43,12 +68,68 @@ public abstract partial class ExteriorMap : MapRoot, ISurfaceGrid
     protected void ResetSurfaces()
     {
         _surface = new Surface[MapWidth, MapHeight];
+        _obstacle = new Obstacle?[MapWidth, MapHeight];
         for (int y = 0; y < MapHeight; y++)
         {
             for (int x = 0; x < MapWidth; x++)
             {
                 bool border = x == 0 || x == MapWidth - 1 || y == 0 || y == MapHeight - 1;
                 _surface[x, y] = border ? Surface.Woods : Surface.Grass;
+            }
+        }
+    }
+
+    /// <summary>
+    /// The grid from a Tiled map's surface layer, by NAME. Throws
+    /// <see cref="MapRecipeException"/> naming the map's file when its size is not this
+    /// map's size or a cell names a surface this build does not have.
+    /// </summary>
+    protected void LoadSurfaces(TiledMap tiled)
+    {
+        if (tiled.Width != MapWidth || tiled.Height != MapHeight)
+        {
+            throw new MapRecipeException(tiled.SourcePath,
+                $"is {tiled.Width}x{tiled.Height} tiles, but map '{MapId}' is {MapWidth}x{MapHeight}.");
+        }
+
+        _surface = new Surface[MapWidth, MapHeight];
+        _obstacle = new Obstacle?[MapWidth, MapHeight];
+        for (int y = 0; y < MapHeight; y++)
+        {
+            for (int x = 0; x < MapWidth; x++)
+            {
+                string name = tiled.SurfaceAt(x, y);
+                if (!Enum.TryParse(name, ignoreCase: false, out Surface surface) || !SurfaceNames.Contains(name))
+                {
+                    throw new MapRecipeException(tiled.SourcePath,
+                        $"has surface '{name}' at ({x},{y}); known: {string.Join(", ", SurfaceNames)}.");
+                }
+                _surface[x, y] = surface;
+            }
+        }
+    }
+
+    /// <summary>
+    /// The obstacle grid from a Tiled map's obstacles layer, by NAME; call after
+    /// <see cref="LoadSurfaces"/> (which sized the grid and checked the map's size). An
+    /// empty cell stays empty. Throws <see cref="MapRecipeException"/> naming the map's
+    /// file when a cell names an obstacle this build does not have.
+    /// </summary>
+    protected void LoadObstacles(TiledMap tiled)
+    {
+        for (int y = 0; y < MapHeight; y++)
+        {
+            for (int x = 0; x < MapWidth; x++)
+            {
+                string? name = tiled.ObstacleAt(x, y);
+                if (name == null)
+                    continue;
+                if (!Enum.TryParse(name, ignoreCase: false, out Obstacle obstacle) || !ObstacleNames.Contains(name))
+                {
+                    throw new MapRecipeException(tiled.SourcePath,
+                        $"has obstacle '{name}' at ({x},{y}); known: {string.Join(", ", ObstacleNames)}.");
+                }
+                _obstacle[x, y] = obstacle;
             }
         }
     }
@@ -93,6 +174,15 @@ public abstract partial class ExteriorMap : MapRoot, ISurfaceGrid
         {
             for (int x = 0; x < MapWidth; x++)
             {
+                if (_surface[x, y] is Surface.Water or Surface.DeepWater)
+                {
+                    Vector2I water = Pick(_surface[x, y] == Surface.Water
+                        ? LandscapeTiles.Water : LandscapeTiles.DeepWater, x, y);
+                    ground.SetCell(new Vector2I(x, y), RoadsideTerrain.LandscapeSourceId,
+                        LandscapeTiles.ForAct(water, CurrentAct));
+                    continue;
+                }
+
                 if (_surface[x, y] is Surface.Asphalt or Surface.Concrete or Surface.Road)
                 {
                     Vector2I roadside = _surface[x, y] switch
@@ -286,6 +376,39 @@ public abstract partial class ExteriorMap : MapRoot, ISurfaceGrid
                 if (x == gapX && y == gapY)
                     continue;
                 layer.SetCell(new Vector2I(x, y), 0, TerrainTiles.Blocker);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Paints every non-empty obstacle cell onto <paramref name="layer"/>; empty cells
+    /// are left untouched. A bush is a generated landscape tile; a fence is the farm
+    /// sheet's own piece (<see cref="RoadsideTerrain.FenceSourceId"/>), picked by
+    /// <see cref="FarmTiles.FenceFor"/> from which in-bounds neighbours are fence —
+    /// bushes never join a fence. Both block through their tiles' collision.
+    /// </summary>
+    protected void PaintObstacles(TileMapLayer layer)
+    {
+        bool IsFence(int x, int y) =>
+            x >= 0 && y >= 0 && x < MapWidth && y < MapHeight && _obstacle[x, y] == Obstacle.Fence;
+
+        for (int y = 0; y < MapHeight; y++)
+        {
+            for (int x = 0; x < MapWidth; x++)
+            {
+                switch (_obstacle[x, y])
+                {
+                    case Obstacle.Bush:
+                        layer.SetCell(new Vector2I(x, y), RoadsideTerrain.LandscapeSourceId,
+                            LandscapeTiles.ForAct(Pick(LandscapeTiles.Bush, x, y), CurrentAct));
+                        break;
+                    case Obstacle.Fence:
+                        Vector2I piece = FarmTiles.FenceFor(
+                            IsFence(x, y - 1), IsFence(x + 1, y), IsFence(x, y + 1), IsFence(x - 1, y));
+                        layer.SetCell(new Vector2I(x, y), RoadsideTerrain.FenceSourceId,
+                            FarmTiles.ForAct(piece, FarmTiles.Act.One));
+                        break;
+                }
             }
         }
     }

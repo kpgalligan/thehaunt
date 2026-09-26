@@ -25,4 +25,12 @@ public static class Town
     // is not invented.
     public const string StoreSignText = "General store. Open 9 to 5.";
     public const string CounterClosedLine = "Closed (9-5)";
+
+    /// <summary>Copy for the town's placed signs, by placement id. Null = an unpromoted
+    /// sign (a board still carrying its own map-file text).</summary>
+    public static string? SignTextFor(string placementId) => placementId switch
+    {
+        "StoreSign" => StoreSignText,
+        _ => null,
+    };
 }

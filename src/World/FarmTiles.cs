@@ -93,6 +93,28 @@ public static class FarmTiles
     public static readonly Vector2I Log = new(14, 3);          // solid
     public static readonly Vector2I HayScatter = new(15, 3);
 
+    /// <summary>
+    /// The fence piece for a fence cell, from which of its four neighbours are fence.
+    /// Corners are named for the two directions their rails run (TestMap.PaintPen's
+    /// rule): S+E is CornerSe, S+W CornerSw, N+W CornerNw, N+E CornerNe. A lone cell,
+    /// and any cell with three or four neighbours, is a post — the sheet has no tee or
+    /// cross piece.
+    /// </summary>
+    public static Vector2I FenceFor(bool fenceN, bool fenceE, bool fenceS, bool fenceW)
+    {
+        int count = (fenceN ? 1 : 0) + (fenceE ? 1 : 0) + (fenceS ? 1 : 0) + (fenceW ? 1 : 0);
+        if (count == 0 || count >= 3)
+            return FencePost;
+        if (!fenceN && !fenceS)
+            return FenceH;
+        if (!fenceE && !fenceW)
+            return FenceV;
+        if (fenceS && fenceE) return FenceCornerSe;
+        if (fenceS && fenceW) return FenceCornerSw;
+        if (fenceN && fenceW) return FenceCornerNw;
+        return FenceCornerNe;
+    }
+
     // ---- Placement names -----------------------------------------------
 
     /// <summary>

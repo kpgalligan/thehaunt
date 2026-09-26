@@ -33,6 +33,10 @@ the part the headless test suite can reach.
   footprint — a `w` field beside a 48px sprite is two truths waiting to diverge); only
   kinds that own their span instead of art (Exit, ShopCounter) read w/h from the
   record. Hits are RANKED: own anchor cell > tighter footprint > later (topmost) record.
+- The town builds from `data/maps/town.tmx` (Tiled), not a JSON recipe: the mapper has
+  no Tiled support, so its dock says "No recipe file" for the town and the preview is
+  read-only from the tmx (TownMap ignores `RecipeOverride`). Edit the town in Tiled —
+  see `data/maps/CLAUDE.md`.
 
 ## Workflow
 

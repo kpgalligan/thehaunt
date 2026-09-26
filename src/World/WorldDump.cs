@@ -34,8 +34,9 @@ namespace TheHaunt.World;
 ///     "legend":   { char: surface name }            // only the kinds this map uses
 ///     "surfaces": [ string x height ]                // width chars each
 ///     "blocked":  [ string x height ]                // '#' Obstacles-layer cell, 'D' door, '.' open
-///                                                    //   (woods and farm-sheet solids block via their
-///                                                    //   ground tiles, not this layer)
+///                                                    //   (woods, water and farm-sheet solids block via
+///                                                    //   their ground tiles, not this layer; the town's
+///                                                    //   fences and bushes are on it, so show as '#')
 ///     "buildings": [ { "id", "place" (interior map id its door leads to, or null),
 ///         "art" (town_hall|general_store|motel|farmhouse|barn, or null = placeholder),
 ///         "x","y","w","h" (blocked FOOTPRINT), "drawnW","drawnH" (drawn size, tiles),
@@ -98,6 +99,7 @@ public static class WorldDump
     {
         ["Grass"] = 'G', ["Dirt"] = 'D', ["Gravel"] = 'V', ["Cobble"] = 'C', ["Woods"] = 'W',
         ["Asphalt"] = 'A', ["Concrete"] = 'K', ["Road"] = 'R', ["Pasture"] = 'P', ["Path"] = 'T',
+        ["Water"] = 'L', ["DeepWater"] = 'M',
     };
 
     /// <summary>The exported maps: every registered exterior, in MapIds.All order.</summary>

@@ -1,0 +1,178 @@
+{
+    "automappingRulesFile": "",
+    "commands": [
+    ],
+    "compatibilityVersion": 1100,
+    "extensionsPath": "extensions",
+    "folders": [
+        ".."
+    ],
+    "properties": [
+    ],
+    "propertyTypes": [
+        {
+            "color": "#ffa0a0a4",
+            "drawFill": true,
+            "id": 1,
+            "members": [
+            ],
+            "name": "prop",
+            "type": "class",
+            "useAs": [
+                "object"
+            ]
+        },
+        {
+            "color": "#ffa0a0a4",
+            "drawFill": true,
+            "id": 2,
+            "members": [
+            ],
+            "name": "scatter",
+            "type": "class",
+            "useAs": [
+                "object"
+            ]
+        },
+        {
+            "color": "#ffa0a0a4",
+            "drawFill": true,
+            "id": 3,
+            "members": [
+                {
+                    "name": "blocks",
+                    "type": "bool",
+                    "value": true
+                }
+            ],
+            "name": "furniture",
+            "type": "class",
+            "useAs": [
+                "object"
+            ]
+        },
+        {
+            "color": "#ffa0a0a4",
+            "drawFill": true,
+            "id": 4,
+            "members": [
+            ],
+            "name": "spawn",
+            "type": "class",
+            "useAs": [
+                "object"
+            ]
+        },
+        {
+            "color": "#ffa0a0a4",
+            "drawFill": true,
+            "id": 5,
+            "members": [
+                {
+                    "name": "spawn",
+                    "type": "string",
+                    "value": "default"
+                }
+            ],
+            "name": "door",
+            "type": "class",
+            "useAs": [
+                "object"
+            ]
+        },
+        {
+            "color": "#ffa0a0a4",
+            "drawFill": true,
+            "id": 6,
+            "members": [
+                {
+                    "name": "spawn",
+                    "type": "string",
+                    "value": "default"
+                }
+            ],
+            "name": "exit",
+            "type": "class",
+            "useAs": [
+                "object"
+            ]
+        },
+        {
+            "color": "#ffa0a0a4",
+            "drawFill": true,
+            "id": 7,
+            "members": [
+                {
+                    "name": "text",
+                    "type": "string",
+                    "value": ""
+                }
+            ],
+            "name": "sign",
+            "type": "class",
+            "useAs": [
+                "object"
+            ]
+        },
+        {
+            "color": "#ffa0a0a4",
+            "drawFill": true,
+            "id": 8,
+            "members": [
+            ],
+            "name": "bed",
+            "type": "class",
+            "useAs": [
+                "object"
+            ]
+        },
+        {
+            "color": "#ffa0a0a4",
+            "drawFill": true,
+            "id": 9,
+            "members": [
+            ],
+            "name": "chest",
+            "type": "class",
+            "useAs": [
+                "object"
+            ]
+        },
+        {
+            "color": "#ffa0a0a4",
+            "drawFill": true,
+            "id": 10,
+            "members": [
+            ],
+            "name": "shipping_bin",
+            "type": "class",
+            "useAs": [
+                "object"
+            ]
+        },
+        {
+            "color": "#ffa0a0a4",
+            "drawFill": true,
+            "id": 11,
+            "members": [
+            ],
+            "name": "shop_counter",
+            "type": "class",
+            "useAs": [
+                "object"
+            ]
+        },
+        {
+            "color": "#ffa0a0a4",
+            "drawFill": true,
+            "id": 12,
+            "members": [
+            ],
+            "name": "mailbox",
+            "type": "class",
+            "useAs": [
+                "object"
+            ]
+        }
+    ]
+}

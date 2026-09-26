@@ -67,6 +67,31 @@ public static class FarmArtTests
     }
 
     [SimTest]
+    public static void Fence_PiecesPickFromTheirNeighbours(TestContext t)
+    {
+        var fences = (TileSetAtlasSource)RoadsideTerrain.Get().GetSource(RoadsideTerrain.FenceSourceId);
+        for (int mask = 0; mask < 16; mask++)
+        {
+            bool n = (mask & 1) != 0, e = (mask & 2) != 0, s = (mask & 4) != 0, w = (mask & 8) != 0;
+            int count = (n ? 1 : 0) + (e ? 1 : 0) + (s ? 1 : 0) + (w ? 1 : 0);
+            Vector2I expected =
+                count == 0 || count >= 3 ? FarmTiles.FencePost
+                : !n && !s ? FarmTiles.FenceH
+                : !e && !w ? FarmTiles.FenceV
+                : s && e ? FarmTiles.FenceCornerSe
+                : s && w ? FarmTiles.FenceCornerSw
+                : n && w ? FarmTiles.FenceCornerNw
+                : FarmTiles.FenceCornerNe;
+            Vector2I piece = FarmTiles.FenceFor(n, e, s, w);
+            string label = $"N={n} E={e} S={s} W={w}";
+            t.AssertEqual(expected, piece, $"{label}: the fence piece its neighbours pick");
+            t.Assert(fences.HasTile(piece), $"{label}: {piece} is a tile of the roadside set's fence source");
+            t.Assert(!fences.GetTileData(piece, 0).GetCustomData(TileSetTools.WalkableData).AsBool(),
+                $"{label}: {piece} blocks in RoadsideTerrain (the farm .tres's own collision)");
+        }
+    }
+
+    [SimTest]
     public static void FarmSoil_AutotilesFromTheNeighboursAndFurrowsTheInterior(TestContext t)
     {
         // The soil sets use the town dirt set's column order, so both index through one

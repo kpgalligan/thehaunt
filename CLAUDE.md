@@ -35,7 +35,9 @@ code rules are in `src/CLAUDE.md`; the art contract (six binding handoffs) is in
   for a second car), for capturing the shop floor; `--ride` mounts the scooter after
   boot, for capturing the riding sprite;
   `--work-tool <itemId>` selects that tool and holds use_tool from boot, for capturing
-  the work loop — boot physics catch-up outruns the frame count, so expect mid-loop)
+  the work loop — boot physics catch-up outruns the frame count, so expect mid-loop;
+  `--tiled-file <path>` builds a map from that .tmx instead of its shipped
+  `data/maps/<id>.tmx`, for checking a painted copy without touching the shipped file)
 - Content dump (the generated "read the world" review doc — characters, schedules,
   sampled talk tables, places + copy, quests, letters, flags, every dialogue line):
   `godot-mono --headless --path . -- --dump-content /tmp/content.md`
@@ -43,6 +45,11 @@ code rules are in `src/CLAUDE.md`; the art contract (six binding handoffs) is in
 - World dump (every exterior map's geography as JSON, for the intro flyover's Blender
   generator — schema on `src/World/WorldDump.cs`): `godot-mono --headless --path . --
   --dump-world /tmp/world.json` (GENERATED: never commit it)
+- Seed a map's Tiled file (the town): `godot-mono --headless --path . -- --seed-tiled town`
+  — always rewrites both derived palettes (`data/maps/tiled/surfaces.tsx`/`.png` and
+  `data/maps/tiled/obstacles.tsx`/`.png`); writes
+  `town.tmx` and `thehaunt.tiled-project` only where missing, never over them. Edit the
+  town in Tiled 1.11+ via `data/maps/tiled/thehaunt.tiled-project` (data/maps/CLAUDE.md)
 - Edit a map graphically: `godot-mono --path . --editor` — full workflow in
   `src/EditorTools/CLAUDE.md` (Save in the Haunt Mapper dock; Ctrl+S saves the SCENE,
   not the map)
@@ -67,7 +74,8 @@ Each directory's CLAUDE.md carries its contracts — read it before working ther
   travel flows (rules in src/CLAUDE.md)
 - `assets/` — shipped handoff art (never redraw; import rules in assets/CLAUDE.md);
   `assets/audio` and `assets/fonts` are still empty
-- `data/maps/` — map recipes: CONTENT, not save state; one JSON per map id
+- `data/maps/` — map recipes: CONTENT, not save state; one JSON or Tiled `.tmx` per map
+  id (the town is `town.tmx`; Tiled support files under `data/maps/tiled/`)
 - `docs/designs/` — the six binding art handoff bundles
 - `tools/` — asset-derivation one-shots (`regen_scooter_rider.py`,
   `gen_item_icons.py` — the inventory icon atlas, `run_gen_cast.mjs` — local

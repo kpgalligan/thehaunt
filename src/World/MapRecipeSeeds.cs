@@ -12,10 +12,11 @@ namespace TheHaunt.World;
 /// typo in a hand-copied boulder is a boulder that moved, and nothing would catch it but
 /// a screenshot taken by someone who happened to look at that corner of the map.
 ///
-/// It stays useful after the farm. The town's plaza props and lamp posts and each
-/// interior's furniture are the same problem, and each one arrives here as a case in
-/// <see cref="For"/> pointing at that map's own DefaultRecipe — the defaults stay beside
-/// the arrays they are built from, where they cannot drift from them.
+/// It stays useful after the farm. Each interior's furniture is the same problem, and
+/// each one arrives here as a case in <see cref="For"/> pointing at that map's own
+/// DefaultRecipe — the defaults stay beside the arrays they are built from, where they
+/// cannot drift from them. The TOWN does not seed here: it is a Tiled map, seeded by
+/// <see cref="TiledSeeds"/> (<c>--seed-tiled town</c>).
 ///
 /// The seed is not a migration and never runs by itself. Once a map is seeded, its file
 /// is the map; the seed lives on as the fallback for a missing file and as the thing the
