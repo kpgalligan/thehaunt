@@ -45,15 +45,13 @@ code rules are in `src/CLAUDE.md`; the art contract (six binding handoffs) is in
 - World dump (every exterior map's geography as JSON, for the intro flyover's Blender
   generator — schema on `src/World/WorldDump.cs`): `godot-mono --headless --path . --
   --dump-world /tmp/world.json` (GENERATED: never commit it)
-- Seed an exterior's Tiled file: `godot-mono --headless --path . -- --seed-tiled <mapId>`
-  (any exterior — town, west_entry, billies, fork, east_fork, east_entry, drive_in)
-  — always rewrites both derived palettes (`data/maps/tiled/surfaces.tsx`/`.png` and
-  `data/maps/tiled/obstacles.tsx`/`.png`); writes
-  `<mapId>.tmx` and `thehaunt.tiled-project` only where missing, never over them. Edit
-  the exteriors in Tiled 1.11+ via `data/maps/tiled/thehaunt.tiled-project` (data/maps/CLAUDE.md)
-- Edit a map graphically: `godot-mono --path . --editor` — full workflow in
-  `src/EditorTools/CLAUDE.md` (Save in the Haunt Mapper dock; Ctrl+S saves the SCENE,
-  not the map)
+- Seed a Tiled map's file: `godot-mono --headless --path . -- --seed-tiled <mapId>`
+  (any map id — every map is a Tiled map: the exteriors, test_farm and the thirteen
+  interiors) — always rewrites all five derived palettes (`data/maps/tiled/` surfaces,
+  obstacles, floors, walls, dressing: each `.tsx` + `.png`); writes
+  `<mapId>.tmx` and `thehaunt.tiled-project` only where missing, never over them.
+- Edit a map graphically: in Tiled 1.11+, via the project file
+  `data/maps/tiled/thehaunt.tiled-project` (workflow and contract in data/maps/CLAUDE.md)
 
 ## Structure
 
@@ -70,13 +68,12 @@ Each directory's CLAUDE.md carries its contracts — read it before working ther
 - `src/Story/` — StoryDirector (runs the intro beats defined in `src/Content/Story`)
 - `src/UI/` — the code-built HUD and menu layer
 - `src/Tests/` — headless [SimTest] suite + TestRunner (scenes/tests/TestRunner.tscn)
-- `src/EditorTools/` + `addons/haunt_mapper/` — the in-editor map editor (stage + plugin)
 - `src/Main.cs` + `scenes/Main.tscn` — composition root: boot, map loading, sleep +
   travel flows (rules in src/CLAUDE.md)
 - `assets/` — shipped handoff art (never redraw; import rules in assets/CLAUDE.md);
   `assets/audio` and `assets/fonts` are still empty
-- `data/maps/` — map recipes: CONTENT, not save state; one JSON or Tiled `.tmx` per map
-  id (every exterior is a `.tmx`, the farm is JSON; Tiled support files under
+- `data/maps/` — map files: CONTENT, not save state; one Tiled `.tmx` per map id
+  (every map: the exteriors, the farm and the interiors; Tiled support files under
   `data/maps/tiled/`)
 - `docs/designs/` — the six binding art handoff bundles
 - `tools/` — asset-derivation one-shots (`regen_scooter_rider.py`,

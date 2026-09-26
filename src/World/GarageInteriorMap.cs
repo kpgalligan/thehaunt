@@ -1,3 +1,4 @@
+using System.Globalization;
 using Godot;
 using TheHaunt.Core;
 using TheHaunt.Systems;
@@ -20,23 +21,6 @@ namespace TheHaunt.World;
 /// </summary>
 public partial class GarageInteriorMap : InteriorMap
 {
-    protected override int Width => 15;
-    protected override int Height => 10;
-    protected override InteriorTiles.WallSet Walls { get; } =
-        new(InteriorTiles.WallStone, InteriorTiles.CorniceStone);
-    protected override int DoorX => 6;
-    protected override int DoorY => 9;
-
-    protected override Vector2I[] Floor { get; } =
-    {
-        InteriorTiles.FloorStone[0], InteriorTiles.FloorStone[1],
-    };
-
-    private const int LiftRow = 2;
-    private static readonly int[] LiftLeft = { 2, 7 };   // west cell of each 3-tile bay
-
-    private const int CounterLeft = 11, CounterRight = 13, CounterRow = 4;
-
     // One muted flat per service, so the bay tells you the job at a glance.
     private static readonly Color FallbackPaint = new("6d6a58");
     private static Color PaintFor(string serviceId) => serviceId switch
@@ -60,68 +44,77 @@ public partial class GarageInteriorMap : InteriorMap
         base._EnterTree();
     }
 
-    protected override void Decorate()
+    protected override void BuildDefaultLayout()
     {
+        ResetLayout(15, 10, Floor.Stone, Wall.Stone, Wall.CorniceStone);
+
         // North wall: two dark windows over the bays, the licence plaque by the
-        // counter. The bays themselves wear the floor's oil stains.
-        SetWall(3, 0, InteriorTiles.WindowDark);
-        SetWall(8, 0, InteriorTiles.WindowDark);
-        SetWall(12, 0, InteriorTiles.Plaque);
-        foreach (int left in LiftLeft)
+        // counter. The bays themselves wear the floor's oil stains (the lifts' own).
+        SetWall(3, 0, Wall.WindowDark);
+        SetWall(8, 0, Wall.WindowDark);
+        SetWall(12, 0, Wall.Plaque);
+
+        // Stock that never got shelved; Mike's counter by the east wall.
+        SetWall(1, 8, Wall.Barrel);
+        SetWallRun(11, 13, 4, Wall.Counter);
+    }
+
+    protected override MapRecipe BuildDefaultRecipe()
+    {
+        var recipe = new MapRecipe(MapIds.GarageInterior);
+
+        // The trade's furniture along the west wall.
+        recipe.Add(PlacementKinds.Furniture, "tool_rack", 1, 4);
+        recipe.Add(PlacementKinds.Furniture, "workbench", 1, 6);
+
+        // Till toward the room; crates behind the customer side.
+        recipe.Add(PlacementKinds.Furniture, "till", 12, 4).SetBool(PlacementFields.Blocks, false);
+        recipe.Add(PlacementKinds.Furniture, "crates", 12, 7);
+        recipe.Add(PlacementKinds.Furniture, "sack", 13, 6);
+
+        recipe.Add(PlacementKinds.Spawn, "entry", 6, 8);     // (104, 136)
+        recipe.Add(PlacementKinds.Spawn, "default", 6, 5);   // (104, 88)
+        recipe.Add(PlacementKinds.Door, MapIds.WestEntry, 6, 9)
+            .SetText(PlacementFields.Spawn, "from_garage");
+
+        // The two lifts against the north wall: each bay's west cell.
+        recipe.Add(PlacementKinds.Lift, "0", 2, 2);
+        recipe.Add(PlacementKinds.Lift, "1", 7, 2);
+        return recipe;
+    }
+
+    protected override bool TakesKind(string kind) => kind == PlacementKinds.Lift;
+
+    /// <summary>Exactly one lift per car the garage can hold, ids "0".."MaxCars-1":
+    /// ApplyState indexes the bays by lift number.</summary>
+    protected override void ResolveTaken(IReadOnlyList<MapPlacement> taken)
+    {
+        IEnumerable<string> expected = Enumerable.Range(0, GarageOpsRules.MaxCars)
+            .Select(n => n.ToString(CultureInfo.InvariantCulture));
+        List<string> found = taken.Select(lift => lift.Id).OrderBy(id => id, StringComparer.Ordinal).ToList();
+        if (!found.SequenceEqual(expected))
         {
-            for (int x = left; x <= left + 2; x++)
-            {
-                SetFloor(x, LiftRow, InteriorTiles.FloorStain);
-                Block(x, LiftRow);   // permanent — see class doc
-            }
+            throw new MapRecipeException(RecipeSource,
+                $"places lifts [{string.Join(", ", found)}]; map '{MapId}' needs exactly one of each lift {string.Join(", ", expected)}.");
         }
-
-        // The trade's furniture along the west wall; stock that never got shelved.
-        AddFurniture(Furniture.ToolRack, 1, 4);
-        AddFurniture(Furniture.Workbench, 1, 6);
-        SetWall(1, 8, InteriorTiles.Barrel);
-
-        // Mike's counter, till toward the room; crates behind the customer side.
-        AddCounter(CounterLeft, CounterRight, CounterRow);
-        AddFurniture(Furniture.Till, CounterLeft + 1, CounterRow, blocks: false);
-        AddFurniture(Furniture.Crates, 12, 7);
-        AddFurniture(Furniture.Sack, 13, 6);
     }
 
-    protected override void BuildSpawns()
+    /// <summary>Per lift, in lift order: its three cells stained and blocked PERMANENTLY
+    /// (see class doc), the bay (the CarLift, then its label) and its LiftStation.</summary>
+    protected override void OnBuilt(IReadOnlyList<MapPlacement> taken)
     {
-        var spawns = new Node2D { Name = "Spawns" };
-        spawns.AddChild(new Marker2D
+        foreach (MapPlacement placement in taken.OrderBy(lift => int.Parse(lift.Id, CultureInfo.InvariantCulture)))
         {
-            Name = "entry",
-            Position = new Vector2(DoorX * TileSize + 8, 8 * TileSize + 8), // (104, 136)
-        });
-        spawns.AddChild(new Marker2D
-        {
-            Name = "default",
-            Position = new Vector2(6 * TileSize + 8, 5 * TileSize + 8), // (104, 88)
-        });
-        AddChild(spawns);
-    }
-
-    protected override void BuildInteractables()
-    {
-        AddChild(new Door
-        {
-            Name = "OutDoor",
-            TargetMapId = MapIds.WestEntry,
-            TargetSpawnId = "from_garage",
-            DrawPlaceholder = false,
-            Position = new Vector2(DoorX * TileSize + 8, DoorY * TileSize + 8),
-        });
-
-        for (int lift = 0; lift < GarageOpsRules.MaxCars; lift++)
-        {
-            Vector2 anchor = Prop.Anchor(LiftLeft[lift], LiftRow, 3);
+            int lift = int.Parse(placement.Id, CultureInfo.InvariantCulture);
+            for (int x = placement.X; x <= placement.X + 2; x++)
+            {
+                PaintFloor(x, placement.Y, Floor.Stain);
+                Block(x, placement.Y);
+            }
 
             // The bay container Y-sorts on the lift's base row; the CarLift draws
             // first so a diffed-in GuestCar wins the tie and sits on the rails.
-            var bay = new Node2D { Name = $"Bay{lift}", Position = anchor };
+            var bay = new Node2D { Name = $"Bay{lift}", Position = Prop.Anchor(placement.X, placement.Y, 3) };
             bay.AddChild(new CarLift());
             var label = new Label
             {
@@ -138,7 +131,7 @@ public partial class GarageInteriorMap : InteriorMap
             {
                 Name = $"Lift{lift}",
                 Lift = lift,
-                Position = new Vector2((LiftLeft[lift] + 1) * TileSize + 8, LiftRow * TileSize + 8),
+                Position = new Vector2((placement.X + 1) * TileSize + 8, placement.Y * TileSize + 8),
             });
         }
     }

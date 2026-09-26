@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<map version="1.10" tiledversion="1.12.0" orientation="orthogonal" renderorder="right-down" width="16" height="12" tilewidth="16" tileheight="16" infinite="0" nextlayerid="5" nextobjectid="16">
+ <properties>
+  <property name="map" value="barn"/>
+ </properties>
+ <tileset firstgid="1" source="tiled/floors.tsx"/>
+ <tileset firstgid="13" source="tiled/walls.tsx"/>
+ <tileset firstgid="55" source="tiled/dressing.tsx"/>
+ <layer id="1" name="floor" width="16" height="12">
+  <data encoding="csv">
+5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,
+5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,
+5,5,5,5,8,5,11,11,5,5,5,5,5,5,11,5,
+5,5,5,5,5,5,5,5,5,8,8,11,5,5,11,5,
+5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,
+5,5,5,5,8,5,5,11,5,5,5,5,5,5,5,5,
+5,8,5,5,8,8,5,11,5,11,5,5,8,8,8,5,
+5,5,5,11,5,5,5,5,5,8,5,5,8,5,5,5,
+5,5,5,5,5,5,5,8,5,5,5,5,5,5,5,5,
+5,5,5,8,5,8,5,5,5,5,5,11,5,5,5,5,
+5,5,5,5,5,5,5,5,5,5,8,5,8,5,5,5,
+5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5
+</data>
+ </layer>
+ <layer id="3" name="walls" width="16" height="12">
+  <data encoding="csv">
+29,29,29,29,29,29,29,29,29,29,29,29,29,29,29,29,
+14,35,35,35,35,35,0,0,0,0,33,33,33,0,0,14,
+14,0,0,0,0,0,0,0,0,0,0,0,0,0,0,14,
+14,0,0,0,0,0,0,0,0,0,0,0,0,0,0,14,
+14,0,0,0,0,0,0,0,0,0,0,0,0,0,0,14,
+14,0,0,0,0,0,0,0,0,0,0,0,0,0,0,14,
+14,0,0,0,0,0,0,0,0,0,0,0,0,0,0,14,
+14,0,0,0,0,0,0,0,0,0,0,0,0,0,0,14,
+14,0,0,0,0,0,0,0,0,0,0,0,0,0,0,14,
+14,0,0,0,0,0,0,0,0,0,0,0,0,0,0,14,
+14,0,0,0,0,0,0,0,0,0,0,0,0,0,0,14,
+14,14,14,14,14,14,14,14,14,14,14,14,14,14,14,14
+</data>
+ </layer>
+ <layer id="4" name="dressing" width="16" height="12">
+  <data encoding="csv">
+0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+0,55,0,0,0,0,0,0,0,0,0,0,0,0,55,0,
+0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,0,0,0,0,55,0,
+0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+</data>
+ </layer>
+ <objectgroup id="2" name="placements">
+  <object id="1" name="ladder" type="furniture" x="96" y="32" width="16" height="16"/>
+  <object id="2" name="stall" type="furniture" x="32" y="64" width="16" height="16"/>
+  <object id="3" name="stall" type="furniture" x="80" y="64" width="16" height="16"/>
+  <object id="4" name="haystack" type="furniture" x="176" y="64" width="16" height="16"/>
+  <object id="5" name="lamp" type="furniture" x="128" y="80" width="16" height="16"/>
+  <object id="6" name="tool_rack" type="furniture" x="144" y="96" width="16" height="16"/>
+  <object id="7" name="default" type="spawn" x="112" y="112" width="16" height="16"/>
+  <object id="8" name="workbench" type="furniture" x="144" y="128" width="16" height="16"/>
+  <object id="9" name="barn_chest" type="chest" x="176" y="128" width="16" height="16"/>
+  <object id="10" name="crates" type="furniture" x="32" y="144" width="16" height="16"/>
+  <object id="11" name="sack" type="furniture" x="80" y="144" width="16" height="16"/>
+  <object id="12" name="bucket" type="furniture" x="112" y="144" width="16" height="16"/>
+  <object id="13" name="entry" type="spawn" x="128" y="160" width="16" height="16"/>
+  <object id="14" name="cart" type="furniture" x="192" y="160" width="16" height="16"/>
+  <object id="15" name="test_farm" type="door" x="128" y="176" width="16" height="16">
+   <properties>
+    <property name="spawn" value="barn_door"/>
+   </properties>
+  </object>
+ </objectgroup>
+</map>

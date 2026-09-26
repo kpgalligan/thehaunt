@@ -5,8 +5,9 @@ namespace TheHaunt.World;
 
 /// <summary>
 /// Where Tiled maps live and how they get on and off disk: <c>res://data/maps/(mapId).tmx</c>,
-/// with Tiled's support files (the surface palette, the project) under
-/// <c>res://data/maps/tiled/</c>. Godot's <see cref="FileAccess"/>, because res:// is
+/// with Tiled's support files (the five palettes — <see cref="TiledPalette.All"/> — and the
+/// project) under <c>res://data/maps/tiled/</c>. Every map is one: the exteriors, the farm
+/// and the interiors. Godot's <see cref="FileAccess"/>, because res:// is
 /// inside the .pck in an exported game.
 /// Writing is dev/editor-only — the running game never writes content.
 ///

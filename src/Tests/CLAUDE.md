@@ -35,12 +35,15 @@ JSONs for the migration tests.
   Save_MigratedKitMatchesNewGame / Save_MigratedStoryMatchesNewGame failing means decide
   deliberately — never edit a frozen migration. MapIds.IsInterior carries a drift guard
   against each map's IsInterior; TileSetReloadTests guards the TileSet builders'
-  private-copy (CacheMode.Ignore) + idempotency contract; MapSeedTests guards recipe
-  seeds against their C# literals until a map's file and seed part company on purpose.
+  private-copy (CacheMode.Ignore) + idempotency contract; the Tiled drift guards
+  (TiledMapTests: `Town_ShippedTmxPlacementsMatchTheCodeSeed`,
+  `Exteriors_ShippedTmxMatchTheirCodeSeeds` — the road strip and the farm —
+  and `Interiors_ShippedTmxMatchTheirCodeSeeds` — all thirteen interiors) hold each
+  shipped .tmx to its C# seed until a map's file and seed part company on purpose.
 - SourceRulesTests reads the source tree itself, for standing rules nothing else can
   catch (breaking them compiles and passes every other test): src/Core and
   src/Content stay free of `using Godot`, src/Core never references Content (the
   layering is `Systems/World/UI/Story -> Content -> Core`), and
-  `Engine.IsEditorHint()`/`[Tool]` stay out of the game layers
-  (src/EditorTools and addons only). Its file counts are asserted non-zero first on
+  `Engine.IsEditorHint()`/`[Tool]` appear nowhere in src (src/Tests, which holds the
+  literals, excepted). Its file counts are asserted non-zero first on
   purpose — a test that silently found zero files would pass forever.

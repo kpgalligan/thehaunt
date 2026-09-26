@@ -195,6 +195,7 @@ public partial class TestMap : MapRoot, ISurfaceGrid
     {
         if (TiledMapFile.Load(MapIds.Farm) is { } tiled)
         {
+            tiled.RequireFormat(TiledFormat.Exterior);
             _recipeSource = tiled.SourcePath;
             if (tiled.Width != Width || tiled.Height != Height)
             {
@@ -1139,9 +1140,8 @@ public partial class TestMap : MapRoot, ISurfaceGrid
     private readonly HashSet<Vector2I> _reservedTiles = new();
 
     /// <summary>
-    /// The farm's reservations, for the placement editor to draw. Handed out live rather
-    /// than copied: nothing in the game calls this, and the editor reads it once per
-    /// viewport redraw with the map standing still in front of it.
+    /// The farm's reservations, handed out live for the tests (which hold them to
+    /// <see cref="IsTillable"/>); nothing in the game calls this.
     /// </summary>
-    public override IReadOnlyCollection<Vector2I> ReservedTiles() => _reservedTiles;
+    internal IReadOnlyCollection<Vector2I> ReservedTiles() => _reservedTiles;
 }

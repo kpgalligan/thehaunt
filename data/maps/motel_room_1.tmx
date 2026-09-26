@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<map version="1.10" tiledversion="1.12.0" orientation="orthogonal" renderorder="right-down" width="9" height="7" tilewidth="16" tileheight="16" infinite="0" nextlayerid="5" nextobjectid="7">
+ <properties>
+  <property name="map" value="motel_room_1"/>
+ </properties>
+ <tileset firstgid="1" source="tiled/floors.tsx"/>
+ <tileset firstgid="13" source="tiled/walls.tsx"/>
+ <tileset firstgid="55" source="tiled/dressing.tsx"/>
+ <layer id="1" name="floor" width="9" height="7">
+  <data encoding="csv">
+6,6,6,6,6,6,6,6,6,
+6,6,6,6,6,6,6,6,6,
+6,6,6,6,6,6,6,6,6,
+6,6,6,6,9,6,6,6,6,
+6,6,6,6,6,6,6,6,6,
+6,6,6,6,6,6,6,6,6,
+6,6,6,6,6,6,6,6,6
+</data>
+ </layer>
+ <layer id="3" name="walls" width="9" height="7">
+  <data encoding="csv">
+29,29,29,23,29,29,29,29,29,
+13,0,0,0,0,0,0,0,13,
+13,0,0,0,0,0,0,0,13,
+13,0,0,0,0,0,0,0,13,
+13,0,0,0,0,0,0,0,13,
+13,0,0,0,0,0,0,0,13,
+13,13,13,13,13,13,13,13,13
+</data>
+ </layer>
+ <layer id="4" name="dressing" width="9" height="7">
+  <data encoding="csv">
+0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0
+</data>
+ </layer>
+ <objectgroup id="2" name="placements">
+  <object id="1" name="bed" type="furniture" x="16" y="16" width="16" height="16"/>
+  <object id="2" name="dresser" type="furniture" x="112" y="16" width="16" height="16"/>
+  <object id="3" name="default" type="spawn" x="64" y="48" width="16" height="16"/>
+  <object id="4" name="stool" type="furniture" x="96" y="64" width="16" height="16"/>
+  <object id="5" name="entry" type="spawn" x="64" y="80" width="16" height="16"/>
+  <object id="6" name="west_entry" type="door" x="64" y="96" width="16" height="16">
+   <properties>
+    <property name="spawn" value="from_room1"/>
+   </properties>
+  </object>
+ </objectgroup>
+</map>

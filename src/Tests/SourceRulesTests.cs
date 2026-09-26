@@ -76,35 +76,32 @@ public static class SourceRulesTests
     [SimTest]
     public static void Source_EditorHintsStayOutOfTheGameLayers(TestContext t)
     {
-        // The map editor works by hand-instantiating the four autoloads and letting map code
-        // run in the editor COMPLETELY UNMODIFIED — that is the whole reason maps could stay
-        // C# instead of migrating to .tscn. The first time somebody "fixes" an editor
-        // misbehaviour with an Engine.IsEditorHint() guard in src/World, that property is
-        // gone and the divergence between what the editor shows and what the game runs
-        // starts. Editor concerns live in src/EditorTools and addons only.
-        string[] layers = { "src/World", "src/Systems", "src/Player", "src/UI", "src/Story", "src/Core", "src/Content" };
+        // Tiled is the map editor, so nothing in src runs inside the Godot editor: an
+        // Engine.IsEditorHint() guard or a [Tool] attribute anywhere under src is a
+        // divergence between what the editor shows and what the game runs. src/Tests is
+        // skipped only because it holds the two literals (this file).
+        string testsRoot = ProjectSettings.GlobalizePath("res://src/Tests");
         var offenders = new List<string>();
         int scanned = 0;
 
-        foreach (string layer in layers)
+        foreach (string path in SourceFiles("res://src"))
         {
-            foreach (string path in SourceFiles($"res://{layer}"))
+            if (path.StartsWith(testsRoot, StringComparison.Ordinal))
+                continue;
+            scanned++;
+            string text = File.ReadAllText(path);
+            // Strip comments' worth of false positives cheaply: only a real call or a
+            // real attribute matters, and both of those are code, not prose.
+            if (text.Contains("Engine.IsEditorHint()", StringComparison.Ordinal)
+                || text.Contains("[Tool]", StringComparison.Ordinal))
             {
-                scanned++;
-                string text = File.ReadAllText(path);
-                // Strip comments' worth of false positives cheaply: only a real call or a
-                // real attribute matters, and both of those are code, not prose.
-                if (text.Contains("Engine.IsEditorHint()", StringComparison.Ordinal)
-                    || text.Contains("[Tool]", StringComparison.Ordinal))
-                {
-                    offenders.Add($"{layer}/{Path.GetFileName(path)}");
-                }
+                offenders.Add(Path.GetRelativePath(ProjectSettings.GlobalizePath("res://"), path));
             }
         }
 
-        t.Assert(scanned > 40, $"found the game-layer sources to check ({scanned} files)");
+        t.Assert(scanned > 40, $"found the sources to check ({scanned} files)");
         t.AssertEqual("", string.Join(", ", offenders),
-            "Engine.IsEditorHint() and [Tool] belong in src/EditorTools and addons, nowhere else");
+            "Engine.IsEditorHint() and [Tool] appear nowhere in src — Tiled is the map editor");
     }
 
     private static string[] SourceFiles(string resPath)

@@ -1,28 +1,23 @@
 using System.Globalization;
 using System.Text;
-using System.Text.Json;
 
 namespace TheHaunt.World;
 
 /// <summary>
-/// The placements one map is built FROM, and the canonical text they are stored as.
-/// Maps stay C# build functions — a recipe is a build function's INPUT, never a
-/// replacement for it. Terrain painting stays generative and has no representation here
-/// at all; what moves into data is the things a person would otherwise drag: props,
-/// scatter, spawn markers, doors, exits, signs, furniture and the interactables.
+/// The placements one map is built FROM, in memory: read from a Tiled map's placement
+/// layer (<see cref="TiledMap"/>), or built by a map's code seed. Maps stay C# build
+/// functions — a recipe is a build function's INPUT, never a replacement for it. What
+/// lives here is the things a person would otherwise drag: props, scatter, spawn
+/// markers, doors, exits, signs, furniture and the interactables.
 ///
-/// A recipe is CONTENT, not save state. It belongs beside ItemDefs and CropDefs: read at
-/// map build time, edited by hand or by the editor tool, and NEVER written by the running
-/// game. Nothing here may reach GameData, nothing here is versioned by SaveMigrations,
-/// and a change to a recipe is a content change — it needs no migration, only a rebuild.
+/// A recipe is CONTENT, not save state: read at map build time and NEVER written by the
+/// running game. Nothing here may reach GameData, nothing here is versioned by
+/// SaveMigrations, and a change to one is a content change — no migration, only a rebuild.
 ///
-/// The text format is hand-written for one reason: legible diffs. Json.Stringify and
-/// System.Text.Json's indented writer both explode a short record across many lines,
-/// which would make a map file as unmergeable as the base64 tile data in a .tscn — and
-/// being mergeable is most of why this is JSON and not a scene. So: one placement per
+/// <see cref="ToJson"/> is the CANONICAL TEXT the drift guards compare: one placement per
 /// line, sorted by y then x then kind, fields in a fixed order, "\n" endings on every
-/// platform. Serialising the same recipe twice is byte-identical, and so is a
-/// load/save cycle over a file this writer produced.
+/// platform. Serialising the same recipe twice is byte-identical, whatever order the
+/// placements were added in.
 /// </summary>
 public sealed class MapRecipe
 {
@@ -47,9 +42,9 @@ public sealed class MapRecipe
 
     /// <summary>
     /// The map this recipe builds. NOTE the farm's is literally "test_farm"
-    /// (<c>MapIds.Farm</c>): the rename is deferred to the first editor-authored map and
-    /// its own save migration, so the file is <c>data/maps/test_farm.json</c> and will be
-    /// renamed by that same migration. Deliberate oddity, not a typo.
+    /// (<c>MapIds.Farm</c>): the rename is deferred to its own save migration, so the file
+    /// is <c>data/maps/test_farm.tmx</c> and will be renamed by that same migration.
+    /// Deliberate oddity, not a typo.
     /// </summary>
     public string MapId { get; }
 
@@ -69,8 +64,6 @@ public sealed class MapRecipe
     /// <summary>Convenience for the common record — a kind, an id and a cell.</summary>
     public MapPlacement Add(string kind, string id, int x, int y) =>
         Add(new MapPlacement(kind, id, x, y));
-
-    public bool Remove(MapPlacement placement) => _placements.Remove(placement);
 
     /// <summary>Every placement of one kind, in the canonical (y, x) order the builder wants.</summary>
     public IEnumerable<MapPlacement> OfKind(string kind) =>
@@ -107,71 +100,6 @@ public sealed class MapRecipe
 
         text.Append("}\n");
         return text.ToString();
-    }
-
-    /// <summary>
-    /// Reads the canonical text. Throws <see cref="MapRecipeException"/> naming
-    /// <paramref name="sourcePath"/> for anything it cannot read as a recipe — a recipe
-    /// is content the build depends on, so a broken one must be loud rather than quietly
-    /// half-loaded. (A MISSING file is a different thing entirely and is not an error:
-    /// see <see cref="MapRecipeFile.Load"/>.)
-    /// </summary>
-    /// <param name="sourcePath">Named in every error. A file path, or a label for text that never was a file.</param>
-    public static MapRecipe Parse(string json, string sourcePath)
-    {
-        JsonDocument document;
-        try
-        {
-            document = JsonDocument.Parse(json);
-        }
-        catch (JsonException e)
-        {
-            throw new MapRecipeException(sourcePath, $"is not valid JSON: {e.Message}");
-        }
-
-        using (document)
-        {
-            JsonElement root = document.RootElement;
-            if (root.ValueKind != JsonValueKind.Object)
-            {
-                throw new MapRecipeException(sourcePath, "must hold a JSON object at its root.");
-            }
-
-            // Absent version = version 1: the field is insurance against a future break,
-            // not a thing every hand-written file has to remember.
-            int version = CurrentVersion;
-            if (root.TryGetProperty(VersionKey, out JsonElement versionValue)
-                && (versionValue.ValueKind != JsonValueKind.Number || !versionValue.TryGetInt32(out version)))
-            {
-                throw new MapRecipeException(sourcePath, $"has a '{VersionKey}' that is not a whole number.");
-            }
-            if (version > CurrentVersion)
-            {
-                throw new MapRecipeException(sourcePath,
-                    $"is format version {version}, but this build reads up to {CurrentVersion}.");
-            }
-
-            if (!root.TryGetProperty(MapKey, out JsonElement mapValue)
-                || mapValue.ValueKind != JsonValueKind.String
-                || mapValue.GetString() is not { Length: > 0 } mapId)
-            {
-                throw new MapRecipeException(sourcePath, $"has no '{MapKey}' naming the map it builds.");
-            }
-
-            if (!root.TryGetProperty(PlacementsKey, out JsonElement placements)
-                || placements.ValueKind != JsonValueKind.Array)
-            {
-                throw new MapRecipeException(sourcePath, $"has no '{PlacementsKey}' array.");
-            }
-
-            var recipe = new MapRecipe(mapId);
-            int index = 0;
-            foreach (JsonElement element in placements.EnumerateArray())
-            {
-                recipe.Add(ParsePlacement(element, index++, sourcePath));
-            }
-            return recipe;
-        }
     }
 
     // ------------------------------------------------------------------
@@ -265,106 +193,4 @@ public sealed class MapRecipe
         });
         return ordered;
     }
-
-    // ------------------------------------------------------------------
-    // Parsing one record
-    // ------------------------------------------------------------------
-
-    private static MapPlacement ParsePlacement(JsonElement element, int index, string sourcePath)
-    {
-        if (element.ValueKind != JsonValueKind.Object)
-        {
-            throw new MapRecipeException(sourcePath, $"placement {index} is not a JSON object.");
-        }
-
-        string? kind = null, id = null;
-        int? x = null, y = null;
-        int nudgeX = 0, nudgeY = 0;
-        var extras = new List<(string Key, string Raw)>();
-        var seen = new HashSet<string>(StringComparer.Ordinal);
-
-        foreach (JsonProperty property in element.EnumerateObject())
-        {
-            // Duplicate keys are legal JSON and a silent last-one-wins everywhere else.
-            // In a file a person edits by hand, they are a mistake worth naming.
-            if (!seen.Add(property.Name))
-            {
-                throw new MapRecipeException(sourcePath,
-                    $"placement {index} repeats the field '{property.Name}'.");
-            }
-
-            switch (property.Name)
-            {
-                case MapPlacement.KindKey:
-                    kind = ReadString(property, index, sourcePath);
-                    break;
-                case MapPlacement.IdKey:
-                    id = ReadString(property, index, sourcePath);
-                    break;
-                case MapPlacement.XKey:
-                    x = ReadInt(property, index, sourcePath);
-                    break;
-                case MapPlacement.YKey:
-                    y = ReadInt(property, index, sourcePath);
-                    break;
-                case MapPlacement.NudgeXKey:
-                    nudgeX = ReadInt(property, index, sourcePath);
-                    break;
-                case MapPlacement.NudgeYKey:
-                    nudgeY = ReadInt(property, index, sourcePath);
-                    break;
-                default:
-                    // Unknown field on any kind, known or not: kept exactly as written.
-                    // Scalars only — the check is here rather than in SetRaw so the error
-                    // can name the file, the record and the key.
-                    if (property.Value.ValueKind
-                        is not (JsonValueKind.String or JsonValueKind.Number
-                        or JsonValueKind.True or JsonValueKind.False))
-                    {
-                        throw new MapRecipeException(sourcePath,
-                            $"placement {index} field '{property.Name}' is {property.Value.ValueKind}; " +
-                            "recipe fields hold strings, numbers and bools only.");
-                    }
-                    extras.Add((property.Name, property.Value.GetRawText()));
-                    break;
-            }
-        }
-
-        if (kind is not { Length: > 0 })
-        {
-            throw new MapRecipeException(sourcePath, $"placement {index} has no '{MapPlacement.KindKey}'.");
-        }
-        if (id is null)
-        {
-            throw new MapRecipeException(sourcePath, $"placement {index} has no '{MapPlacement.IdKey}'.");
-        }
-        if (x is null || y is null)
-        {
-            throw new MapRecipeException(sourcePath,
-                $"placement {index} has no tile coordinate ('{MapPlacement.XKey}' and '{MapPlacement.YKey}').");
-        }
-
-        var placement = new MapPlacement(kind, id, x.Value, y.Value)
-        {
-            NudgeX = nudgeX,
-            NudgeY = nudgeY,
-        };
-        foreach ((string key, string raw) in extras)
-        {
-            placement.SetRaw(key, raw);
-        }
-        return placement;
-    }
-
-    private static string ReadString(JsonProperty property, int index, string sourcePath) =>
-        property.Value.ValueKind == JsonValueKind.String
-            ? property.Value.GetString()!
-            : throw new MapRecipeException(sourcePath,
-                $"placement {index} field '{property.Name}' must be a string.");
-
-    private static int ReadInt(JsonProperty property, int index, string sourcePath) =>
-        property.Value.ValueKind == JsonValueKind.Number && property.Value.TryGetInt32(out int value)
-            ? value
-            : throw new MapRecipeException(sourcePath,
-                $"placement {index} field '{property.Name}' must be a whole number.");
 }

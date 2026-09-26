@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<map version="1.10" tiledversion="1.12.0" orientation="orthogonal" renderorder="right-down" width="14" height="10" tilewidth="16" tileheight="16" infinite="0" nextlayerid="5" nextobjectid="13">
+ <properties>
+  <property name="map" value="general_store"/>
+ </properties>
+ <tileset firstgid="1" source="tiled/floors.tsx"/>
+ <tileset firstgid="13" source="tiled/walls.tsx"/>
+ <tileset firstgid="55" source="tiled/dressing.tsx"/>
+ <layer id="1" name="floor" width="14" height="10">
+  <data encoding="csv">
+1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+1,1,1,1,1,1,1,1,1,1,1,1,1,1
+</data>
+ </layer>
+ <layer id="3" name="walls" width="14" height="10">
+  <data encoding="csv">
+28,28,28,24,28,28,28,41,28,28,24,28,28,28,
+18,0,0,0,0,0,0,0,0,0,0,0,0,18,
+18,0,0,0,0,0,0,0,0,0,0,0,0,18,
+18,0,0,0,0,0,0,0,0,0,0,0,0,18,
+18,47,47,47,47,47,47,47,47,47,47,47,47,18,
+18,0,0,0,0,0,0,0,0,0,0,0,0,18,
+18,0,0,0,0,0,0,0,0,0,0,0,0,18,
+18,0,0,0,0,0,0,0,0,0,0,0,50,18,
+18,50,51,0,0,0,0,0,0,0,0,0,0,18,
+18,18,18,18,18,18,18,18,18,18,18,18,18,18
+</data>
+ </layer>
+ <layer id="4" name="dressing" width="14" height="10">
+  <data encoding="csv">
+0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,0,0,0,0
+</data>
+ </layer>
+ <objectgroup id="2" name="placements">
+  <object id="1" name="books" type="furniture" x="80" y="16" width="16" height="16"/>
+  <object id="2" name="wide_shelf" type="furniture" x="128" y="32" width="16" height="16"/>
+  <object id="3" name="tall_shelf" type="furniture" x="16" y="48" width="16" height="16"/>
+  <object id="4" name="tall_shelf" type="furniture" x="192" y="48" width="16" height="16"/>
+  <object id="5" name="general_store" type="shop_counter" x="16" y="64" width="192" height="16"/>
+  <object id="6" name="till" type="furniture" x="96" y="64" width="16" height="16">
+   <properties>
+    <property name="blocks" type="bool" value="false"/>
+   </properties>
+  </object>
+  <object id="7" name="seed_bins" type="furniture" x="144" y="80" width="16" height="16"/>
+  <object id="8" name="default" type="spawn" x="112" y="96" width="16" height="16"/>
+  <object id="9" name="sack" type="furniture" x="176" y="112" width="16" height="16"/>
+  <object id="10" name="crates" type="furniture" x="48" y="128" width="16" height="16"/>
+  <object id="11" name="entry" type="spawn" x="112" y="128" width="16" height="16"/>
+  <object id="12" name="town" type="door" x="112" y="144" width="16" height="16">
+   <properties>
+    <property name="spawn" value="from_store"/>
+   </properties>
+  </object>
+ </objectgroup>
+</map>

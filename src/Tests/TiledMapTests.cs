@@ -1,3 +1,5 @@
+using System.Reflection;
+using System.Text.RegularExpressions;
 using System.Xml.Linq;
 using Godot;
 using TheHaunt.Content;
@@ -12,9 +14,11 @@ namespace TheHaunt.Tests;
 /// The Tiled files: the TMX subset reads and writes canonically, a broken file fails
 /// loudly naming itself, the optional obstacles layer reads by name, every shipped file
 /// still says what its code seed says (the drift tripwire, semantic — Tiled owns the
-/// bytes), the town, the road strip and the farm really build from theirs — water,
-/// bushes, fences and the pen included — the farm and the exteriors each refuse the
-/// other's palette entries, and the palettes on disk are the palettes the loader uses.
+/// bytes), the town, the road strip, the farm and all thirteen interiors really build
+/// from theirs — water, bushes, fences, the pen, doorways and counters included — the
+/// farm and the exteriors each refuse the other's palette entries, an interior and an
+/// exterior each refuse the other's format, and the palettes on disk (all five) are the
+/// palettes the loader uses.
 /// </summary>
 public static class TiledMapTests
 {
@@ -668,6 +672,294 @@ public static class TiledMapTests
             await t.WaitFrames(1);
             SaveService.Instance.NewGame();
         }
+    }
+
+    // ------------------------------------------------------------------
+    // Interiors
+    // ------------------------------------------------------------------
+
+    /// <summary>Every interior map id (<see cref="MapIds.IsInterior"/>).</summary>
+    private static List<string> InteriorIds() => MapIds.All.Where(MapIds.IsInterior).ToList();
+
+    /// <summary>
+    /// Every interior's shipped file still says, cell for cell and placement for
+    /// placement, what its code seed says. SEMANTIC, not byte-for-byte: Tiled owns the bytes.
+    /// </summary>
+    [SimTest]
+    public static void Interiors_ShippedTmxMatchTheirCodeSeeds(TestContext t)
+    {
+        List<string> ids = InteriorIds();
+        t.AssertEqual(13, ids.Count, "the thirteen interiors are Tiled maps");
+
+        foreach (string id in ids)
+        {
+            string path = TiledMapFile.PathFor(id);
+            string decide =
+                $"If this fails, DECIDE which one is right: a code change to {id}'s defaults " +
+                $"(BuildDefaultLayout / BuildDefaultRecipe) means the file must follow — delete it " +
+                $"and re-run --seed-tiled {id}; a deliberate edit in Tiled means the room has left its " +
+                "seed behind, and this guard should say so for it. Never quietly re-seed over a hand-edited map.";
+            t.Assert(TiledSeeds.Has(id), $"{id} has a code seed to seed its file from");
+            t.Assert(FileAccess.FileExists(path), $"{path} ships with the game. {decide}");
+            if (!FileAccess.FileExists(path))
+                continue;
+
+            TiledMap shipped = TiledMapFile.ReadFrom(path, id);
+            TiledMap seed = TiledSeeds.For(id);
+            t.Assert(shipped.Format == TiledFormat.Interior, $"{path} is an interior file. {decide}");
+            if (shipped.Format != TiledFormat.Interior)
+                continue;
+
+            t.AssertEqual(seed.Width, shipped.Width, $"{path} is {id}'s width. {decide}");
+            t.AssertEqual(seed.Height, shipped.Height, $"{path} is {id}'s height. {decide}");
+            if (seed.Width == shipped.Width && seed.Height == shipped.Height)
+            {
+                string? floor = null, wall = null, dressing = null;
+                for (int y = 0; y < seed.Height; y++)
+                {
+                    for (int x = 0; x < seed.Width; x++)
+                    {
+                        if (floor == null && seed.FloorAt(x, y) != shipped.FloorAt(x, y))
+                            floor = $"({x},{y}): seed {seed.FloorAt(x, y)}, file {shipped.FloorAt(x, y)}";
+                        if (wall == null && seed.WallAt(x, y) != shipped.WallAt(x, y))
+                            wall = $"({x},{y}): seed {seed.WallAt(x, y) ?? "none"}, file {shipped.WallAt(x, y) ?? "none"}";
+                        if (dressing == null && seed.DressingAt(x, y) != shipped.DressingAt(x, y))
+                            dressing = $"({x},{y}): seed {seed.DressingAt(x, y) ?? "none"}, file {shipped.DressingAt(x, y) ?? "none"}";
+                    }
+                }
+                t.Assert(floor == null, $"{path} floors match the seed — first difference {floor}. {decide}");
+                t.Assert(wall == null, $"{path} walls match the seed — first difference {wall}. {decide}");
+                t.Assert(dressing == null, $"{path} dressing matches the seed — first difference {dressing}. {decide}");
+            }
+            t.AssertEqual(seed.Placements.ToJson(), shipped.Placements.ToJson(),
+                $"{path} placements still match the code seed. {decide}");
+
+            string tmx = seed.ToTmx();
+            t.AssertEqual(tmx, TiledMap.Parse(tmx, $"<{id} round trip>").ToTmx(),
+                $"{id}'s seed: ToTmx -> Parse -> ToTmx is byte-identical");
+        }
+    }
+
+    /// <summary>Every interior builds from its shipped file: provenance, every placed
+    /// spawn a marker, every door a Door leading where the file says through a drawn
+    /// doorway with its threshold inside, and the store's counter pieces and strip.</summary>
+    [SimTest]
+    public static async Task Interiors_BuildFromTheirShippedTmx(TestContext t)
+    {
+        SaveService.Instance.NewGame();
+        foreach (string id in InteriorIds())
+        {
+            string path = TiledMapFile.PathFor(id);
+            MapRecipe recipe = TiledMapFile.ReadFrom(path, id).Placements;
+            MapRoot root = MapRegistry.Create(id);
+            t.Host.AddChild(root);
+            await t.WaitFrames(1);
+            try
+            {
+                var map = (InteriorMap)root;
+                t.AssertEqual(path, map.RecipeSource, $"{id} built itself from the shipped tmx");
+
+                foreach (MapPlacement spawn in recipe.OfKind(PlacementKinds.Spawn))
+                {
+                    t.Assert(map.GetNodeOrNull<Marker2D>($"Spawns/{spawn.Id}") != null,
+                        $"{id}: spawn '{spawn.Id}' is a marker travel can ask for");
+                }
+
+                var ground = map.GetNode<TileMapLayer>("Ground");
+                var obstacles = map.GetNode<TileMapLayer>("Obstacles");
+                foreach (MapPlacement door in recipe.OfKind(PlacementKinds.Door))
+                {
+                    var node = map.GetNodeOrNull<Door>($"Door_{door.Id}");
+                    t.AssertEqual(door.Id, node?.TargetMapId, $"{id}: door '{door.Id}' is a Door leading there");
+                    t.AssertEqual(door.Text(PlacementFields.Spawn, "default"), node?.TargetSpawnId,
+                        $"{id}: door '{door.Id}' lands on the file's spawn");
+                    t.AssertEqual(InteriorTiles.ForAct(InteriorTiles.DoorOpen, InteriorTiles.Act.One),
+                        obstacles.GetCellAtlasCoords(door.Cell), $"{id}: the doorway at {door.Cell} is drawn open");
+                    Vector2I inside = door.Cell + Vector2I.Up;
+                    t.AssertEqual(InteriorTiles.ForAct(InteriorTiles.Threshold, InteriorTiles.Act.One),
+                        ground.GetCellAtlasCoords(inside), $"{id}: the threshold is just inside, at {inside}");
+                }
+
+                if (id == MapIds.GeneralStore)
+                {
+                    for (int x = 1; x <= 12; x++)
+                    {
+                        Vector2I piece = x == 1 ? InteriorTiles.CounterL
+                            : x == 12 ? InteriorTiles.CounterR
+                            : InteriorTiles.CounterC;
+                        t.AssertEqual(InteriorTiles.ForAct(piece, InteriorTiles.Act.One),
+                            obstacles.GetCellAtlasCoords(new Vector2I(x, 4)),
+                            $"the store's counter cell ({x},4) is the piece its neighbours pick");
+                    }
+                    t.AssertEqual(new Vector2(112, 72), map.GetNodeOrNull<ShopCounter>("ShopCounter_general_store")?.Position,
+                        "the store's shop strip is centred on the counter row");
+                }
+            }
+            finally
+            {
+                root.Free();
+                await t.WaitFrames(1);
+            }
+        }
+        SaveService.Instance.NewGame();
+    }
+
+    // The barn seed's CSV heads: its floor, walls and dressing layers.
+    private const string FloorDataStart = "name=\"floor\" width=\"16\" height=\"12\">\n  <data encoding=\"csv\">\n";
+    private const string WallDataStart = "name=\"walls\" width=\"16\" height=\"12\">\n  <data encoding=\"csv\">\n";
+    private const string DressingDataStart = "name=\"dressing\" width=\"16\" height=\"12\">\n  <data encoding=\"csv\">\n";
+
+    /// <summary>
+    /// A broken interior file fails loudly naming itself: in the reader (a mixed format,
+    /// an empty floor, a gid in the wrong layer or past its palette, a layer from the
+    /// other format) and in the build (an unknown piece, a garage without its lifts —
+    /// before anything is built — and either format filed under a map of the other).
+    /// The build cases run one at a time: a dev file is keyed by the map id it names.
+    /// </summary>
+    [SimTest]
+    public static void Tiled_InteriorFilesFailLoudly(TestContext t)
+    {
+        string good = TiledSeeds.For(MapIds.Barn).ToTmx();
+        string dressingTileset = $" <tileset firstgid=\"55\" source=\"{TiledPalette.Dressing.TilesetSource}\"/>\n";
+
+        string Swap(string from, string to)
+        {
+            t.Assert(good.Contains(from, StringComparison.Ordinal), $"fixture text '{from}' is in the barn's seed tmx");
+            return good.Replace(from, to, StringComparison.Ordinal);
+        }
+
+        var broken = new (string Label, string Body)[]
+        {
+            ("<surfaces tileset added>", Swap(dressingTileset,
+                dressingTileset + $" <tileset firstgid=\"56\" source=\"{TiledPalette.Surfaces.TilesetSource}\"/>\n")),
+            ("<empty floor cell>", Swap(FloorDataStart + "5,", FloorDataStart + "0,")),
+            ("<floor in walls>", Swap(WallDataStart + "29,", WallDataStart + "5,")),
+            ("<walls renamed surface>", Swap("name=\"walls\"", "name=\"surface\"")),
+            ("<dressing past palette>", Swap(DressingDataStart + "0,", DressingDataStart + "56,")),
+        };
+        foreach ((string label, string body) in broken)
+        {
+            try
+            {
+                TiledMap.Parse(body, label);
+                t.Assert(false, $"{label}: should have thrown");
+            }
+            catch (MapRecipeException e)
+            {
+                t.AssertEqual(label, e.FilePath, $"{label}: the exception names the file");
+            }
+        }
+        t.AssertEqual(MapIds.Barn, TiledMap.Parse(good, "<good>").MapId, "the unedited barn seed reads");
+
+        void Refused(string label, string path, Func<TiledMap> file, Func<MapRoot> create, Action<MapRoot>? after = null)
+        {
+            MapRoot? map = null;
+            try
+            {
+                TiledMapFile.WriteText(path, file().ToTmx());
+                TiledMapFile.UseDevFile(path);
+                map = create();
+                try
+                {
+                    map._Ready();
+                    t.Assert(false, $"{label}: should have thrown");
+                }
+                catch (MapRecipeException e)
+                {
+                    t.AssertEqual(path, e.FilePath, $"{label}: refused, naming the file");
+                }
+                after?.Invoke(map);
+            }
+            finally
+            {
+                TiledMapFile.ClearDevFiles();
+                if (FileAccess.FileExists(path))
+                    DirAccess.RemoveAbsolute(path);
+                map?.Free();
+            }
+        }
+
+        TiledMap BarnSeedAs(string mapId)
+        {
+            TiledMap barn = TiledSeeds.For(MapIds.Barn);
+            var floors = new string[barn.Width, barn.Height];
+            var walls = new string?[barn.Width, barn.Height];
+            var dressing = new string?[barn.Width, barn.Height];
+            for (int y = 0; y < barn.Height; y++)
+            {
+                for (int x = 0; x < barn.Width; x++)
+                {
+                    floors[x, y] = barn.FloorAt(x, y);
+                    walls[x, y] = barn.WallAt(x, y);
+                    dressing[x, y] = barn.DressingAt(x, y);
+                }
+            }
+            return TiledMap.Interior(mapId, floors, walls, dressing, new MapRecipe(mapId), $"<barn as {mapId}>");
+        }
+
+        try
+        {
+            Refused("the barn with a sofa", $"{DevFolder}interior_0.tmx", () =>
+            {
+                TiledMap seed = TiledSeeds.For(MapIds.Barn);
+                seed.Placements.Add(PlacementKinds.Furniture, "sofa", 3, 3);
+                return seed;
+            }, () => new BarnMap { MapId = MapIds.Barn });
+
+            Refused("the garage with lifts 0 and 2", $"{DevFolder}interior_1.tmx", () =>
+            {
+                TiledMap seed = TiledSeeds.For(MapIds.GarageInterior);
+                seed.Placements.OfKind(PlacementKinds.Lift).Single(lift => lift.Id == "1").Id = "2";
+                return seed;
+            }, () => new GarageInteriorMap { MapId = MapIds.GarageInterior },
+                map => t.Assert(map.GetNodeOrNull($"Door_{MapIds.WestEntry}") == null,
+                    "the garage refused its lifts before building anything"));
+
+            Refused("an interior file for the fork", $"{DevFolder}interior_2.tmx",
+                () => BarnSeedAs(MapIds.Fork), () => new ForkMap { MapId = MapIds.Fork });
+
+            Refused("an exterior file for the barn", $"{DevFolder}interior_3.tmx", () =>
+            {
+                TiledMap fork = TiledSeeds.For(MapIds.Fork);
+                var surfaces = new string[fork.Width, fork.Height];
+                var obstacles = new string?[fork.Width, fork.Height];
+                for (int y = 0; y < fork.Height; y++)
+                {
+                    for (int x = 0; x < fork.Width; x++)
+                    {
+                        surfaces[x, y] = fork.SurfaceAt(x, y);
+                        obstacles[x, y] = fork.ObstacleAt(x, y);
+                    }
+                }
+                return new TiledMap(MapIds.Barn, surfaces, obstacles, new MapRecipe(MapIds.Barn), "<fork as barn>");
+            }, () => new BarnMap { MapId = MapIds.Barn });
+        }
+        finally
+        {
+            DirAccess.RemoveAbsolute(DevFolder);
+        }
+    }
+
+    /// <summary>The interior palettes on disk are the palettes the loader uses, and every
+    /// furniture piece is reachable by its placement id.</summary>
+    [SimTest]
+    public static void Tiled_InteriorPalettesAreComplete(TestContext t)
+    {
+        foreach (TiledPalette palette in new[] { TiledPalette.Floors, TiledPalette.Walls, TiledPalette.Dressing })
+            AssertTilesetMatches(t, palette.TilesetPath, palette.Property, palette.Names);
+
+        int pieces = 0;
+        foreach (FieldInfo field in typeof(Furniture).GetFields(BindingFlags.Public | BindingFlags.Static))
+        {
+            if (field.FieldType != typeof(Rect2))
+                continue;
+            pieces++;
+            string id = Regex.Replace(field.Name, "(?<!^)([A-Z])", "_$1").ToLowerInvariant();
+            t.AssertEqual((Rect2)field.GetValue(null)!, Furniture.ByName(id),
+                $"Furniture.{field.Name} is placed as '{id}'");
+        }
+        t.AssertEqual(36, pieces, "the sheet's 36 pieces");
+        t.AssertEqual(36, Furniture.Ids.Count, "and one id each");
     }
 
     [SimTest]

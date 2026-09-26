@@ -100,9 +100,15 @@ public static class TiledSurfaces
     /// A swatch strip, (tiles.Count*16) x 16, RGBA8: each (source, coords) tile blitted,
     /// in order, from <see cref="RoadsideTerrain.Get"/> — the set every exterior paints with.
     /// </summary>
-    internal static Image StripFor(IReadOnlyList<(int SourceId, Vector2I Coords)> tiles)
+    internal static Image StripFor(IReadOnlyList<(int SourceId, Vector2I Coords)> tiles) =>
+        StripFor(RoadsideTerrain.Get(), tiles);
+
+    /// <summary>
+    /// A swatch strip, (tiles.Count*16) x 16, RGBA8: each (source, coords) tile blitted,
+    /// in order, from <paramref name="tileSet"/>.
+    /// </summary>
+    internal static Image StripFor(TileSet tileSet, IReadOnlyList<(int SourceId, Vector2I Coords)> tiles)
     {
-        TileSet tileSet = RoadsideTerrain.Get();
         var images = new Dictionary<int, (TileSetAtlasSource Source, Image Image)>();
 
         (TileSetAtlasSource, Image) Atlas(int sourceId)

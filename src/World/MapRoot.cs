@@ -25,23 +25,6 @@ public partial class MapRoot : Node2D
 
     [Export] public string MapId { get; set; } = "";
 
-    /// <summary>The recipe source a map reports when it built from a handed-in <see cref="RecipeOverride"/>.</summary>
-    public const string EditedRecipe = "<editor, unsaved>";
-
-    /// <summary>
-    /// A <see cref="MapRecipe"/> to build from INSTEAD of reading this map's own file.
-    /// The placement editor sets it before the node enters the tree, because the stage
-    /// holds the single mutable copy of the placements in memory and a rebuild-per-drag
-    /// has to show the drag that is not on disk yet — re-reading the file mid-drag would
-    /// undo the edit the rebuild was for.
-    ///
-    /// Null everywhere else. The running game never sets it, so a map with no override
-    /// reads data/maps/(id).json exactly as it always has. Not save state and not
-    /// durable: it lives for one node's lifetime, and the stage throws that node away on
-    /// the next rebuild.
-    /// </summary>
-    public MapRecipe? RecipeOverride { get; set; }
-
     public TileMapLayer? Ground => GetNodeOrNull<TileMapLayer>("Ground");
 
     /// <summary>
@@ -80,6 +63,13 @@ public partial class MapRoot : Node2D
             Mathf.Max(rect.Size.X, ViewportWidth), Mathf.Max(rect.Size.Y, ViewportHeight));
         return new Rect2(rect.Position - (size - rect.Size) / 2f, size);
     }
+
+    /// <summary>The centre of a placement's cell, in map px.</summary>
+    protected static Vector2 CellCentre(MapPlacement placement) =>
+        new(placement.X * TileSize + 8, placement.Y * TileSize + 8);
+
+    protected static Marker2D SpawnMarker(string name, int x, int y) =>
+        new() { Name = name, Position = new Vector2(x * TileSize + 8, y * TileSize + 8) };
 
     public Vector2 GetSpawn(string id = "default")
     {
@@ -336,18 +326,6 @@ public partial class MapRoot : Node2D
 
     // Terrain-only tillability; existing tile records are the model's concern.
     public virtual bool IsTillable(int x, int y) => false;
-
-    /// <summary>
-    /// Cells this map keeps off the hoe for a reason no tile can show: under a roof
-    /// overhang, in a doorway, along the road corridor. <see cref="IsTillable"/> consults
-    /// the set itself — this only hands it out.
-    ///
-    /// EDITOR ONLY. Nothing in the game calls it, and nothing should: a reservation is
-    /// the one piece of map geometry that is completely invisible until someone tries to
-    /// till it and cannot, which makes it exactly what a placement editor has to be able
-    /// to draw. Empty in the base, because a map with no reservations has nothing to say.
-    /// </summary>
-    public virtual IReadOnlyCollection<Vector2I> ReservedTiles() => Array.Empty<Vector2I>();
 
     // O(1) incremental visual update for one tile's record (null = no record).
     public virtual void RefreshTile(int x, int y, TileRecord? record) { }

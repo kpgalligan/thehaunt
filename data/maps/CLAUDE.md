@@ -1,73 +1,70 @@
-# data/maps — map recipes
+# data/maps — map files
 
-One file per map id, read by that map's build function: a JSON recipe
-(`data/maps/<mapId>.json` — the farm's `test_farm.json`) or a Tiled map
-(`data/maps/<mapId>.tmx` — every `ExteriorMap`: the town and the road strip,
-`west_entry`/`billies`/`fork`/`east_fork`/`east_entry`/`drive_in`; see "Tiled maps"
-below). The interiors still hold their placements as C# literals. The reader/writer code lives in
-`src/World/` (MapRecipe, MapPlacement, PlacementKinds/PlacementFields, MapRecipeFile,
-MapRecipeException, MapRecipeSeeds; TiledMap, TiledMapFile, TiledSurfaces,
-TiledObstacles, TiledSeeds);
-the graphical editor for JSON recipes is the Haunt Mapper (`scenes/editor/MapStage.tscn`
-+ `addons/haunt_mapper/`); Tiled maps are edited in Tiled.
+Every map is a Tiled map, one `.tmx` per map id, read by that map's build function:
+`data/maps/<mapId>.tmx` — every `ExteriorMap` (the town and the road strip,
+`west_entry`/`billies`/`fork`/`east_fork`/`east_entry`/`drive_in`), the farm
+(`test_farm.tmx`) and every `InteriorMap` (the thirteen interiors); see "Tiled maps",
+"The farm" and "Interiors" below. The reader/writer code lives in `src/World/`
+(MapRecipe, MapPlacement, PlacementKinds/PlacementFields, MapRecipeException; TiledMap,
+TiledFormat, TiledPalette, TiledMapFile, TiledSurfaces, TiledObstacles, TiledSeeds).
+Maps are edited in Tiled, through `tiled/thehaunt.tiled-project`.
 
-- Map recipes are CONTENT, not save state — the same bucket as ItemDefs and CropDefs,
-  never GameData. Read at map build time, never written at runtime; the editor is the
-  only writer. No SaveMigrations versioning: a recipe change is a content change.
-- A recipe stores tile coordinates and NAMES, never atlas coordinates and never pixel
+- Map files are CONTENT, not save state — the same bucket as ItemDefs and CropDefs,
+  never GameData. Read at map build time, never written at runtime; Tiled (and the
+  `--seed-tiled` exporter, for a missing file) is the only writer. No SaveMigrations
+  versioning: a map change is a content change.
+- A map file stores tile coordinates and NAMES, never atlas coordinates and never pixel
   positions, because that is exactly what keeps `ForAct` wrapping every painted cell
-  and `Prop.Anchor` owning every anchor. Unknown records round-trip verbatim, like
-  unknown item ids — unknown kinds AND unknown fields both survive load and save
-  untouched.
-- A map with no recipe falls back to its C# literals, so every map stays constructible
-  with no file present. A recipe that exists but cannot be read throws
+  and `Prop.Anchor` owning every anchor. Unknown placement kinds ride through the
+  build untouched.
+- A map with no file falls back to its C# code seed, so every map stays constructible
+  with no file present. A file that exists but cannot be read throws
   `MapRecipeException`, which always names the file. Maps are NOT becoming .tscn —
   `MapRegistry`'s "becomes PackedScene.Instantiate" comment is superseded.
-- Canonical text format, for legible diffs (being mergeable is most of why this is JSON
-  and not a scene): one placement per line, sorted by y then x then kind, fields in a
-  fixed order, "\n" endings on every platform. Serialising the same recipe twice is
-  byte-identical, and so is a load/save cycle. Values are strings, numbers and bools
-  only — an object or array value cannot be held to one line per placement.
 - Scatter/prop placements are DECORATIVE-ONLY on maps with field obstacles: the
   farm's clearable trees, stumps and boulders are save state (ObstacleGen seeds
-  them; the axe and pick clear them), so its recipe keeps only the fallen log. A
+  them; the axe and pick clear them), so its file keeps only the fallen log. A
   drawn obstacle that ignored the axe beside an identical one that falls would be
   the map lying about its own rules.
-- Terrain painting stays generative. A JSON recipe has no terrain representation at
-  all; a Tiled map carries the SURFACE grid (what each cell is, by name), never painted
-  tiles. What moves into data is what a person would otherwise drag: props, scatter,
-  spawn markers, doors, exits, signs, furniture and the interactables.
+- Terrain painting stays generative. A Tiled map carries its grids (what each cell
+  is, by name — surfaces, or an interior's floors and walls), never painted tiles;
+  its placements are what a person would otherwise drag: props, scatter, spawn
+  markers, doors, exits, signs, furniture and the interactables.
 - Field keys are `PlacementFields` constants, never literals: a mistyped key is not an
   error, it is an unknown field that round-trips perfectly and is silently ignored by
   the builder — the worst possible failure. A sign's `text` field is the EDITOR'S
   scratch channel only: a promoted sign resolves its words from the owning place's
   file (src/Content/Places — `Farm.SignTextFor`, by placement id), which wins over
-  the field; a freshly dragged board carries its text here until it is promoted.
-- Seeding: `MapRecipeSeeds` exports a map's first recipe from its C# placement literals
-  (fidelity by construction — never transcribe coordinates by hand). Once a map is
-  seeded, its file is the map; the seed lives on as the missing-file fallback, and
-  `MapSeedTests` is the drift guard — once someone drags a placement in the editor,
-  file and seed part company on purpose and the guard says so.
+  the field; a freshly placed board carries its text here until it is promoted.
 
-## Tiled maps (every exterior)
+## Tiled maps (every map)
 
-Every `ExteriorMap` is a Tiled map: `data/maps/<mapId>.tmx`, read by our own C# loader
+Every map is a Tiled map: `data/maps/<mapId>.tmx`, read by our own C# loader
 (`TiledMap`/`TiledMapFile`, src/World) — no Tiled importer addon. `ExteriorMap` owns
-the one build; each map's C# literals (`BuildDefaultSurfaces`, `BuildDefaultRecipe`)
-stay as the missing-file fallback and the seed. `town.tmx` is Kevin's hand edit; the
-six road-strip files are still exactly their seeds.
+the exteriors' one build and `InteriorMap` the interiors' (see "Interiors"); the farm
+(`TestMap`) keeps its own (see "The farm"). Each map's C# literals stay as the
+missing-file fallback and the seed. `town.tmx` is Kevin's hand edit; the six
+road-strip files, `test_farm.tmx` and the thirteen interior files are still exactly
+their seeds.
 
 - TMX, not TMJ: Tiled writes a TMX CSV layer one map row per line, so a repainted cell
   is a one-line diff. In Map Properties keep Tile Layer Format = CSV; the reader
   refuses anything else (and infinite maps, other tile sizes, embedded tilesets,
   extra layers, groups, image layers) with a `MapRecipeException` naming the file.
-- Tilesets: one or two external tilesets — `tiled/surfaces.tsx` (required) and
-  `tiled/obstacles.tsx` (optional), each at most once. Tile layers: one or two
-  map-sized CSV layers — `surface` (required) and `obstacles` (optional), each at most
-  once, in any order. A gid belongs to the tileset with the greatest firstgid at or
-  below it, so a file saved before a surface was appended still reads.
+- Two FORMATS (`TiledFormat`), and a file is one or the other — its tilesets say
+  which, and mixing them is an error. EXTERIOR (every exterior and the farm): external
+  tilesets `tiled/surfaces.tsx` (required) and `tiled/obstacles.tsx` (optional); tile
+  layers `surface` (required) and `obstacles` (optional). INTERIOR (every interior):
+  tilesets `tiled/floors.tsx` (required), `tiled/walls.tsx` and `tiled/dressing.tsx`
+  (optional); tile layers `floor` (required), `walls` and `dressing` (optional). Each
+  tileset and each layer at most once, layers map-sized CSV in any order. The first
+  layer has no empty cell; the optional ones read 0 as empty. A gid belongs to the
+  tileset with the greatest firstgid at or below it, so a file saved before a palette
+  entry was appended still reads, and it must land in its layer's own palette. A map
+  refuses a file of the other format (`RequireFormat`), naming the file.
 - The `surface` tile layer is the map's `ExteriorMap.Surface` grid BY NAME: each
-  palette tile stands for one surface (Grass, Dirt, Road...) and the game still paints
+  palette tile stands for one surface (Grass, Dirt, Road..., and the farm's Pasture
+  and Path) and the game still paints
   every cell itself (BuildGround + ForAct). The swatch you paint with is never the
   tile the game draws.
 - Kerb cuts (where a driveway breaks the road's kerb) are derived AND placed: every
@@ -81,8 +78,8 @@ six road-strip files are still exactly their seeds.
   markings follow it. Water and DeepWater are
   impassable (placeholder art; depth is visual only).
 - The optional `obstacles` tile layer is the map's `ExteriorMap.Obstacle` grid BY
-  NAME, painted from the `tiled/obstacles.tsx` palette (Fence, Bush); 0 = empty. Both
-  block. Code picks each fence's piece from its fence neighbours
+  NAME, painted from the `tiled/obstacles.tsx` palette (Fence, Bush, and the farm's
+  Gate); 0 = empty. Fence and Bush block. Code picks each fence's piece from its fence neighbours
   (`FarmTiles.FenceFor`) — paint "fence here", never a particular piece. No layer
   means no obstacles, and the layer needs no obstacles.tsx while it is all empty.
 - Adding the layer to an existing map: rerun `--seed-tiled <mapId>` (it writes the
@@ -107,18 +104,83 @@ six road-strip files are still exactly their seeds.
 - `tiled/` holds Tiled's support files and carries a `.gdignore` (Godot must not
   import them). Open `tiled/thehaunt.tiled-project` in Tiled 1.11+ to get one object
   class per placement kind, with its fields' defaults.
-- The palettes (`tiled/surfaces.tsx` + `.png`, `tiled/obstacles.tsx` + `.png`) are
-  DERIVED from `TiledSurfaces.Names` / `TiledObstacles.Names` (= the `Surface` and
-  `Obstacle` enums, both APPEND-ONLY — gids index them) and never hand-edited:
-  `godot-mono --headless --path . -- --seed-tiled <mapId>` (any exterior) rewrites all
-  four on every run. The same run writes `thehaunt.tiled-project` only if it is
+- The five palettes (`TiledPalette.All`: `tiled/surfaces`, `obstacles`, `floors`,
+  `walls`, `dressing` — ten files, each a `.tsx` + `.png`) are DERIVED from their
+  names (= the `ExteriorMap.Surface`/`Obstacle` and `InteriorMap.Floor`/`Wall`/`Dressing`
+  enums, all APPEND-ONLY — gids index them) and never hand-edited:
+  `godot-mono --headless --path . -- --seed-tiled <mapId>` (any map) rewrites all
+  ten on every run. The same run writes `thehaunt.tiled-project` only if it is
   missing and the `.tmx` only if it is missing — an existing `.tmx` is never
   overwritten. The project carries one class per placement kind, so after a kind or a
-  class member is added (e.g. `kerb_cut`, the sign's `board`), delete the project file
-  and re-run a seed to pick them up.
+  class member is added (e.g. `kerb_cut`, the sign's `board`, the chest's `art`, the
+  garage's `lift`), delete the project file and re-run a seed to pick them up.
 - Drift guards compare SEMANTICALLY (not bytes — Tiled owns the bytes):
   `Town_ShippedTmxPlacementsMatchTheCodeSeed` is size + placements only, since Kevin
   reshaped the town's woods in Tiled (2026-09-26) and its ground left its seed behind
   on purpose; `Exteriors_ShippedTmxMatchTheirCodeSeeds` holds the six road-strip files
-  to their seeds in full (size, every surface, every obstacle, placements). When a
-  Tiled edit makes one fail, DECIDE, as with MapSeedTests.
+  and `test_farm.tmx` to their seeds in full (size, every surface, every obstacle,
+  placements), and `Interiors_ShippedTmxMatchTheirCodeSeeds` holds all thirteen
+  interior files in full (size, every floor, wall and dressing cell, placements).
+  When a Tiled edit makes one fail, DECIDE: a code change to the seed means the file
+  follows (delete it and re-seed); a deliberate Tiled edit means the map has left its
+  seed behind, and the guard should say so for it. Never quietly re-seed over a
+  hand-edited map.
+
+## The farm (`test_farm.tmx`)
+
+The id stays `test_farm` (its rename is a separate save migration). `TestMap` reads the
+file through its own load (`LoadMap`), not the `ExteriorMap` template.
+
+- Surfaces: `Pasture`, `Path`, `Dirt` (the wagon road — unsealed, the farm never
+  paves) and `Woods`. Obstacles: `Fence` and `Gate` (the gate is open and walkable).
+  The fences paint on the farm's Ground layer, from its own sheet: rails block through
+  the sheet's collision, the gate cell is standable and reserved from the hoe.
+- The pen is the bounding box of the farm's fences — one enclosure. ObstacleGen keeps
+  it plus a one-cell ring clear of field obstacles.
+- The palette is one list for every map, so each side refuses the other's entries:
+  the farm refuses Grass, Gravel, Cobble, Asphalt, Concrete, Road, Water, DeepWater and
+  Bush; an exterior refuses Pasture, Path and Gate. Both throw `MapRecipeException`
+  naming the file and the cell.
+- Kinds the farm builds: `prop` (tree ids), `scatter`, `spawn`, `door`, `sign`,
+  `shipping_bin`, `mailbox`, and exactly one `exit`, to `fork`. A sign named
+  `BlockadeSign` is required (the storm blockade toggles it).
+- The drift guard (`Exteriors_ShippedTmxMatchTheirCodeSeeds`) holds the farm in full.
+- Not in the file, and never: the facades, their footprint blockers and roof
+  reservations, the storm debris, the road corridor, and the field obstacles, soil,
+  crops and watered state (save state).
+
+## Interiors
+
+Every `InteriorMap` is an interior-format Tiled map, one file per map id — each motel
+room is its own file (`motel_room_1`..`4`), because the rooms already differ (3 is
+Pell's, 4 the one Walt gave up on) and story treats them separately. The room's size
+is the file's. `InteriorMap._Ready` is the one build.
+
+- Layers, by name: `floor` (`InteriorMap.Floor`: Plank, PlankStagger, PlankWorn,
+  Stone, Dirt, Board, Check, Hay, RugA, RugB, Stain, Dark) paints Ground; `walls`
+  (`InteriorMap.Wall`: the wall courses, windows, cornices, ceiling, rafters, loft,
+  fixtures, shelves and storage, and `Blocker` — collision for a sprite, drawing
+  nothing) paints Obstacles, the visual AND the collision; `dressing`
+  (`InteriorMap.Dressing`: Cobweb, the sheet's one alpha tile) hangs over both.
+- DERIVED, never in the file: each floor's variant (`(x+y) % n` — PlankStagger is the
+  farmhouse's plank-plank-worn step, PlankWorn Billie's worn-heavy one); a Counter's
+  or Hearth's L/C/R piece from its same-name neighbours (paint "counter here", never a
+  piece); door_open on every door cell, and the threshold on the floor cell just
+  north of it. Paint a hearth's fire (HearthFire) yourself, under its centre.
+- PAINTED, per room: the ring's north row is a cornice whose material is picked for
+  contrast with THAT room's floor (a log cornice over plank, or plank over dirt, is
+  the same brown twice and the back wall dissolves). The sides carry the building's
+  material.
+- Kinds an interior builds: `spawn`; `door` (id = target map, `spawn` its target
+  spawn; the node is `Door_<id>`); `furniture` (id = a `Furniture` piece in
+  snake_case — `tall_shelf`, `chair_back`; an unknown one throws listing them; blocks
+  its base row unless `blocks` is false — a till on a counter, a lamp on a desk);
+  `bed` (id = its piece); `chest` (id = its storage id; `art` = a furniture piece, or
+  empty for the procedural placeholder); `shop_counter` (id = a shop catalog; its
+  rectangle is the strip); and the garage's `lift` (id "0"/"1", its bay's west cell;
+  exactly one of each, or the garage refuses the file before building anything). Any
+  other known kind throws; an unknown kind rides through.
+- Never in the file: the Surround (sized from the grid), the garage's cars and their
+  labels (GarageJobs), and the barn's sweep (BarnRules repaints the file's Stain
+  floors and Cobweb dressing to dirt and nothing once the barn is repaired — the file
+  draws it derelict).

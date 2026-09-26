@@ -29,4 +29,7 @@ public static class PlacementFields
 
     /// <summary>False for a sign whose board the art already draws (a pole's foot): the node reads, it draws nothing. Default true.</summary>
     public const string Board = "board";
+
+    /// <summary>A chest's look: a Furniture id ("cupboard"). Absent or "" = the procedural placeholder.</summary>
+    public const string Art = "art";
 }

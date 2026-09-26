@@ -15,20 +15,6 @@ namespace TheHaunt.World;
 /// </summary>
 public partial class GasStationMap : InteriorMap
 {
-    protected override int Width => 12;
-    protected override int Height => 9;
-    protected override InteriorTiles.WallSet Walls { get; } =
-        new(InteriorTiles.WallPlank, InteriorTiles.CornicePlaster);
-    protected override int DoorX => 5;
-    protected override int DoorY => 8;
-
-    protected override Vector2I[] Floor { get; } =
-    {
-        InteriorTiles.FloorStone[0], InteriorTiles.FloorStone[1],
-    };
-
-    private const int CounterLeft = 8, CounterRight = 10, CounterRow = 4;
-
     public override void _EnterTree()
     {
         // Default the id before registration so WorldSim never sees a nameless map.
@@ -37,56 +23,44 @@ public partial class GasStationMap : InteriorMap
         base._EnterTree();
     }
 
-    protected override void Decorate()
+    protected override void BuildDefaultLayout()
     {
+        ResetLayout(12, 9, Floor.Stone, Wall.Plank, Wall.CornicePlaster);
+
         // Back-wall stock, one gap: the empty shelf is mundane, not an omen.
-        SetWall(1, 1, InteriorTiles.ShelfFull);
-        SetWall(2, 1, InteriorTiles.ShelfFull);
-        SetWall(3, 1, InteriorTiles.ShelfFull);
-        SetWall(4, 1, InteriorTiles.ShelfEmpty);
-        SetWall(3, 0, InteriorTiles.WindowLit);
-        SetWall(9, 0, InteriorTiles.Plaque);
+        SetWall(1, 1, Wall.ShelfFull);
+        SetWall(2, 1, Wall.ShelfFull);
+        SetWall(3, 1, Wall.ShelfFull);
+        SetWall(4, 1, Wall.ShelfEmpty);
+        SetWall(3, 0, Wall.WindowLit);
+        SetWall(9, 0, Wall.Plaque);
+
+        // The counter; the area behind it is nobody's secret.
+        SetWallRun(8, 10, 4, Wall.Counter);
+
+        SetWall(1, 6, Wall.Barrel);
+    }
+
+    protected override MapRecipe BuildDefaultRecipe()
+    {
+        var recipe = new MapRecipe(MapIds.GasStation);
 
         // Two aisles. The threshold column stays clear all the way to the counter.
-        AddFurniture(Furniture.WideShelf, 2, 3);
-        AddFurniture(Furniture.WideShelf, 2, 5);
+        recipe.Add(PlacementKinds.Furniture, "wide_shelf", 2, 3);
+        recipe.Add(PlacementKinds.Furniture, "wide_shelf", 2, 5);
 
-        // The counter, till toward the door; the area behind it is nobody's secret.
-        AddCounter(CounterLeft, CounterRight, CounterRow);
-        AddFurniture(Furniture.Till, 9, CounterRow, blocks: false);
-        AddFurniture(Furniture.Sack, 10, 3);
+        // Till toward the door, on the counter.
+        recipe.Add(PlacementKinds.Furniture, "till", 9, 4).SetBool(PlacementFields.Blocks, false);
+        recipe.Add(PlacementKinds.Furniture, "sack", 10, 3);
 
         // Deliveries that never quite get shelved.
-        AddFurniture(Furniture.Crates, 9, 7);
-        AddFurniture(Furniture.Sack, 1, 7);
-        SetWall(1, 6, InteriorTiles.Barrel);
-    }
+        recipe.Add(PlacementKinds.Furniture, "crates", 9, 7);
+        recipe.Add(PlacementKinds.Furniture, "sack", 1, 7);
 
-    protected override void BuildSpawns()
-    {
-        var spawns = new Node2D { Name = "Spawns" };
-        spawns.AddChild(new Marker2D
-        {
-            Name = "entry",
-            Position = new Vector2(DoorX * TileSize + 8, 7 * TileSize + 8), // (88, 120)
-        });
-        spawns.AddChild(new Marker2D
-        {
-            Name = "default",
-            Position = new Vector2(5 * TileSize + 8, 5 * TileSize + 8), // (88, 88)
-        });
-        AddChild(spawns);
-    }
-
-    protected override void BuildInteractables()
-    {
-        AddChild(new Door
-        {
-            Name = "OutDoor",
-            TargetMapId = MapIds.WestEntry,
-            TargetSpawnId = "from_gas",
-            DrawPlaceholder = false,
-            Position = new Vector2(DoorX * TileSize + 8, DoorY * TileSize + 8), // (88, 136)
-        });
+        recipe.Add(PlacementKinds.Spawn, "entry", 5, 7);     // (88, 120)
+        recipe.Add(PlacementKinds.Spawn, "default", 5, 5);   // (88, 88)
+        recipe.Add(PlacementKinds.Door, MapIds.WestEntry, 5, 8)
+            .SetText(PlacementFields.Spawn, "from_gas");
+        return recipe;
     }
 }

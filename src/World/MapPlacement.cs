@@ -111,8 +111,6 @@ public sealed class MapPlacement
 
     public void SetBool(string key, bool value) => SetRaw(key, value ? "true" : "false");
 
-    public bool RemoveField(string key) => _fields.Remove(key);
-
     /// <summary>The field's value if it is a string; <paramref name="fallback"/> if it is absent OR another type.</summary>
     public string Text(string key, string fallback = "")
     {

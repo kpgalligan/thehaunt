@@ -13,7 +13,7 @@ public partial class TestRunner : Node
 {
     // Guard against silent discovery breakage: the suite ships exactly this many
     // [SimTest]s. Re-pin to the exact count whenever tests ship.
-    private const int MinimumExpectedTests = 217;
+    private const int MinimumExpectedTests = 215;
 
     public override async void _Ready()
     {

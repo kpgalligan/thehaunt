@@ -15,21 +15,6 @@ namespace TheHaunt.World;
 /// </summary>
 public partial class FarmHouseMap : InteriorMap
 {
-    protected override int Width => 14;
-    protected override int Height => 10;
-    protected override InteriorTiles.WallSet Walls => InteriorTiles.FarmhouseWalls;
-    protected override int DoorX => 7;
-    protected override int DoorY => 9;
-
-    // The reference's three-step diagonal stagger — plank a, plank b, then a worn board.
-    protected override Vector2I[] Floor { get; } =
-    {
-        InteriorTiles.FloorPlank[0], InteriorTiles.FloorPlank[1], InteriorTiles.FloorPlankWorn,
-    };
-
-    private const int HearthX = 10;   // hearth_l/c/r on (10..12, 1), fire at (11, 2)
-    private const int BedX = 12;
-
     public override void _EnterTree()
     {
         // Default the id before registration so WorldSim never sees a nameless map.
@@ -38,77 +23,54 @@ public partial class FarmHouseMap : InteriorMap
         base._EnterTree();
     }
 
-    protected override void Decorate()
+    protected override void BuildDefaultLayout()
     {
+        // The reference's three-step diagonal stagger — plank a, plank b, then a worn board.
+        ResetLayout(14, 10, Floor.PlankStagger, Wall.Log, Wall.CornicePlank);
+
         // Lit windows in the cornice row. They are drawn on a cream plaster ground, so
         // against the log wall they read as whitewashed trim around the glass — which is
         // how the reference room draws them too.
-        SetWall(3, 0, InteriorTiles.WindowLit);
-        SetWall(10, 0, InteriorTiles.WindowLit);
+        SetWall(3, 0, Wall.WindowLit);
+        SetWall(10, 0, Wall.WindowLit);
 
-        AddHearth(HearthX, 1);
+        // hearth_l/c/r on (10..12, 1), fire at (11, 2): the fire tile has no lintel of its
+        // own, so it only ever goes underneath (handoff §5).
+        SetWallRun(10, 12, 1, Wall.Hearth);
+        SetWall(11, 2, Wall.HearthFire);
 
         // The rug is floor, not furniture: red on the left column, plum on the right.
         for (int y = 6; y <= 7; y++)
         {
-            SetFloor(5, y, InteriorTiles.RugA);
-            SetFloor(6, y, InteriorTiles.RugB);
+            SetFloor(5, y, Floor.RugA);
+            SetFloor(6, y, Floor.RugB);
         }
-
-        AddFurniture(Furniture.Stove, 3, 2);
-        AddFurniture(Furniture.Pot, 4, 2);
-        AddFurniture(Furniture.ChairSide, 5, 4);
-        AddFurniture(Furniture.Table, 6, 4);
-        AddFurniture(Furniture.ChairBack, 8, 4);
-        AddFurniture(Furniture.Lamp, 9, 6);
-        AddFurniture(Furniture.Bucket, 1, 7);
-        AddFurniture(Furniture.Sack, 12, 7);
     }
 
-    protected override void BuildSpawns()
+    protected override MapRecipe BuildDefaultRecipe()
     {
-        var spawns = new Node2D { Name = "Spawns" };
-        spawns.AddChild(new Marker2D
-        {
-            Name = "entry",
-            Position = new Vector2(DoorX * TileSize + 8, 8 * TileSize + 8), // (120, 136)
-        });
-        spawns.AddChild(new Marker2D
-        {
-            Name = "default",
-            Position = new Vector2(6 * TileSize + 8, 5 * TileSize + 8), // (104, 88)
-        });
-        AddChild(spawns);
-    }
+        var recipe = new MapRecipe(MapIds.FarmHouse);
+        recipe.Add(PlacementKinds.Furniture, "stove", 3, 2);
+        recipe.Add(PlacementKinds.Furniture, "pot", 4, 2);
+        recipe.Add(PlacementKinds.Furniture, "chair_side", 5, 4);
+        recipe.Add(PlacementKinds.Furniture, "table", 6, 4);
+        recipe.Add(PlacementKinds.Furniture, "chair_back", 8, 4);
+        recipe.Add(PlacementKinds.Furniture, "lamp", 9, 6);
+        recipe.Add(PlacementKinds.Furniture, "bucket", 1, 7);
+        recipe.Add(PlacementKinds.Furniture, "sack", 12, 7);
 
-    protected override void BuildInteractables()
-    {
-        var interactables = new Node2D { Name = "Interactables" };
+        recipe.Add(PlacementKinds.Spawn, "entry", 7, 8);     // (120, 136)
+        recipe.Add(PlacementKinds.Spawn, "default", 6, 5);   // (104, 88)
+
         // The bed that used to sit outdoors on the farm — same class, new home, and now
         // the 16x32 piece from the sheet standing exactly on its two cells.
-        interactables.AddChild(new Bed
-        {
-            Name = "Bed",
-            ArtSource = Furniture.Bed,
-            Position = new Vector2(BedX * TileSize + 8, 3 * TileSize), // centre of (12,2)-(12,3)
-        });
-        // The reference room draws the storage on its cell as a cupboard; the node is
-        // unchanged, so the chest's contents still live in GameData.Storages.
-        interactables.AddChild(new Chest
-        {
-            Name = "Chest",
-            StorageId = StorageIds.FarmHouseChest,
-            ArtSource = Furniture.Cupboard,
-            Position = new Vector2(2 * TileSize + 8, 2 * TileSize + 8), // (40, 40)
-        });
-        interactables.AddChild(new Door
-        {
-            Name = "FarmDoor",
-            TargetMapId = MapIds.Farm,
-            TargetSpawnId = "house_door",
-            DrawPlaceholder = false,   // door_open is painted into the wall ring
-            Position = new Vector2(DoorX * TileSize + 8, DoorY * TileSize + 8), // (120, 152)
-        });
-        AddChild(interactables);
+        recipe.Add(PlacementKinds.Bed, "bed", 12, 3);
+        // The reference room draws the storage on its cell as a cupboard; the chest's
+        // contents still live in GameData.Storages.
+        recipe.Add(PlacementKinds.Chest, StorageIds.FarmHouseChest, 2, 2)
+            .SetText(PlacementFields.Art, "cupboard");
+        recipe.Add(PlacementKinds.Door, MapIds.Farm, 7, 9)
+            .SetText(PlacementFields.Spawn, "house_door");
+        return recipe;
     }
 }

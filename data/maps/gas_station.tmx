@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<map version="1.10" tiledversion="1.12.0" orientation="orthogonal" renderorder="right-down" width="12" height="9" tilewidth="16" tileheight="16" infinite="0" nextlayerid="5" nextobjectid="10">
+ <properties>
+  <property name="map" value="gas_station"/>
+ </properties>
+ <tileset firstgid="1" source="tiled/floors.tsx"/>
+ <tileset firstgid="13" source="tiled/walls.tsx"/>
+ <tileset firstgid="55" source="tiled/dressing.tsx"/>
+ <layer id="1" name="floor" width="12" height="9">
+  <data encoding="csv">
+4,4,4,4,4,4,4,4,4,4,4,4,
+4,4,4,4,4,4,4,4,4,4,4,4,
+4,4,4,4,4,4,4,4,4,4,4,4,
+4,4,4,4,4,4,4,4,4,4,4,4,
+4,4,4,4,4,4,4,4,4,4,4,4,
+4,4,4,4,4,4,4,4,4,4,4,4,
+4,4,4,4,4,4,4,4,4,4,4,4,
+4,4,4,4,4,4,4,4,4,4,4,4,
+4,4,4,4,4,4,4,4,4,4,4,4
+</data>
+ </layer>
+ <layer id="3" name="walls" width="12" height="9">
+  <data encoding="csv">
+28,28,28,24,28,28,28,28,28,41,28,28,
+14,49,49,49,48,0,0,0,0,0,0,14,
+14,0,0,0,0,0,0,0,0,0,0,14,
+14,0,0,0,0,0,0,0,0,0,0,14,
+14,0,0,0,0,0,0,0,47,47,47,14,
+14,0,0,0,0,0,0,0,0,0,0,14,
+14,50,0,0,0,0,0,0,0,0,0,14,
+14,0,0,0,0,0,0,0,0,0,0,14,
+14,14,14,14,14,14,14,14,14,14,14,14
+</data>
+ </layer>
+ <layer id="4" name="dressing" width="12" height="9">
+  <data encoding="csv">
+0,0,0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,0,0
+</data>
+ </layer>
+ <objectgroup id="2" name="placements">
+  <object id="1" name="wide_shelf" type="furniture" x="32" y="48" width="16" height="16"/>
+  <object id="2" name="sack" type="furniture" x="160" y="48" width="16" height="16"/>
+  <object id="3" name="till" type="furniture" x="144" y="64" width="16" height="16">
+   <properties>
+    <property name="blocks" type="bool" value="false"/>
+   </properties>
+  </object>
+  <object id="4" name="wide_shelf" type="furniture" x="32" y="80" width="16" height="16"/>
+  <object id="5" name="default" type="spawn" x="80" y="80" width="16" height="16"/>
+  <object id="6" name="sack" type="furniture" x="16" y="112" width="16" height="16"/>
+  <object id="7" name="entry" type="spawn" x="80" y="112" width="16" height="16"/>
+  <object id="8" name="crates" type="furniture" x="144" y="112" width="16" height="16"/>
+  <object id="9" name="west_entry" type="door" x="80" y="128" width="16" height="16">
+   <properties>
+    <property name="spawn" value="from_gas"/>
+   </properties>
+  </object>
+ </objectgroup>
+</map>

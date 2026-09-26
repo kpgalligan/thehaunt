@@ -16,21 +16,6 @@ namespace TheHaunt.World;
 /// </summary>
 public partial class BilliesBarMap : InteriorMap
 {
-    protected override int Width => 16;
-    protected override int Height => 12;
-    protected override InteriorTiles.WallSet Walls { get; } =
-        new(InteriorTiles.WallPlank, InteriorTiles.CorniceLog);
-    protected override int DoorX => 7;
-    protected override int DoorY => 11;
-
-    // Worn-heavy plank: this floor has been drunk on for decades.
-    protected override Vector2I[] Floor { get; } =
-    {
-        InteriorTiles.FloorPlankWorn, InteriorTiles.FloorPlank[0], InteriorTiles.FloorPlankWorn,
-    };
-
-    private const int CounterLeft = 1, CounterRight = 8, CounterRow = 3;
-
     public override void _EnterTree()
     {
         // Default the id before registration so WorldSim never sees a nameless map.
@@ -39,74 +24,62 @@ public partial class BilliesBarMap : InteriorMap
         base._EnterTree();
     }
 
-    protected override void Decorate()
+    protected override void BuildDefaultLayout()
     {
+        // Worn-heavy plank: this floor has been drunk on for decades.
+        ResetLayout(16, 12, Floor.PlankWorn, Wall.Plank, Wall.CorniceLog);
+
         // The bar. Its west end meets the wall ring; its east end stops short of the
-        // hearth nook, and the shelf-and-barrel pair below closes the gap, so the back
+        // hearth nook, and the shelf-and-barrel pair beside it closes the gap, so the back
         // bar x1-8, y1-2 is sealed by construction like the store's back room.
-        AddCounter(CounterLeft, CounterRight, CounterRow);
-        AddFurniture(Furniture.TallShelf, 9, 1);
-        SetWall(9, 2, InteriorTiles.Barrel);
+        SetWallRun(1, 8, 3, Wall.Counter);
+        SetWall(9, 2, Wall.Barrel);
 
         // Back-bar stock, visible over the counter, forever out of reach.
-        SetWall(2, 1, InteriorTiles.ShelfFull);
-        SetWall(3, 1, InteriorTiles.ShelfFull);
-        SetWall(5, 1, InteriorTiles.ShelfFull);
-        SetWall(6, 1, InteriorTiles.ShelfFull);
-        SetWall(1, 2, InteriorTiles.Barrel);
-        SetWall(7, 2, InteriorTiles.Crate);
+        SetWall(2, 1, Wall.ShelfFull);
+        SetWall(3, 1, Wall.ShelfFull);
+        SetWall(5, 1, Wall.ShelfFull);
+        SetWall(6, 1, Wall.ShelfFull);
+        SetWall(1, 2, Wall.Barrel);
+        SetWall(7, 2, Wall.Crate);
 
-        // On the counter, not blocking: the blocker would replace the counter tile.
-        AddFurniture(Furniture.Lamp, 3, CounterRow, blocks: false);
-        AddFurniture(Furniture.Lamp, 6, CounterRow, blocks: false);
-        AddFurniture(Furniture.Till, 8, CounterRow, blocks: false);
-
-        // The hearth nook. AddHearth puts the mantel on row 1 and the fire on row 2 —
-        // the nook's floor cells stay reachable around the counter's east end.
-        AddHearth(11, 1);
-        AddFurniture(Furniture.Stool, 13, 3);
-
-        // The south half: two tables, the shifts' seats.
-        AddFurniture(Furniture.Table, 3, 7);
-        AddFurniture(Furniture.ChairBack, 3, 6);
-        AddFurniture(Furniture.ChairSide, 5, 7);
-        AddFurniture(Furniture.Table, 10, 7);
-        AddFurniture(Furniture.ChairSide, 9, 7);
-        AddFurniture(Furniture.ChairBack, 11, 6);
-        AddFurniture(Furniture.Stool, 1, 8);
-        AddFurniture(Furniture.Stool, 13, 8);
-        AddFurniture(Furniture.Candles, 14, 5);
+        // The hearth nook: the mantel on row 1 and the fire on row 2 — the nook's floor
+        // cells stay reachable around the counter's east end.
+        SetWallRun(11, 13, 1, Wall.Hearth);
+        SetWall(12, 2, Wall.HearthFire);
 
         // Day drinking is easier with the day shut out.
-        SetWall(3, 11, InteriorTiles.WindowShut);
-        SetWall(11, 11, InteriorTiles.WindowShut);
+        SetWall(3, 11, Wall.WindowShut);
+        SetWall(11, 11, Wall.WindowShut);
     }
 
-    protected override void BuildSpawns()
+    protected override MapRecipe BuildDefaultRecipe()
     {
-        var spawns = new Node2D { Name = "Spawns" };
-        spawns.AddChild(new Marker2D
-        {
-            Name = "entry",
-            Position = new Vector2(DoorX * TileSize + 8, 10 * TileSize + 8), // (120, 168)
-        });
-        spawns.AddChild(new Marker2D
-        {
-            Name = "default",
-            Position = new Vector2(7 * TileSize + 8, 7 * TileSize + 8), // (120, 120)
-        });
-        AddChild(spawns);
-    }
+        var recipe = new MapRecipe(MapIds.BilliesBar);
+        recipe.Add(PlacementKinds.Furniture, "tall_shelf", 9, 1);
 
-    protected override void BuildInteractables()
-    {
-        AddChild(new Door
-        {
-            Name = "OutDoor",
-            TargetMapId = MapIds.Billies,
-            TargetSpawnId = "from_bar",
-            DrawPlaceholder = false,
-            Position = new Vector2(DoorX * TileSize + 8, DoorY * TileSize + 8), // (120, 184)
-        });
+        // On the counter, not blocking: the blocker would replace the counter tile.
+        recipe.Add(PlacementKinds.Furniture, "lamp", 3, 3).SetBool(PlacementFields.Blocks, false);
+        recipe.Add(PlacementKinds.Furniture, "lamp", 6, 3).SetBool(PlacementFields.Blocks, false);
+        recipe.Add(PlacementKinds.Furniture, "till", 8, 3).SetBool(PlacementFields.Blocks, false);
+
+        recipe.Add(PlacementKinds.Furniture, "stool", 13, 3);
+
+        // The south half: two tables, the shifts' seats.
+        recipe.Add(PlacementKinds.Furniture, "table", 3, 7);
+        recipe.Add(PlacementKinds.Furniture, "chair_back", 3, 6);
+        recipe.Add(PlacementKinds.Furniture, "chair_side", 5, 7);
+        recipe.Add(PlacementKinds.Furniture, "table", 10, 7);
+        recipe.Add(PlacementKinds.Furniture, "chair_side", 9, 7);
+        recipe.Add(PlacementKinds.Furniture, "chair_back", 11, 6);
+        recipe.Add(PlacementKinds.Furniture, "stool", 1, 8);
+        recipe.Add(PlacementKinds.Furniture, "stool", 13, 8);
+        recipe.Add(PlacementKinds.Furniture, "candles", 14, 5);
+
+        recipe.Add(PlacementKinds.Spawn, "entry", 7, 10);    // (120, 168)
+        recipe.Add(PlacementKinds.Spawn, "default", 7, 7);   // (120, 120)
+        recipe.Add(PlacementKinds.Door, MapIds.Billies, 7, 11)
+            .SetText(PlacementFields.Spawn, "from_bar");
+        return recipe;
     }
 }

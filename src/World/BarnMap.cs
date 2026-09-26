@@ -21,14 +21,6 @@ namespace TheHaunt.World;
 /// </summary>
 public partial class BarnMap : InteriorMap
 {
-    protected override int Width => 16;
-    protected override int Height => 12;
-    protected override InteriorTiles.WallSet Walls => InteriorTiles.BarnWalls;
-    protected override int DoorX => 8;
-    protected override int DoorY => 11;
-
-    protected override Vector2I[] Floor { get; } = { InteriorTiles.FloorDirt };
-
     private static readonly Vector2I[] Hay =
     {
         new(4, 2), new(9, 3), new(10, 3), new(4, 5), new(1, 6), new(4, 6), new(5, 6),
@@ -45,7 +37,7 @@ public partial class BarnMap : InteriorMap
 
     private static readonly Vector2I[] Cobwebs = { new(1, 1), new(14, 1), new(14, 5) };
 
-    private bool _decorated;
+    private bool _built;
 
     public override void _EnterTree()
     {
@@ -55,94 +47,80 @@ public partial class BarnMap : InteriorMap
         base._EnterTree();
     }
 
-    protected override void Decorate()
+    /// <summary>The room as the file draws it: DERELICT, stains and webs and all.
+    /// <see cref="ApplyRepairState"/> sweeps them.</summary>
+    protected override void BuildDefaultLayout()
     {
+        ResetLayout(16, 12, Floor.Dirt, Wall.Plank, Wall.CornicePlank);
         foreach (Vector2I cell in Hay)
-            SetFloor(cell.X, cell.Y, InteriorTiles.FloorHay);
+            SetFloor(cell.X, cell.Y, Floor.Hay);
 
         // The loft runs along the first floor row, not the wall row — it is opaque
         // full-cell art, so it eats floor rather than replacing wall.
-        for (int x = 1; x <= 5; x++)
-            SetWall(x, 1, InteriorTiles.HayloftEdge);
-        for (int x = 10; x <= 12; x++)
-            SetWall(x, 1, InteriorTiles.RafterH);
+        SetWallRun(1, 5, 1, Wall.HayloftEdge);
+        SetWallRun(10, 12, 1, Wall.RafterH);
 
-        AddFurniture(Furniture.Ladder, 6, 2);
-        AddFurniture(Furniture.Stall, 2, 4);
-        AddFurniture(Furniture.Stall, 5, 4);
-        AddFurniture(Furniture.Haystack, 11, 4);
-        AddFurniture(Furniture.Lamp, 8, 5);
-        AddFurniture(Furniture.ToolRack, 9, 6);
-        AddFurniture(Furniture.Workbench, 9, 8);
-        AddFurniture(Furniture.Crates, 2, 9);
-        AddFurniture(Furniture.Sack, 5, 9);
-        AddFurniture(Furniture.Bucket, 7, 9);
-        AddFurniture(Furniture.Cart, 12, 10);
+        foreach (Vector2I cell in Stains)
+            SetFloor(cell.X, cell.Y, Floor.Stain);
+        foreach (Vector2I cell in Cobwebs)
+            SetDressing(cell.X, cell.Y, Dressing.Cobweb);
+    }
 
-        _decorated = true;
+    protected override MapRecipe BuildDefaultRecipe()
+    {
+        var recipe = new MapRecipe(MapIds.Barn);
+        recipe.Add(PlacementKinds.Furniture, "ladder", 6, 2);
+        recipe.Add(PlacementKinds.Furniture, "stall", 2, 4);
+        recipe.Add(PlacementKinds.Furniture, "stall", 5, 4);
+        recipe.Add(PlacementKinds.Furniture, "haystack", 11, 4);
+        recipe.Add(PlacementKinds.Furniture, "lamp", 8, 5);
+        recipe.Add(PlacementKinds.Furniture, "tool_rack", 9, 6);
+        recipe.Add(PlacementKinds.Furniture, "workbench", 9, 8);
+        recipe.Add(PlacementKinds.Furniture, "crates", 2, 9);
+        recipe.Add(PlacementKinds.Furniture, "sack", 5, 9);
+        recipe.Add(PlacementKinds.Furniture, "bucket", 7, 9);
+        recipe.Add(PlacementKinds.Furniture, "cart", 12, 10);
+
+        recipe.Add(PlacementKinds.Spawn, "entry", 8, 10);    // (136, 168)
+        recipe.Add(PlacementKinds.Spawn, "default", 7, 7);   // (120, 120)
+
+        // The chest holding the previous owner's tools and seeds (StarterKit stocks it
+        // on a new game — the farewell letter sends the player here). Beside the
+        // workbench; no chest piece on the interior sheet, so the procedural placeholder.
+        recipe.Add(PlacementKinds.Chest, StorageIds.BarnChest, 11, 8);
+        recipe.Add(PlacementKinds.Door, MapIds.Farm, 8, 11)
+            .SetText(PlacementFields.Spawn, "barn_door");
+        return recipe;
+    }
+
+    protected override void OnBuilt(IReadOnlyList<MapPlacement> taken)
+    {
+        _built = true;
         ApplyRepairState();
     }
 
     /// <summary>
     /// Called on load and on every flag change through ApplyState, the same view-side
-    /// model read the road blockade uses. Nothing durable lives on this node.
+    /// model read the road blockade uses. Nothing durable lives on this node. The file's
+    /// Stain floors and Cobweb dressing are the derelict state; anything past it sweeps
+    /// the stains to dirt and pulls the webs down.
     /// </summary>
     private void ApplyRepairState()
     {
         // A flag can be stamped between _EnterTree (which registers this map with
         // WorldSim) and _Ready, and WorldSim repaints every registered map on a new flag.
-        // Decorate runs this again once the layers exist.
-        if (!_decorated)
+        // OnBuilt runs this again once the layers exist.
+        if (!_built)
             return;
 
         int state = BarnRules.StateOf(SaveService.Instance.Current);
         bool derelict = state <= BarnRules.Derelict;
 
-        foreach (Vector2I cell in Stains)
-            SetFloor(cell.X, cell.Y, derelict ? InteriorTiles.FloorStain : InteriorTiles.FloorDirt);
-        foreach (Vector2I cell in Cobwebs)
-        {
-            if (derelict) AddCobweb(cell.X, cell.Y);
-            else ClearDressing(cell.X, cell.Y);
-        }
+        foreach (Vector2I cell in CellsOf(Floor.Stain))
+            PaintFloor(cell.X, cell.Y, derelict ? Floor.Stain : Floor.Dirt);
+        foreach (Vector2I cell in CellsOf(Dressing.Cobweb))
+            PaintDressing(cell.X, cell.Y, derelict ? Dressing.Cobweb : null);
     }
 
     public override void ApplyState(MapState state) => ApplyRepairState();
-
-    protected override void BuildSpawns()
-    {
-        var spawns = new Node2D { Name = "Spawns" };
-        spawns.AddChild(new Marker2D
-        {
-            Name = "entry",
-            Position = new Vector2(DoorX * TileSize + 8, 10 * TileSize + 8), // (136, 168)
-        });
-        spawns.AddChild(new Marker2D
-        {
-            Name = "default",
-            Position = new Vector2(7 * TileSize + 8, 7 * TileSize + 8), // (120, 120)
-        });
-        AddChild(spawns);
-    }
-
-    protected override void BuildInteractables()
-    {
-        // The chest holding the previous owner's tools and seeds (StarterKit stocks it
-        // on a new game — the farewell letter sends the player here). Beside the
-        // workbench; no chest piece on the interior sheet, so the procedural placeholder.
-        AddChild(new Chest
-        {
-            Name = "Chest",
-            StorageId = StorageIds.BarnChest,
-            Position = new Vector2(11 * TileSize + 8, 8 * TileSize + 8), // (184, 136)
-        });
-        AddChild(new Door
-        {
-            Name = "YardDoor",
-            TargetMapId = MapIds.Farm,
-            TargetSpawnId = "barn_door",
-            DrawPlaceholder = false,
-            Position = new Vector2(DoorX * TileSize + 8, DoorY * TileSize + 8), // (136, 184)
-        });
-    }
 }

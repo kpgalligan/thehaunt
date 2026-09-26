@@ -67,4 +67,34 @@ public static class Furniture
 
     /// <summary>Footprint width in tiles — how many cells a piece's base row covers.</summary>
     public static int Tiles(Rect2 source) => Mathf.RoundToInt(source.Size.X) / MapRoot.TileSize;
+
+    // The placement ids: each field's name in snake_case. An explicit table, not
+    // reflection, so a renamed field is a compile error here rather than a map that
+    // silently stops finding its piece.
+    private static readonly Dictionary<string, Rect2> Named = new(StringComparer.Ordinal)
+    {
+        ["bed"] = Bed, ["stove"] = Stove, ["cupboard"] = Cupboard, ["ladder"] = Ladder,
+        ["stall"] = Stall, ["candles"] = Candles, ["dresser"] = Dresser, ["banner"] = Banner,
+        ["tall_shelf"] = TallShelf, ["stained"] = Stained,
+        ["cradle"] = Cradle, ["lectern"] = Lectern, ["till"] = Till, ["chair_front"] = ChairFront,
+        ["chair_back"] = ChairBack, ["chair_side"] = ChairSide,
+        ["stool"] = Stool, ["pot"] = Pot, ["sack"] = Sack, ["bucket"] = Bucket, ["lamp"] = Lamp,
+        ["books"] = Books,
+        ["table"] = Table, ["bench"] = Bench, ["desk"] = Desk, ["workbench"] = Workbench,
+        ["tool_rack"] = ToolRack, ["seed_bins"] = SeedBins, ["cart"] = Cart, ["altar"] = Altar,
+        ["pew"] = Pew, ["long_table"] = LongTable, ["haystack"] = Haystack, ["crates"] = Crates,
+        ["wide_shelf"] = WideShelf, ["loom"] = Loom,
+    };
+
+    /// <summary>Every piece's placement id (a furniture placement's id, a chest's "art").</summary>
+    internal static IReadOnlyCollection<string> Ids => Named.Keys;
+
+    /// <summary>A piece by its placement id — its field name in snake_case ("tall_shelf").
+    /// Throws <see cref="ArgumentException"/> listing every id for anything else.</summary>
+    public static Rect2 ByName(string id) =>
+        Named.TryGetValue(id, out Rect2 source)
+            ? source
+            : throw new ArgumentException(
+                $"No furniture piece '{id}'. Known: {string.Join(", ", Named.Keys.OrderBy(k => k, StringComparer.Ordinal))}.",
+                nameof(id));
 }

@@ -7,15 +7,14 @@ namespace TheHaunt.World;
 
 /// <summary>
 /// The dev-only exporter behind <c>--seed-tiled (mapId)</c>: turns a map's C# defaults
-/// into its first Tiled file, plus the Tiled support files beside it. Every Tiled map
-/// has one: the exteriors (<see cref="ExteriorMap.CodeSeed"/>) and the farm
-/// (<see cref="TestMap.CodeSeed"/>).
+/// into its first Tiled file, plus the Tiled support files beside it. Every map is a
+/// Tiled map with one: the exteriors (<see cref="ExteriorMap.CodeSeed"/>), the farm
+/// (<see cref="TestMap.CodeSeed"/>) and the interiors (<see cref="InteriorMap.CodeSeed"/>).
 ///
 /// What it writes, and when:
-/// - the surface palette (<see cref="TiledSurfaces.TilesetPath"/> + its PNG) and the
-///   obstacle palette (<see cref="TiledObstacles.TilesetPath"/> + its PNG) EVERY run —
-///   all four are pure derivations of the palettes' Names, never hand-edited, so
-///   re-running after appending a surface or obstacle refreshes them;
+/// - every palette (<see cref="TiledPalette.All"/>: its <c>.tsx</c> + its PNG) EVERY run —
+///   all ten files are pure derivations of the palettes' Names, never hand-edited, so
+///   re-running after appending a name refreshes them;
 /// - <see cref="ProjectPath"/> only where missing (delete it to regenerate);
 /// - the map's <c>.tmx</c> only where missing. An existing <c>.tmx</c> is the map, and it
 ///   is NEVER overwritten — it is left byte-untouched and the run carries on.
@@ -25,8 +24,8 @@ public static class TiledSeeds
     public const string ProjectPath = "res://data/maps/tiled/thehaunt.tiled-project";
 
     /// <summary>Whether this map has C# defaults to seed a Tiled file from: it is
-    /// registered, and it is an <see cref="ExteriorMap"/> or the farm
-    /// (<see cref="TestMap"/>) — the Tiled maps.</summary>
+    /// registered, and it is an <see cref="ExteriorMap"/>, the farm
+    /// (<see cref="TestMap"/>) or an <see cref="InteriorMap"/> — the Tiled maps.</summary>
     public static bool Has(string mapId)
     {
         if (!MapRegistry.Contains(mapId))
@@ -34,7 +33,7 @@ public static class TiledSeeds
         MapRoot map = MapRegistry.Create(mapId);
         try
         {
-            return map is ExteriorMap or TestMap;
+            return map is ExteriorMap or TestMap or InteriorMap;
         }
         finally
         {
@@ -42,9 +41,10 @@ public static class TiledSeeds
         }
     }
 
-    /// <summary>The map's code seed as a Tiled map (<see cref="ExteriorMap.CodeSeed"/> or
-    /// <see cref="TestMap.CodeSeed"/>), built on a map that never enters the tree and is
-    /// freed after. Throws for a map that is not a registered Tiled map.</summary>
+    /// <summary>The map's code seed as a Tiled map (<see cref="ExteriorMap.CodeSeed"/>,
+    /// <see cref="TestMap.CodeSeed"/> or <see cref="InteriorMap.CodeSeed"/>), built on a
+    /// map that never enters the tree and is freed after. Throws for a map that is not a
+    /// registered Tiled map.</summary>
     public static TiledMap For(string mapId)
     {
         if (MapRegistry.Contains(mapId))
@@ -56,6 +56,8 @@ public static class TiledSeeds
                     return exterior.CodeSeed();
                 if (map is TestMap farm)
                     return farm.CodeSeed();
+                if (map is InteriorMap interior)
+                    return interior.CodeSeed();
             }
             finally
             {
@@ -63,7 +65,7 @@ public static class TiledSeeds
             }
         }
         throw new ArgumentException(
-            $"No Tiled seed for map '{mapId}' — only the registered exteriors (ExteriorMap) and the farm (TestMap) build from Tiled.",
+            $"No Tiled seed for map '{mapId}' — only the registered exteriors (ExteriorMap), the farm (TestMap) and the interiors (InteriorMap) build from Tiled.",
             nameof(mapId));
     }
 
@@ -99,6 +101,7 @@ public static class TiledSeeds
                     Member(PlacementFields.Text, "string", "\"\""),
                 },
                 PlacementKinds.Furniture => new[] { Member(PlacementFields.Blocks, "bool", "true") },
+                PlacementKinds.Chest => new[] { Member(PlacementFields.Art, "string", "\"\"") },
                 _ => Array.Empty<string>(),
             };
             if (members.Length == 0)
@@ -129,14 +132,15 @@ public static class TiledSeeds
         $"                    \"value\": {valueJson}\n" +
         "                }";
 
-    /// <summary>ALWAYS (re)writes both palettes' .tsx and .png — derived from
-    /// TiledSurfaces.Names and TiledObstacles.Names.</summary>
+    /// <summary>ALWAYS (re)writes every palette's .tsx and .png (<see cref="TiledPalette.All"/>)
+    /// — derived from each one's Names.</summary>
     public static void WritePalette()
     {
-        TiledMapFile.WriteText(TiledSurfaces.TilesetPath, TiledSurfaces.ToTsx());
-        SavePng(TiledSurfaces.BuildSwatch(), TiledSurfaces.ImagePath);
-        TiledMapFile.WriteText(TiledObstacles.TilesetPath, TiledObstacles.ToTsx());
-        SavePng(TiledObstacles.BuildSwatch(), TiledObstacles.ImagePath);
+        foreach (TiledPalette palette in TiledPalette.All)
+        {
+            TiledMapFile.WriteText(palette.TilesetPath, palette.ToTsx());
+            SavePng(palette.BuildSwatch(), palette.ImagePath);
+        }
     }
 
     private static void SavePng(Image image, string path)
@@ -158,10 +162,11 @@ public static class TiledSeeds
         var written = new List<string>();
 
         WritePalette();
-        written.Add(TiledSurfaces.TilesetPath);
-        written.Add(TiledSurfaces.ImagePath);
-        written.Add(TiledObstacles.TilesetPath);
-        written.Add(TiledObstacles.ImagePath);
+        foreach (TiledPalette palette in TiledPalette.All)
+        {
+            written.Add(palette.TilesetPath);
+            written.Add(palette.ImagePath);
+        }
 
         if (!FileAccess.FileExists(ProjectPath))
         {

@@ -136,6 +136,11 @@
             "drawFill": true,
             "id": 9,
             "members": [
+                {
+                    "name": "art",
+                    "type": "string",
+                    "value": ""
+                }
             ],
             "name": "chest",
             "type": "class",
@@ -186,6 +191,18 @@
             "members": [
             ],
             "name": "kerb_cut",
+            "type": "class",
+            "useAs": [
+                "object"
+            ]
+        },
+        {
+            "color": "#ffa0a0a4",
+            "drawFill": true,
+            "id": 14,
+            "members": [
+            ],
+            "name": "lift",
             "type": "class",
             "useAs": [
                 "object"

@@ -272,10 +272,6 @@ public abstract partial class ExteriorMap : MapRoot, ISurfaceGrid
         OnBuilt();
     }
 
-    /// <summary>The centre of a placement's cell, in map px.</summary>
-    protected static Vector2 CellCentre(MapPlacement placement) =>
-        new(placement.X * TileSize + 8, placement.Y * TileSize + 8);
-
     /// <summary>
     /// The maximal column runs where the kerb breaks along one side of the road: cells in
     /// <paramref name="row"/> (the verge row beside the gutter) whose surface is made
@@ -375,6 +371,7 @@ public abstract partial class ExteriorMap : MapRoot, ISurfaceGrid
     /// </summary>
     protected void LoadSurfaces(TiledMap tiled)
     {
+        tiled.RequireFormat(TiledFormat.Exterior);
         if (tiled.Width != MapWidth || tiled.Height != MapHeight)
         {
             throw new MapRecipeException(tiled.SourcePath,
@@ -711,9 +708,6 @@ public abstract partial class ExteriorMap : MapRoot, ISurfaceGrid
             }
         }
     }
-
-    protected static Marker2D SpawnMarker(string name, int x, int y) =>
-        new() { Name = name, Position = new Vector2(x * TileSize + 8, y * TileSize + 8) };
 
     /// <summary>A walk-on exit covering a road mouth's cells, top-left cell (x, y),
     /// enabled while <paramref name="isEnabled"/> says so (null = always). The TOWN-LINE

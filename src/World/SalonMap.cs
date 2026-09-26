@@ -15,18 +15,6 @@ namespace TheHaunt.World;
 /// </summary>
 public partial class SalonMap : InteriorMap
 {
-    protected override int Width => 12;
-    protected override int Height => 9;
-    protected override InteriorTiles.WallSet Walls { get; } =
-        new(InteriorTiles.WainscotPlaster, InteriorTiles.CornicePlank);
-    protected override int DoorX => 6;
-    protected override int DoorY => 8;
-
-    protected override Vector2I[] Floor { get; } =
-    {
-        InteriorTiles.FloorCheckA, InteriorTiles.FloorCheckB,
-    };
-
     public override void _EnterTree()
     {
         // Default the id before registration so WorldSim never sees a nameless map.
@@ -35,50 +23,36 @@ public partial class SalonMap : InteriorMap
         base._EnterTree();
     }
 
-    protected override void Decorate()
+    protected override void BuildDefaultLayout()
     {
-        SetWall(3, 0, InteriorTiles.WindowLit);
-        SetWall(8, 0, InteriorTiles.WindowLit);
-        SetWall(6, 0, InteriorTiles.Plaque);
+        ResetLayout(12, 9, Floor.Check, Wall.WainscotPlaster, Wall.CornicePlank);
+        SetWall(3, 0, Wall.WindowLit);
+        SetWall(8, 0, Wall.WindowLit);
+        SetWall(6, 0, Wall.Plaque);
 
-        // The chair, its rug, and the stool for whoever is next.
-        SetFloor(5, 5, InteriorTiles.RugA);
-        AddFurniture(Furniture.ChairFront, 5, 4);
-        AddFurniture(Furniture.Stool, 7, 4);
+        // The chair's rug.
+        SetFloor(5, 5, Floor.RugA);
+    }
+
+    protected override MapRecipe BuildDefaultRecipe()
+    {
+        var recipe = new MapRecipe(MapIds.Salon);
+
+        // The chair and the stool for whoever is next.
+        recipe.Add(PlacementKinds.Furniture, "chair_front", 5, 4);
+        recipe.Add(PlacementKinds.Furniture, "stool", 7, 4);
 
         // Sam's shelf of supplies and the corner nobody asks about.
-        AddFurniture(Furniture.Dresser, 1, 1);
-        AddFurniture(Furniture.Candles, 2, 1);
-        AddFurniture(Furniture.Stained, 10, 1);
-        AddFurniture(Furniture.Books, 10, 6);
-        AddFurniture(Furniture.Bucket, 1, 6);
-    }
+        recipe.Add(PlacementKinds.Furniture, "dresser", 1, 1);
+        recipe.Add(PlacementKinds.Furniture, "candles", 2, 1);
+        recipe.Add(PlacementKinds.Furniture, "stained", 10, 1);
+        recipe.Add(PlacementKinds.Furniture, "books", 10, 6);
+        recipe.Add(PlacementKinds.Furniture, "bucket", 1, 6);
 
-    protected override void BuildSpawns()
-    {
-        var spawns = new Node2D { Name = "Spawns" };
-        spawns.AddChild(new Marker2D
-        {
-            Name = "entry",
-            Position = new Vector2(DoorX * TileSize + 8, 7 * TileSize + 8), // (104, 120)
-        });
-        spawns.AddChild(new Marker2D
-        {
-            Name = "default",
-            Position = new Vector2(6 * TileSize + 8, 5 * TileSize + 8), // (104, 88)
-        });
-        AddChild(spawns);
-    }
-
-    protected override void BuildInteractables()
-    {
-        AddChild(new Door
-        {
-            Name = "OutDoor",
-            TargetMapId = MapIds.EastEntry,
-            TargetSpawnId = "from_salon",
-            DrawPlaceholder = false,
-            Position = new Vector2(DoorX * TileSize + 8, DoorY * TileSize + 8), // (104, 136)
-        });
+        recipe.Add(PlacementKinds.Spawn, "entry", 6, 7);     // (104, 120)
+        recipe.Add(PlacementKinds.Spawn, "default", 6, 5);   // (104, 88)
+        recipe.Add(PlacementKinds.Door, MapIds.EastEntry, 6, 8)
+            .SetText(PlacementFields.Spawn, "from_salon");
+        return recipe;
     }
 }

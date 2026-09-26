@@ -22,17 +22,6 @@ namespace TheHaunt.World;
 /// </summary>
 public partial class TownHallMap : InteriorMap
 {
-    protected override int Width => 40;
-    protected override int Height => 23;
-    protected override InteriorTiles.WallSet Walls => InteriorTiles.HallWalls;
-    protected override int DoorX => 20;
-    protected override int DoorY => 22;
-
-    protected override Vector2I[] Floor { get; } =
-    {
-        InteriorTiles.FloorCheckA, InteriorTiles.FloorCheckB,
-    };
-
     // Where the placeholder podium was; the long table now occupies it cell for cell.
     private const int TableLeft = 19, TableRow = 5;
 
@@ -47,76 +36,65 @@ public partial class TownHallMap : InteriorMap
         base._EnterTree();
     }
 
-    protected override void Decorate()
+    protected override void BuildDefaultLayout()
     {
+        ResetLayout(40, 23, Floor.Check, Wall.WainscotPlaster, Wall.CorniceStone);
         foreach (int x in new[] { 6, 12, 27, 33 })
-            SetWall(x, 0, InteriorTiles.WindowLit);
+            SetWall(x, 0, Wall.WindowLit);
         foreach (int x in new[] { 9, 30 })
-            SetWall(x, 0, InteriorTiles.Plaque);
+            SetWall(x, 0, Wall.Plaque);
 
         // The runner: two columns from the table down to the row above the threshold,
-        // which the shell has already painted on the cell inside the door.
-        for (int y = TableRow + 1; y < Height - 2; y++)
+        // which the build paints on the cell inside the door.
+        for (int y = TableRow + 1; y < 21; y++)
         {
-            SetFloor(19, y, InteriorTiles.RugA);
-            SetFloor(20, y, InteriorTiles.RugA);
+            SetFloor(19, y, Floor.RugA);
+            SetFloor(20, y, Floor.RugA);
         }
 
-        // The long table stands where the podium block did: (19..21, 4..5).
-        AddFurniture(Furniture.LongTable, TableLeft, TableRow);
+        // The long table stands where the podium block did: (19..21, 4..5). Its base row
+        // blocks through the furniture; the row behind it through Blockers.
         for (int x = TableLeft; x <= TableLeft + 2; x++)
-            Block(x, TableRow - 1);
-        AddFurniture(Furniture.Banner, 16, TableRow);
-        AddFurniture(Furniture.Banner, 24, TableRow);
+            SetWall(x, TableRow - 1, Wall.Blocker);
+    }
+
+    protected override MapRecipe BuildDefaultRecipe()
+    {
+        var recipe = new MapRecipe(MapIds.TownHall);
+        recipe.Add(PlacementKinds.Furniture, "long_table", TableLeft, TableRow);
+        recipe.Add(PlacementKinds.Furniture, "banner", 16, TableRow);
+        recipe.Add(PlacementKinds.Furniture, "banner", 24, TableRow);
 
         // Clerks at both ends.
-        AddFurniture(Furniture.Desk, 3, 5);
-        AddFurniture(Furniture.ChairBack, 4, 4);
-        AddFurniture(Furniture.Desk, 34, 5);
-        AddFurniture(Furniture.ChairBack, 35, 4);
+        recipe.Add(PlacementKinds.Furniture, "desk", 3, 5);
+        recipe.Add(PlacementKinds.Furniture, "chair_back", 4, 4);
+        recipe.Add(PlacementKinds.Furniture, "desk", 34, 5);
+        recipe.Add(PlacementKinds.Furniture, "chair_back", 35, 4);
 
         foreach (int y in new[] { 7, 12 })
         {
-            AddFurniture(Furniture.TallShelf, 1, y);
-            AddFurniture(Furniture.TallShelf, 38, y);
+            recipe.Add(PlacementKinds.Furniture, "tall_shelf", 1, y);
+            recipe.Add(PlacementKinds.Furniture, "tall_shelf", 38, y);
         }
-        AddFurniture(Furniture.Candles, 7, 7);
-        AddFurniture(Furniture.Candles, 32, 7);
-        AddFurniture(Furniture.Books, 2, 10);
-        AddFurniture(Furniture.Books, 37, 14);
+        recipe.Add(PlacementKinds.Furniture, "candles", 7, 7);
+        recipe.Add(PlacementKinds.Furniture, "candles", 32, 7);
+        recipe.Add(PlacementKinds.Furniture, "books", 2, 10);
+        recipe.Add(PlacementKinds.Furniture, "books", 37, 14);
 
         // Two blocks of four pews, either side of the aisle. The intro stages three crew
         // on the runner at row 12 between them; those cells stay clear.
         foreach (int y in PewRows)
         {
-            AddFurniture(Furniture.Pew, PewLeft, y);
-            AddFurniture(Furniture.Pew, PewRight, y);
+            recipe.Add(PlacementKinds.Furniture, "pew", PewLeft, y);
+            recipe.Add(PlacementKinds.Furniture, "pew", PewRight, y);
         }
 
-        AddFurniture(Furniture.Bench, 5, 20);
-        AddFurniture(Furniture.Bench, 33, 20);
-    }
+        recipe.Add(PlacementKinds.Furniture, "bench", 5, 20);
+        recipe.Add(PlacementKinds.Furniture, "bench", 33, 20);
 
-    protected override void BuildSpawns()
-    {
-        var spawns = new Node2D { Name = "Spawns" };
-        spawns.AddChild(new Marker2D
-        {
-            Name = "entry",
-            Position = new Vector2(DoorX * TileSize + 8, 19 * TileSize + 8), // (328, 312)
-        });
-        AddChild(spawns);
-    }
-
-    protected override void BuildInteractables()
-    {
-        AddChild(new Door
-        {
-            Name = "TownDoor",
-            TargetMapId = MapIds.Town,
-            TargetSpawnId = "from_hall",
-            DrawPlaceholder = false,
-            Position = new Vector2(DoorX * TileSize + 8, DoorY * TileSize + 8), // (328, 360)
-        });
+        recipe.Add(PlacementKinds.Spawn, "entry", 20, 19);   // (328, 312)
+        recipe.Add(PlacementKinds.Door, MapIds.Town, 20, 22)
+            .SetText(PlacementFields.Spawn, "from_hall");
+        return recipe;
     }
 }

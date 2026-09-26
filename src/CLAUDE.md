@@ -28,9 +28,8 @@ sleep + travel flows. Each subdirectory carries its own CLAUDE.md with its local
   while the phase is still Sleeping. Between advance and autosave it applies the one
   scripted wake relocation (`IntroRules.WakesAtTownHall` — src/Story/CLAUDE.md).
   Main's travel flow auto-parks the scooter at the door — riding never goes indoors.
-- `Engine.IsEditorHint()` and `[Tool]` may appear ONLY in `src/EditorTools/` and
-  `addons/` (test-enforced — see src/EditorTools/CLAUDE.md; never sprinkle editor
-  guards through the game layers).
+- `Engine.IsEditorHint()` and `[Tool]` appear nowhere in src (test-enforced —
+  SourceRulesTests): Tiled is the map editor, and no game code runs in the Godot editor.
 
 ## Conventions
 

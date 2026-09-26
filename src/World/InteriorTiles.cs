@@ -6,10 +6,12 @@ namespace TheHaunt.World;
 /// Named atlas coordinates for the interior sheet (assets/sprites/interior/interior.png,
 /// 16 columns x 4 rows of 16px tiles), from the farm/interiors handoff §5.
 ///
-/// The rooms keep exactly the structure the procedural placeholder had — single-thickness
-/// wall ring, the oversized near-black Surround behind Ground, the Door flush in the south
-/// wall — and only the tile source changes. Row 0 is floors (walkable), row 1 is the wall
-/// lower course and its openings, row 2 is the upper course and ceiling, row 3 is fixtures.
+/// Rooms never name these directly: a room's file names its cells by
+/// <see cref="InteriorMap.Floor"/>, <see cref="InteriorMap.Wall"/> and
+/// <see cref="InteriorMap.Dressing"/>, and <see cref="InteriorMap"/> maps each name to
+/// its tile here (floor variants, counter and hearth pieces, door_open and threshold are
+/// derived there). Row 0 is floors (walkable), row 1 is the wall lower course and its
+/// openings, row 2 is the upper course and ceiling, row 3 is fixtures.
 /// </summary>
 public static class InteriorTiles
 {
@@ -90,22 +92,4 @@ public static class InteriorTiles
     public static readonly Vector2I Sack = new(13, 3);
     public static readonly Vector2I HayBale = new(14, 3);
     public static readonly Vector2I Cobweb = new(15, 3);        // the one walkable row-3 tile
-
-    /// <summary>
-    /// A building's wall as the two courses a room actually paints: the side and south
-    /// walls take <see cref="Lower"/>, and the north wall row takes <see cref="Cornice"/>,
-    /// whose dark top edge reads as ceiling shadow. (The sheet's <c>upper_*</c> course is
-    /// named above but unpainted — it is for a room with something above its ring.)
-    /// </summary>
-    public readonly record struct WallSet(Vector2I Lower, Vector2I Cornice);
-
-    // The four rooms as the handoff's reference renders actually mix them. None is a
-    // single material all the way up, and that is deliberate: the sides carry the
-    // building's material, while the cornice is picked for contrast against THAT room's
-    // floor. A log cornice over a plank floor, or a plank one over dirt, is the same
-    // brown twice and the back wall dissolves into the ground.
-    public static readonly WallSet FarmhouseWalls = new(WallLog, CornicePlank);
-    public static readonly WallSet StoreWalls = new(WainscotPlank, CornicePlaster);
-    public static readonly WallSet HallWalls = new(WainscotPlaster, CorniceStone);
-    public static readonly WallSet BarnWalls = new(WallPlank, CornicePlank);
 }

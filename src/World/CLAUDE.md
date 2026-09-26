@@ -8,8 +8,8 @@ rules below are bugs.
 What lives here:
 - `MapRoot` — base for every map: owns the NPC views (`SyncNpcs`), the parked-scooter
   sync (`SyncScooter` diffs the view against `GameData.Scooter`), `IsStandable`,
-  `IsInterior`, arrival geometry (`GetArrival`), the shared scatter hash, and `RecipeOverride` (editor-only recipe injection; null in
-  the running game). `MapRegistry` is map id -> root-node factory; unknown ids throw
+  `IsInterior`, arrival geometry (`GetArrival`) and the shared scatter hash.
+  `MapRegistry` is map id -> root-node factory; unknown ids throw
   and Main falls back to the farm, leaving the unknown map's MapState untouched
   (preservation rule).
 - Exteriors: `TestMap` (the farm) and the `ExteriorMap` base carrying `TownMap` and
@@ -27,16 +27,35 @@ What lives here:
   drive), `BuildDressing` (ground decals), `OnBuilt` (a map that keeps hold of its
   own nodes). Views derived from the build (`WestEntryMap.MotorCourt`/`LotStalls`,
   `DriveInMap.FieldRamps`) are instance state, null before the build or when the
-  file places nothing for them.
+  file places nothing for them. `TestMap` is on Tiled too (`data/maps/test_farm.tmx`)
+  but keeps its OWN build (`LoadMap`, then its farm-sheet layers, facades, soil and
+  crops): surfaces Pasture/Path/Dirt/Woods, its pen from the file's Fence/Gate cells
+  (`Pen`/`PenGate`, painted on Ground by `PaintFences`), its code seed
+  (`BuildDefaultSurfaces` + `DefaultRecipe`, `CodeSeed` for `TiledSeeds`). The
+  facades, storm debris, road corridor and roof reservations stay code.
 - Interiors: the `InteriorMap` base with `TownHallMap`/`FarmHouseMap`/`GeneralStoreMap`/
   `BarnMap`/`MotelMap`/`GasStationMap`/`BilliesBarMap`/`SalonMap`/`MotelRoomMap` (one
-  class, four registered room ids), and `GarageInteriorMap` (Kevin's 2026-08-30
-  garage-operation commission): two permanently-Block()ed lift bays whose cars are
-  the map's model-derived staging — ApplyState diffs one `GuestCar` per occupied
-  lift from `GameData.GarageJobs`, keyed by (ArrivalDay, ArrivalHour, ServiceId),
-  with a floating progress label per bay; painted per service so the bay tells you
-  the job. The permanent bay blockers are load-bearing: an hourly arrival must
-  never spawn a collider on top of the player.
+  class, four registered room ids, one file each), and `GarageInteriorMap` (Kevin's
+  2026-08-30 garage-operation commission). All Tiled. `InteriorMap` owns THE interior
+  build (`_Ready`, a template no subclass overrides): load `data/maps/<MapId>.tmx`
+  (an interior-format file: floor, walls and dressing grids by name, plus placements;
+  the room's size is the file's) else the code seed, resolve every placement up front
+  (a subclass validates its own kinds in `ResolveTaken`, before anything exists), then
+  Surround → Ground (floor variants, thresholds) → Obstacles (walls, door_open,
+  furniture blockers) → Dressing → furniture props → Spawns → bed → chests → shop
+  counters → doors → `OnBuilt` (Y-sort ties fall back to that order). A subclass
+  supplies its code seed (`BuildDefaultLayout`, starting with `ResetLayout`, +
+  `BuildDefaultRecipe` — off-tree safe, `CodeSeed` wraps both for `TiledSeeds`) and
+  hooks: `TakesKind` (a room-only kind), `ResolveTaken`, `OnBuilt` (builds only; the
+  live painters `PaintFloor`/`PaintDressing`/`Block` and `CellsOf` serve it). The
+  barn's repair states repaint the file's Stain floors and Cobweb dressing in
+  `OnBuilt`/ApplyState (the `_built` guard: WorldSim may call ApplyState before
+  `_Ready`). The garage takes the `lift` kind (exactly lifts "0".."MaxCars-1"): two
+  permanently-Block()ed lift bays whose cars are the map's model-derived staging —
+  ApplyState diffs one `GuestCar` per occupied lift from `GameData.GarageJobs`, keyed
+  by (ArrivalDay, ArrivalHour, ServiceId), with a floating progress label per bay;
+  painted per service so the bay tells you the job. The permanent bay blockers are
+  load-bearing: an hourly arrival must never spawn a collider on top of the player.
 - Interactables: `IInteractable`, `Bed`, `Sign`, `ShippingBin`, `Chest`, `ShopCounter`,
   `Mailbox`, `Scooter` (parked view of `GameData.Scooter`), `MapExit`, `Door` (flag-lockable:
   `RequiredFlag` + `LockedMessage` — a locked handle answers with a line; the
@@ -66,15 +85,20 @@ What lives here:
   with the TileSets `TownTerrain`/`FarmTerrain`/`InteriorTerrain`/`CropTiles`, `Prop` + the sheets
   `TownProps`/`FarmBuildings`/`Furniture`, `StoreFacade`/`BarnFacade`/`LampPost`,
   `CharacterSprites` + `CharacterSprite`, `DayNight` + `DayNightTint` + `GlowLight`.
-- Recipes (code side): `MapRecipe` + `MapPlacement` + `PlacementKinds`/`PlacementFields`
-  + `MapRecipeFile` + `MapRecipeException`, and `MapRecipeSeeds` (the one-shot exporter
-  that seeds a map's first recipe from its C# literals). Tiled (every exterior):
-  `TiledMap` (strict TMX subset, canonical writer) + `TiledMapFile` (+ the
-  `--tiled-file` dev file) + `TiledSurfaces` (the surface palette) + `TiledObstacles`
-  (the obstacle palette: Fence, Bush) + `TiledSeeds` (`--seed-tiled`);
-  `ExteriorMap.LoadSurfaces` reads the surface layer by name, `LoadObstacles` the
-  optional obstacles layer, and `PaintObstacles` paints it onto the Obstacles layer.
-  The recipe FILES and their contract live in `data/maps/` — see `data/maps/CLAUDE.md`.
+- Placements (code side): `MapRecipe` (in-memory placements; `ToJson` is the canonical
+  text the drift guards compare) + `MapPlacement` + `PlacementKinds`/`PlacementFields`
+  + `MapRecipeException`. Tiled (every map): `TiledMap` (strict TMX subset, canonical
+  writer, format-generic) + `TiledFormat` (which tile layers a file has: exterior =
+  surface + obstacles, interior = floor + walls + dressing; `RequireFormat` refuses
+  the other's) + `TiledPalette` (the five palettes — surfaces, obstacles, floors,
+  walls, dressing — each a tileset whose tiles stand for names) + `TiledMapFile` (+
+  the `--tiled-file` dev file) + `TiledSurfaces` (the surface palette, the farm's
+  Pasture/Path included) + `TiledObstacles` (the obstacle palette: Fence, Bush, the
+  farm's Gate) + `TiledSeeds` (`--seed-tiled`); `ExteriorMap.LoadSurfaces` reads the
+  surface layer by name, `LoadObstacles` the optional obstacles layer (both refuse the
+  farm's entries), and
+  `PaintObstacles` paints it onto the Obstacles layer. The map FILES and their contract
+  live in `data/maps/` — see `data/maps/CLAUDE.md`.
 - `WorldDump` (+ `WorldDumpEntry`, `ISurfaceGrid`): the `--dump-world` exporter for
   the intro flyover (tools/flyover) — builds each exterior headless and reads it back;
   schema on the class. The `internal` read-only views on the map classes exist for it.
@@ -168,10 +192,15 @@ What lives here:
   tiles are placeholders whose `LandscapeTiles.ForAct` is the identity in every act.
   The farm fence tiles are opaque, so a town fence cell shows farm pasture around its
   rails.
-- Interiors are `InteriorMap` subclasses: a room is a layout function — size, wall set,
-  floor variants indexed `(x+y) % n`, a door column, and a `Decorate()`. Walls and
-  fixtures paint on Obstacles (visual AND collision); furniture is a `Prop` plus a
-  blocker; the cobweb is the sheet's only alpha tile and goes on the Dressing layer.
+- Interiors are Tiled files a room's `InteriorMap` subclass builds from: a floor grid
+  (`InteriorMap.Floor`, painted on Ground, variants indexed `(x+y) % n`), a walls grid
+  (`InteriorMap.Wall`, painted on Obstacles — visual AND collision; counter and hearth
+  pieces picked from their same-name neighbours; the north row's cornice painted per
+  room for contrast with its floor) and a dressing grid (`InteriorMap.Dressing` — the
+  cobweb is the sheet's only alpha tile and goes on the Dressing layer). The build
+  derives door_open on every door cell and the threshold just inside it; furniture is
+  a `Prop` plus a blocker on its base row. All three enums are APPEND-ONLY (palette
+  gids index them), and every painted cell goes through `InteriorTiles.ForAct`.
 - Soil is an autotile, so `TestMap.RefreshTile` repaints a five-cell plus, not one
   cell: tilling changes this cell's tile AND its four neighbours' edges.
 - The Crops layer is Y-sorted because crop cells are 16x32 and overhang the row above.
@@ -230,11 +259,8 @@ What lives here:
   hand-listed collision the art rules forbid. And a `dotnet build` with the editor open
   reloads the assembly, clearing the C# static but NOT Godot's resource cache, so
   `Build` re-enters an already-built set. `TileSetReloadTests` guards both.
-- `Engine.IsEditorHint()` and `[Tool]` may appear ONLY in `src/EditorTools/` and
-  `addons/` — they are verified unnecessary here: the stage hand-instantiates the four
-  autoloads in project.godot's order, so map code runs in the editor completely
-  unmodified. If the editor misbehaves, fix the stage — never sprinkle guards through
-  the World layer.
+- `Engine.IsEditorHint()` and `[Tool]` appear nowhere in src (test-enforced): Tiled
+  is the map editor, and no map code runs in the Godot editor.
 - The mailbox (Mailbox, recipe kind "mailbox", farm cell (6,8) — (9,8) beside it is
   the scooter's home and stays clear) opens WorldSim's mailbox session; its
   raised-flag signal is a pure GameData derivation (MailRules.HasUnread) re-derived

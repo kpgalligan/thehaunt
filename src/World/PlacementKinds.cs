@@ -55,10 +55,14 @@ public static class PlacementKinds
     /// <summary>A driveway break in an exterior's road kerb. Id is free text; row RoadTop (14) is the north kerb, RoadBottom (15) the south; "w" the columns it spans.</summary>
     public const string KerbCut = "kerb_cut";
 
+    /// <summary>A garage lift bay: 3 cells east from its cell, stained, permanently blocked. Id is its lift number ("0", "1").</summary>
+    public const string Lift = "lift";
+
+    /// <summary>Every kind this build builds. APPEND-ONLY: a Tiled project's class ids are positional.</summary>
     public static readonly IReadOnlyList<string> All = new[]
     {
         Prop, Scatter, Furniture, Spawn, Door, Exit, Sign, Bed, Chest, ShippingBin, ShopCounter,
-        Mailbox, KerbCut,
+        Mailbox, KerbCut, Lift,
     };
 
     /// <summary>True when THIS build knows how to build the kind — not whether a file may hold it.</summary>

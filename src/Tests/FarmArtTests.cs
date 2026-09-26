@@ -687,7 +687,7 @@ public static class FarmArtTests
         // Every piece is drawn to STAND ON its anchor cell, so its width must be a whole
         // number of tiles and its height one or two of them. Checked over the whole sheet
         // by reflection rather than a hand-picked list: Furniture.Tiles drives every
-        // blocker AddFurniture lays, so a mistyped width silently changes collision in a
+        // blocker the interior build lays, so a mistyped width silently changes collision in a
         // room nobody was looking at.
         int pieces = 0;
         foreach (FieldInfo field in typeof(Furniture).GetFields(BindingFlags.Public | BindingFlags.Static))

@@ -17,18 +17,6 @@ public partial class MotelRoomMap : InteriorMap
 {
     public int RoomNumber { get; init; } = 1;
 
-    protected override int Width => 9;
-    protected override int Height => 7;
-    protected override InteriorTiles.WallSet Walls { get; } =
-        new(InteriorTiles.WallPlaster, InteriorTiles.CornicePlank);
-    protected override int DoorX => 4;
-    protected override int DoorY => 6;
-
-    protected override Vector2I[] Floor { get; } =
-    {
-        InteriorTiles.FloorBoard[0], InteriorTiles.FloorBoard[1],
-    };
-
     public override void _EnterTree()
     {
         // Default the id before registration so WorldSim never sees a nameless map.
@@ -37,23 +25,50 @@ public partial class MotelRoomMap : InteriorMap
         base._EnterTree();
     }
 
-    protected override void Decorate()
+    protected override void BuildDefaultLayout()
     {
-        // The shared shell: bed against the west wall, dresser opposite.
-        AddFurniture(Furniture.Bed, 1, 1);
-        AddFurniture(Furniture.Dresser, 7, 1);
+        ResetLayout(9, 7, Floor.Board, Wall.Plaster, Wall.CornicePlank);
 
         switch (RoomNumber)
         {
             case 1:
-                SetWall(3, 0, InteriorTiles.WindowDark);
-                SetFloor(4, 3, InteriorTiles.RugA);
-                AddFurniture(Furniture.Stool, 6, 4);
+                SetWall(3, 0, Wall.WindowDark);
+                SetFloor(4, 3, Floor.RugA);
                 break;
             case 2:
-                SetWall(5, 0, InteriorTiles.WindowDark);
-                SetFloor(4, 3, InteriorTiles.RugB);
-                AddFurniture(Furniture.ChairSide, 7, 4);
+                SetWall(5, 0, Wall.WindowDark);
+                SetFloor(4, 3, Floor.RugB);
+                break;
+            case 3:
+                // Pell's room: the lit window.
+                SetWall(3, 0, Wall.WindowLit);
+                SetFloor(4, 3, Floor.RugB);
+                SetFloor(4, 4, Floor.RugB);
+                break;
+            default:
+                // The room Walt gave up on first: cracked plaster, one cobweb, no rug.
+                SetWall(5, 0, Wall.PlasterCrack);
+                SetWall(2, 0, Wall.WindowDark);
+                SetDressing(7, 1, Dressing.Cobweb);
+                break;
+        }
+    }
+
+    protected override MapRecipe BuildDefaultRecipe()
+    {
+        var recipe = new MapRecipe(MapIds.MotelRoom(RoomNumber));
+
+        // The shared shell: bed against the west wall, dresser opposite.
+        recipe.Add(PlacementKinds.Furniture, "bed", 1, 1);
+        recipe.Add(PlacementKinds.Furniture, "dresser", 7, 1);
+
+        switch (RoomNumber)
+        {
+            case 1:
+                recipe.Add(PlacementKinds.Furniture, "stool", 6, 4);
+                break;
+            case 2:
+                recipe.Add(PlacementKinds.Furniture, "chair_side", 7, 4);
                 break;
             case 3:
                 // [KEVIN] Pell's room: the lit window and the sample bag. The radio
@@ -61,48 +76,19 @@ public partial class MotelRoomMap : InteriorMap
                 // atlas has no radio piece; it lands with the next art pass. A
                 // salesman's room kept like a display — tidy in a way that reads
                 // wrong if you look twice, and nothing in here explains itself.
-                SetWall(3, 0, InteriorTiles.WindowLit);
-                SetFloor(4, 3, InteriorTiles.RugB);
-                SetFloor(4, 4, InteriorTiles.RugB);
-                AddFurniture(Furniture.Lamp, 2, 1);
-                AddFurniture(Furniture.Books, 6, 1);
-                AddFurniture(Furniture.Sack, 7, 4);
+                recipe.Add(PlacementKinds.Furniture, "lamp", 2, 1);
+                recipe.Add(PlacementKinds.Furniture, "books", 6, 1);
+                recipe.Add(PlacementKinds.Furniture, "sack", 7, 4);
                 break;
             default:
-                // The room Walt gave up on first: cracked plaster, one cobweb, no rug.
-                SetWall(5, 0, InteriorTiles.WallPlasterCrack);
-                SetWall(2, 0, InteriorTiles.WindowDark);
-                AddFurniture(Furniture.Bucket, 6, 4);
-                AddCobweb(7, 1);
+                recipe.Add(PlacementKinds.Furniture, "bucket", 6, 4);
                 break;
         }
-    }
 
-    protected override void BuildSpawns()
-    {
-        var spawns = new Node2D { Name = "Spawns" };
-        spawns.AddChild(new Marker2D
-        {
-            Name = "entry",
-            Position = new Vector2(DoorX * TileSize + 8, 5 * TileSize + 8), // (72, 88)
-        });
-        spawns.AddChild(new Marker2D
-        {
-            Name = "default",
-            Position = new Vector2(DoorX * TileSize + 8, 3 * TileSize + 8), // (72, 56)
-        });
-        AddChild(spawns);
-    }
-
-    protected override void BuildInteractables()
-    {
-        AddChild(new Door
-        {
-            Name = "OutDoor",
-            TargetMapId = MapIds.WestEntry,
-            TargetSpawnId = $"from_room{RoomNumber}",
-            DrawPlaceholder = false,
-            Position = new Vector2(DoorX * TileSize + 8, DoorY * TileSize + 8), // (72, 104)
-        });
+        recipe.Add(PlacementKinds.Spawn, "entry", 4, 5);     // (72, 88)
+        recipe.Add(PlacementKinds.Spawn, "default", 4, 3);   // (72, 56)
+        recipe.Add(PlacementKinds.Door, MapIds.WestEntry, 4, 6)
+            .SetText(PlacementFields.Spawn, $"from_room{RoomNumber}");
+        return recipe;
     }
 }

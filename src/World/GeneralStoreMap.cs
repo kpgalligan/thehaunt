@@ -17,20 +17,6 @@ namespace TheHaunt.World;
 /// </summary>
 public partial class GeneralStoreMap : InteriorMap
 {
-    protected override int Width => 14;
-    protected override int Height => 10;
-    protected override InteriorTiles.WallSet Walls => InteriorTiles.StoreWalls;
-    protected override int DoorX => 7;
-    protected override int DoorY => 9;
-
-    protected override Vector2I[] Floor { get; } =
-    {
-        InteriorTiles.FloorPlank[0], InteriorTiles.FloorPlank[1],
-    };
-
-    private const int CounterLeft = 1, CounterRight = 12, CounterRow = 4;
-    private const int ShopkeeperX = 6;   // NpcSchedules stages the shopkeeper at (6,3)
-
     public override void _EnterTree()
     {
         // Default the id before registration so WorldSim never sees a nameless map.
@@ -39,77 +25,55 @@ public partial class GeneralStoreMap : InteriorMap
         base._EnterTree();
     }
 
-    protected override void Decorate()
+    protected override void BuildDefaultLayout()
     {
-        SetWall(3, 0, InteriorTiles.WindowLit);
-        SetWall(10, 0, InteriorTiles.WindowLit);
-        SetWall(DoorX, 0, InteriorTiles.Plaque);
+        ResetLayout(14, 10, Floor.Plank, Wall.WainscotPlank, Wall.CornicePlaster);
+        SetWall(3, 0, Wall.WindowLit);
+        SetWall(10, 0, Wall.WindowLit);
+        SetWall(7, 0, Wall.Plaque);
 
         // Counter row, WALL-TO-WALL (x1-12 at y4, meeting the ring on both sides): the
         // back area y1-3 is sealed by construction.
-        AddCounter(CounterLeft, CounterRight, CounterRow);
+        SetWallRun(1, 12, 4, Wall.Counter);
 
-        // Back-room stock — visible over the counter, unreachable behind it.
-        AddFurniture(Furniture.Books, 5, 1);
-        AddFurniture(Furniture.WideShelf, 8, 2);
-        AddFurniture(Furniture.TallShelf, 1, 3);
-        AddFurniture(Furniture.TallShelf, 12, 3);
-        // The till sits ON the counter. It must NOT take a blocker of its own: the
-        // blocker replaces the Obstacles cell, and that cell is the counter tile — the
-        // counter would gain a hole behind the till. The counter already blocks.
-        AddFurniture(Furniture.Till, ShopkeeperX, CounterRow, blocks: false);
-
-        // The player's half of the room.
-        AddFurniture(Furniture.SeedBins, 9, 5);
-        AddFurniture(Furniture.Crates, 3, 8);
-        AddFurniture(Furniture.Sack, 11, 7);
         // Against the south wall, not a row up: a barrel at (1,7) and a crate at (2,7)
         // pin (1,8) and (2,8) between themselves, the wall and the crate stack, and two
         // cells of the customer's half become floor nobody can reach.
-        SetWall(1, 8, InteriorTiles.Barrel);
-        SetWall(2, 8, InteriorTiles.Crate);
-        SetWall(12, 7, InteriorTiles.Barrel);
+        SetWall(1, 8, Wall.Barrel);
+        SetWall(2, 8, Wall.Crate);
+        SetWall(12, 7, Wall.Barrel);
     }
 
-    protected override void BuildSpawns()
+    protected override MapRecipe BuildDefaultRecipe()
     {
-        var spawns = new Node2D { Name = "Spawns" };
-        spawns.AddChild(new Marker2D
-        {
-            Name = "entry",
-            Position = new Vector2(DoorX * TileSize + 8, 8 * TileSize + 8), // (120, 136)
-        });
-        spawns.AddChild(new Marker2D
-        {
-            Name = "default",
-            Position = new Vector2(7 * TileSize + 8, 6 * TileSize + 8), // (120, 104)
-        });
-        AddChild(spawns);
-    }
+        var recipe = new MapRecipe(MapIds.GeneralStore);
 
-    protected override void BuildInteractables()
-    {
-        // ShopCounter has no sprite and no blocker of its own — the counter tiles are
-        // the visual and the collision; the owning map supplies the shape covering them
-        // (MapExit precedent).
-        var counter = new ShopCounter
-        {
-            Name = "ShopCounter",
-            Position = new Vector2(112, 72), // center of the counter strip x1-12, y4
-        };
-        counter.AddChild(new CollisionShape2D
-        {
-            Shape = new RectangleShape2D { Size = new Vector2(192, 16) },
-        });
-        AddChild(counter);
+        // Back-room stock — visible over the counter, unreachable behind it.
+        recipe.Add(PlacementKinds.Furniture, "books", 5, 1);
+        recipe.Add(PlacementKinds.Furniture, "wide_shelf", 8, 2);
+        recipe.Add(PlacementKinds.Furniture, "tall_shelf", 1, 3);
+        recipe.Add(PlacementKinds.Furniture, "tall_shelf", 12, 3);
+        // The till sits ON the counter, directly in front of the shopkeeper's scheduled
+        // cell (6,3). It must NOT take a blocker of its own: the blocker replaces the
+        // Obstacles cell, and that cell is the counter tile — the counter would gain a
+        // hole behind the till. The counter already blocks.
+        recipe.Add(PlacementKinds.Furniture, "till", 6, 4).SetBool(PlacementFields.Blocks, false);
 
-        AddChild(new Door
-        {
-            Name = "TownDoor",
-            TargetMapId = MapIds.Town,
-            TargetSpawnId = "from_store",
-            DrawPlaceholder = false,
-            Position = new Vector2(DoorX * TileSize + 8, DoorY * TileSize + 8), // (120, 152)
-        });
+        // The player's half of the room.
+        recipe.Add(PlacementKinds.Furniture, "seed_bins", 9, 5);
+        recipe.Add(PlacementKinds.Furniture, "crates", 3, 8);
+        recipe.Add(PlacementKinds.Furniture, "sack", 11, 7);
+
+        recipe.Add(PlacementKinds.Spawn, "entry", 7, 8);     // (120, 136)
+        recipe.Add(PlacementKinds.Spawn, "default", 7, 6);   // (120, 104)
+
+        // The shop entry point: the strip over the counter x1-12, y4.
+        MapPlacement counter = recipe.Add(PlacementKinds.ShopCounter, ShopCatalog.GeneralStore, 1, 4);
+        counter.SetInt(PlacementFields.Width, 12);
+        counter.SetInt(PlacementFields.Height, 1);
+
+        recipe.Add(PlacementKinds.Door, MapIds.Town, 7, 9)
+            .SetText(PlacementFields.Spawn, "from_store");
+        return recipe;
     }
 }
