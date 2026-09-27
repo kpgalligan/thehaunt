@@ -5,14 +5,13 @@ using TheHaunt.World;
 namespace TheHaunt.Tests;
 
 /// <summary>
-/// The world dump (<see cref="WorldDump"/>, <c>--dump-world</c>) is what the intro
-/// flyover's generator stitches the 3D town from, so a hole in it is a hole in the
-/// town: every exterior must export with a grid that matches its size, and every road
-/// mouth must lead to an exported map that has a mouth leading back — on the opposite
-/// edge, near the spawn it arrives on — or the stitcher has nothing to join. The road
-/// wrap (west_entry's west mouth -> east_entry's east side, and back) satisfies the
-/// same rule, which is exactly why it reads as one continuous road. Determinism is
-/// pinned too: a dump that changed run to run would churn every downstream build.
+/// The world dump (<see cref="WorldDump"/>, <c>--dump-world</c>) must describe the
+/// whole road network: every exterior must export with a grid that matches its size,
+/// and every road mouth must lead to an exported map that has a mouth leading back —
+/// on the opposite edge, near the spawn it arrives on. The road wrap (west_entry's
+/// west mouth -> east_entry's east side, and back) satisfies the same rule, which is
+/// exactly why it reads as one continuous road. Determinism is pinned too: a dump
+/// that changed run to run would make every before/after diff noise.
 /// </summary>
 public static class WorldDumpTests
 {
@@ -86,9 +85,8 @@ public static class WorldDumpTests
     [SimTest]
     public static async Task World_DumpParksPellsCarNoseInBetweenItsStripes(TestContext t)
     {
-        // The film places the car from the dump (tools/flyover/props.py): it must say
-        // the car's real facing and ground, both of which the game now draws nose-in
-        // between two stall stripes (Kevin 2026-09-24).
+        // The dump must say the car's real facing and ground, both of which the game
+        // draws nose-in between two stall stripes (Kevin 2026-09-24).
         string json = WorldDump.Render(t.Host);
         await t.WaitFrames(1);
         using JsonDocument doc = JsonDocument.Parse(json);

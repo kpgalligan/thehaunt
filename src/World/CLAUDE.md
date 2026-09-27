@@ -99,8 +99,8 @@ What lives here:
   farm's entries), and
   `PaintObstacles` paints it onto the Obstacles layer. The map FILES and their contract
   live in `data/maps/` — see `data/maps/CLAUDE.md`.
-- `WorldDump` (+ `WorldDumpEntry`, `ISurfaceGrid`): the `--dump-world` exporter for
-  the intro flyover (tools/flyover) — builds each exterior headless and reads it back;
+- `WorldDump` (+ `WorldDumpEntry`, `ISurfaceGrid`): the `--dump-world` exporter —
+  builds each exterior headless and reads it back;
   schema on the class. The `internal` read-only views on the map classes exist for it.
 
 ## Travel

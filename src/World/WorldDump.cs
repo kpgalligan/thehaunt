@@ -8,10 +8,10 @@ using Entry = TheHaunt.World.WorldDumpEntry;
 namespace TheHaunt.World;
 
 /// <summary>
-/// Exports every EXTERIOR map's geography as one JSON document — the input the intro
-/// flyover's Blender generator (tools/flyover) builds the 3D town from, so no
-/// coordinate is ever transcribed by hand. Written by Main's <c>--dump-world</c> dev
-/// flag; the output is GENERATED: never commit a dump.
+/// Exports every EXTERIOR map's geography as one JSON document, so no coordinate is
+/// ever transcribed by hand and two dumps diff to show exactly what a map change
+/// moved. Written by Main's <c>--dump-world</c> dev flag; the output is GENERATED:
+/// never commit a dump.
 ///
 /// Read from the maps themselves: each exterior (MapIds.All minus interiors, in that
 /// order) is built headless under a host node, exactly as the game builds it, and

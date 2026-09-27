@@ -279,9 +279,8 @@ public partial class Main : Node2D
                 CallDeferred(nameof(DumpContentAndQuit), args[i + 1]);
 
             // Dev-only: write every exterior map's geography as JSON (WorldDump —
-            // surfaces, footprints, props, lights, sign text, exits) for the intro
-            // flyover's Blender generator (tools/flyover), then quit. GENERATED:
-            // never commit a dump.
+            // surfaces, footprints, props, lights, sign text, exits), then quit.
+            // GENERATED: never commit a dump.
             if (args[i] == "--dump-world")
                 CallDeferred(nameof(DumpWorldAndQuit), args[i + 1]);
 

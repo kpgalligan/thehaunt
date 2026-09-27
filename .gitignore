@@ -21,6 +21,4 @@ obj/
 # Tiled per-user session state (data/maps/tiled)
 *.tiled-session
 
-# Flyover build output (tools/flyover)
-tools/flyover/out/
 __pycache__/
